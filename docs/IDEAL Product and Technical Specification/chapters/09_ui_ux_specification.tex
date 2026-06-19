@@ -1,0 +1,24 @@
+\chapter{UI/UX Specification}
+\section{Mobile Route Catalog}
+\begin{longtable}{p{0.24\textwidth}p{0.22\textwidth}p{0.24\textwidth}p{0.18\textwidth}}
+\toprule
+Screen & Route Name & Path & API Dependency \\
+\midrule
+Splash & splash & / & Health/session \\
+Welcome & welcome & /welcome & None \\
+Login & login & /login & Auth \\
+Register & register & /register & Auth \\
+Forgot password & forgot-password & /forgot-password & Auth \\
+Home dashboard & home & /home & Deals, notifications \\
+Deals list & deals & /deals & GET /deals \\
+Deal details & deal-details & /deals/:id & GET /deals/:id \\
+Create deal & create-deal & /deals/new & POST /deals \\
+Approval & approval & /versions/:id/approval & Approvals \\
+Files & files & /deals/:id/files & Signed file URLs \\
+Profile & profile & /profile & Profiles \\
+KYC & kyc & /kyc & KYC \\
+Subscription & subscription & /subscription & Subscriptions \\
+\bottomrule
+\end{longtable}
+\section{State Rules}
+Screens must include loading, empty, error, and permission-denied states. Protected screens must rely on API authorization responses rather than local assumptions.

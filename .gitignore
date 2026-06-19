@@ -28,12 +28,15 @@ Thumbs.db
 **/ios/Flutter/Generated.xcconfig
 **/ios/Flutter/flutter_export_environment.sh
 **/ios/Flutter/ephemeral/
+**/ios/Runner/GeneratedPluginRegistrant.h
+**/ios/Runner/GeneratedPluginRegistrant.m
 **/linux/flutter/ephemeral/
 **/macos/Flutter/ephemeral/
 **/android/local.properties
 **/android/.gradle/
 **/android/captures/
 **/android/.cxx/
+**/android/app/src/main/java/
 app.*.symbols
 app.*.map.json
 
@@ -63,3 +66,16 @@ yarn-error.log*
 
 # Supabase local files added later
 .supabase/
+
+# LaTeX generated files
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.log
+*.lot
+*.out
+*.synctex.gz
+*.toc

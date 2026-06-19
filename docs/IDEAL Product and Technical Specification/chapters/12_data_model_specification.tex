@@ -1,0 +1,28 @@
+\chapter{Data Model Specification}
+\section{Core Tables}
+Core tables are profiles, companies, company\_members, kyc\_submissions, trust\_counters, deals, deal\_parties, deal\_versions, deal\_approvals, deal\_files, messages, notifications, subscriptions, audit\_logs, admin\_actions, and reports.
+\section{Relationships}
+A profile belongs to an auth user. A company has many members. A deal has many parties, versions, files, and messages. A version has many approvals. A user has trust counters and notifications. An admin action belongs to an admin profile.
+
+\section{Implementation Schema}
+\begin{longtable}{p{0.18\textwidth}p{0.3\textwidth}p{0.2\textwidth}p{0.22\textwidth}}
+\toprule
+Table & Required Columns & Keys and Indexes & Ownership and Retention \\
+\midrule
+\texttt{profiles} & \texttt{id}, \texttt{auth\_user\_id}, \texttt{display\_name}, \texttt{avatar\_url}, \texttt{kyc\_status}, timestamps & pk \texttt{id}, unique \texttt{auth\_user\_id}, index \texttt{kyc\_status} & User-owned; retained while account exists. \\
+\texttt{companies} & \texttt{id}, \texttt{owner\_profile\_id}, \texttt{legal\_name}, \texttt{status}, timestamps & pk \texttt{id}, fk \texttt{owner\_profile\_id}, index \texttt{status} & Owner-managed; soft delete. \\
+\texttt{company\_members} & \texttt{id}, \texttt{company\_id}, \texttt{profile\_id}, \texttt{role}, \texttt{status} & unique company/profile, indexes company/profile & Company owner managed. \\
+\texttt{deals} & \texttt{id}, \texttt{creator\_profile\_id}, \texttt{company\_id}, \texttt{title}, \texttt{status}, \texttt{current\_version\_id}, timestamps & pk \texttt{id}, fk creator, index status/creator & Creator and parties; archive not hard delete. \\
+\texttt{deal\_parties} & \texttt{id}, \texttt{deal\_id}, \texttt{profile\_id}, \texttt{email}, \texttt{party\_status}, \texttt{required\_approval} & unique deal/email, indexes deal/profile/status & Deal creator and invited party. \\
+\texttt{deal\_versions} & \texttt{id}, \texttt{deal\_id}, \texttt{version\_number}, \texttt{status}, \texttt{terms\_json}, \texttt{locked\_at} & unique deal/version, index deal/status & Immutable after \texttt{locked\_at}. \\
+\texttt{deal\_approvals} & \texttt{id}, \texttt{version\_id}, \texttt{party\_id}, \texttt{approval\_status}, \texttt{reason}, \texttt{decided\_at} & unique version/party, index approval status & Required party-owned decision. \\
+\texttt{deal\_files} & \texttt{id}, \texttt{deal\_id}, \texttt{version\_id}, \texttt{storage\_bucket}, \texttt{storage\_path}, \texttt{file\_type}, \texttt{visibility} & index deal/version & Private; retained with deal history. \\
+\texttt{messages} & \texttt{id}, \texttt{deal\_id}, \texttt{sender\_profile\_id}, \texttt{body}, \texttt{message\_status}, \texttt{created\_at} & index deal/created time & Participant-only access. \\
+\texttt{notifications} & \texttt{id}, \texttt{profile\_id}, \texttt{notification\_type}, \texttt{payload\_json}, \texttt{read\_at}, \texttt{created\_at} & index profile/read state & User-owned; retention policy by age. \\
+\texttt{kyc\_submissions} & \texttt{id}, \texttt{profile\_id}, \texttt{status}, \texttt{provider\_reference}, \texttt{rejection\_reason}, review timestamps & index profile/status & Private; admin/backend only. \\
+\texttt{audit\_logs} & \texttt{id}, \texttt{actor\_profile\_id}, \texttt{action\_type}, \texttt{resource\_type}, \texttt{resource\_id}, \texttt{metadata\_json}, \texttt{created\_at} & index action/resource/time & Immutable platform record. \\
+\bottomrule
+\end{longtable}
+
+\section{Migration Plan}
+Migrations must be numbered and named by intent, for example \texttt{202606190001\_initial\_schema.sql}. The first migration creates enums and tables, the second creates indexes, the third enables RLS, the fourth creates storage buckets and policies, and seed scripts create development-only sample users, deals, parties, and approvals. Rollbacks must be documented before production migration execution.

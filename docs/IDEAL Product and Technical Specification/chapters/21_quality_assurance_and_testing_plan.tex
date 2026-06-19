@@ -1,0 +1,25 @@
+\chapter{Quality Assurance and Testing Plan}
+Testing includes unit tests, integration tests, API tests, database tests, security tests, RLS tests where direct Supabase access exists, E2E tests, manual QA, acceptance testing, and regression testing.
+\section{Required Scenarios}
+Registration, login, password reset, deal creation, party invitation, approval, rejection, locked version immutability, unauthorized access denial, file access denial to non-participants, subscription limit enforcement, and admin action audit.
+
+\section{Testing Matrix}
+\begin{longtable}{p{0.12\textwidth}p{0.25\textwidth}p{0.16\textwidth}p{0.17\textwidth}p{0.2\textwidth}}
+\toprule
+ID & Scenario & Priority & Owner & Automation Target \\
+\midrule
+QA-001 & API configuration status responds. & High & Backend & Jest and admin smoke test. \\
+QA-002 & Create deal validates request body. & High & Backend & Unit and integration. \\
+QA-003 & Unauthorized user cannot read deal. & High & Backend/Database & API and RLS test. \\
+QA-004 & Required party approval locks version. & High & Backend & Integration. \\
+QA-005 & Locked version cannot be edited. & High & Backend & Unit and integration. \\
+QA-006 & Admin KYC decision writes audit log. & High & Admin/Backend & E2E. \\
+QA-007 & File signed URL denied to non-participant. & High & Backend/Storage & API test. \\
+QA-008 & Mobile displays API configuration. & Medium & Mobile & Widget test. \\
+QA-009 & Admin dashboard shows connected/unreachable states. & High & Admin & Component/E2E. \\
+QA-010 & PDF documentation builds. & Medium & Documentation & CI make build. \\
+\bottomrule
+\end{longtable}
+
+\section{CI Checks}
+CI must run Flutter analyze, Flutter test, NestJS lint, NestJS test, Next.js lint, Next.js build, Prisma validate/generate after adoption, database migration check, security checks, and PDF documentation build.

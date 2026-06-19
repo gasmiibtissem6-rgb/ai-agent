@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 
+import 'core/config/api_config.dart';
+import 'core/network/api_client.dart';
+import 'core/network/api_endpoints.dart';
+
 void main() {
   runApp(const IdealApp());
 }
@@ -21,8 +25,18 @@ class IdealApp extends StatelessWidget {
   }
 }
 
-class WelcomeScreen extends StatelessWidget {
+class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
+
+  @override
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends State<WelcomeScreen> {
+  static const _apiClient = ApiClient();
+
+  _ProbeState _configurationProbe = const _ProbeState.idle();
+  _ProbeState _dealProbe = const _ProbeState.idle();
 
   static const areas = [
     _AreaItem(
@@ -58,6 +72,22 @@ class WelcomeScreen extends StatelessWidget {
     ),
   ];
 
+  Future<void> _runProbe({
+    required String endpoint,
+    required void Function(_ProbeState state) update,
+  }) async {
+    update(const _ProbeState.loading());
+
+    try {
+      final response = await _apiClient.getJson(endpoint);
+      final label = response['message'] ?? response['module'] ?? 'Connected';
+
+      update(_ProbeState.success(label.toString()));
+    } catch (error) {
+      update(_ProbeState.error(error.toString()));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -85,6 +115,49 @@ class WelcomeScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 32),
+            Card(
+              elevation: 0,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Backend API foundation',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(ApiConfig.baseUrl),
+                    const SizedBox(height: 12),
+                    _ApiProbeButton(
+                      label: 'Test configuration',
+                      endpoint: ApiEndpoints.configurationStatus,
+                      state: _configurationProbe,
+                      onPressed: () => _runProbe(
+                        endpoint: ApiEndpoints.configurationStatus,
+                        update: (state) =>
+                            setState(() => _configurationProbe = state),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _ApiProbeButton(
+                      label: 'Test deal readiness',
+                      endpoint: ApiEndpoints.dealFoundation,
+                      state: _dealProbe,
+                      onPressed: () => _runProbe(
+                        endpoint: ApiEndpoints.dealFoundation,
+                        update: (state) => setState(() => _dealProbe = state),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
             Text(
               'Main areas',
               style: Theme.of(
@@ -103,6 +176,103 @@ class WelcomeScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+class _ApiProbeButton extends StatelessWidget {
+  const _ApiProbeButton({
+    required this.endpoint,
+    required this.label,
+    required this.onPressed,
+    required this.state,
+  });
+
+  final String endpoint;
+  final String label;
+  final VoidCallback onPressed;
+  final _ProbeState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isLoading = state.status == _ProbeStatus.loading;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(8),
+        color: colorScheme.surface,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        endpoint,
+                        style: TextStyle(
+                          color: colorScheme.primary,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                FilledButton(
+                  onPressed: isLoading ? null : onPressed,
+                  child: Text(isLoading ? 'Testing...' : 'Test'),
+                ),
+              ],
+            ),
+            if (state.message != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                state.message!,
+                style: TextStyle(
+                  color: switch (state.status) {
+                    _ProbeStatus.success => Colors.green.shade800,
+                    _ProbeStatus.error => Colors.red.shade800,
+                    _ => Colors.black54,
+                  },
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+enum _ProbeStatus { idle, loading, success, error }
+
+class _ProbeState {
+  const _ProbeState._(this.status, [this.message]);
+
+  const _ProbeState.idle() : this._(_ProbeStatus.idle);
+
+  const _ProbeState.loading()
+    : this._(_ProbeStatus.loading, 'Waiting for backend response...');
+
+  const _ProbeState.success(String message)
+    : this._(_ProbeStatus.success, 'Connected: $message');
+
+  const _ProbeState.error(String message)
+    : this._(_ProbeStatus.error, 'Failed: $message');
+
+  final _ProbeStatus status;
+  final String? message;
 }
 
 class _Logo extends StatelessWidget {

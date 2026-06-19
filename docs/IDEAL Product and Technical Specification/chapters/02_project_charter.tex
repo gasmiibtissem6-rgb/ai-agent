@@ -1,0 +1,28 @@
+\chapter{Project Charter}
+\section{Vision}
+\projectname{} will become the trusted workflow layer for digital deals and contracts, with transparent approvals and immutable approved versions.
+\section{Problem Statement}
+Users often negotiate agreements through fragmented messages, documents, and verbal confirmation. The result is weak traceability, unclear approvals, and unsafe post-approval editing.
+\section{Goals}
+\begin{itemize}
+  \item Provide a simple deal workflow for individuals and companies.
+  \item Lock approved contract versions and preserve historical versions.
+  \item Centralize sensitive workflows inside the backend API.
+  \item Give admins audited review and moderation tools.
+\end{itemize}
+\section{Non-Goals}
+The MVP does not include AI drafting, legal template marketplaces, advanced analytics, enterprise contract lifecycle management, or automated multi-country compliance.
+\section{Success Criteria}
+The MVP is successful when users can create, invite, negotiate, approve, lock, and revise deals with backend-enforced access control and audit logs.
+\section{Ownership}
+\begin{longtable}{p{0.28\textwidth}p{0.62\textwidth}}
+\toprule
+Role & Ownership \\
+\midrule
+Mobile owner & Flutter application and presentation workflows. \\
+Backend owner & NestJS API, business logic, integrations, guards, and audit triggers. \\
+Database owner & Supabase schema, migrations, RLS, storage policies, and retention. \\
+Documentation owner & Product and technical specifications. \\
+Project lead & Final decisions, scope approval, and prioritization. \\
+\bottomrule
+\end{longtable}

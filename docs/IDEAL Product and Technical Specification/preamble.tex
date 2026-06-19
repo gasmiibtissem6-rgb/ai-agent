@@ -1,0 +1,77 @@
+% !TeX root = main.tex
+\documentclass[11pt,a4paper,oneside]{report}
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage[most]{tcolorbox}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{float}
+
+\definecolor{IdealBlue}{HTML}{1D4ED8}
+\definecolor{IdealInk}{HTML}{111827}
+\definecolor{IdealMuted}{HTML}{4B5563}
+\definecolor{IdealRule}{HTML}{E5E7EB}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=IdealBlue,
+  urlcolor=IdealBlue,
+  citecolor=IdealBlue,
+  pdftitle={IDEAL Product and Technical Specification},
+  pdfauthor={IDEAL Project Team}
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{\projectname}
+\rhead{\docversion}
+\cfoot{\thepage}
+\setlength{\headheight}{14pt}
+
+\setlist[itemize]{topsep=4pt,itemsep=2pt}
+\setlist[enumerate]{topsep=4pt,itemsep=2pt}
+\renewcommand{\arraystretch}{1.2}
+\hyphenpenalty=8000
+\exhyphenpenalty=8000
+\sloppy
+
+\lstdefinestyle{idealcode}{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  rulecolor=\color{IdealRule},
+  keywordstyle=\color{IdealBlue}\bfseries,
+  commentstyle=\color{IdealMuted}
+}
+\lstset{style=idealcode}
+
+\newtcolorbox{notebox}{colback=blue!3,colframe=IdealBlue,title=Important Note}
+\newtcolorbox{riskbox}{colback=red!3,colframe=red!60!black,title=Risk}
+\newtcolorbox{decisionbox}{colback=green!3,colframe=green!45!black,title=Decision}
+
+\newcommand{\standalonepreamblebuild}{%
+  \providecommand{\projectname}{IDEAL}
+  \providecommand{\docversion}{Report Preamble}
+  \begin{document}
+  This file is part of the IDEAL report preamble. Build main.tex or run
+  build-report.sh to generate the complete PDF.
+  \end{document}
+}
+
+\ifnum\pdfstrcmp{\jobname}{preamble}=0
+  \let\runstandalonepreamblebuild\standalonepreamblebuild
+\else
+  \let\runstandalonepreamblebuild\relax
+\fi
+\runstandalonepreamblebuild

@@ -1,0 +1,36 @@
+\chapter{Admin Dashboard Specification}
+The Next.js admin dashboard is responsible for user management, KYC review, deal activity monitoring, report handling, subscription visibility, trust event inspection, audit log review, admin user management, and platform configuration.
+\importantnote{The admin dashboard must call NestJS APIs. It must not bypass backend authorization by directly writing to the database.}
+
+\section{Admin Route Catalog}
+\begin{longtable}{p{0.24\textwidth}p{0.28\textwidth}p{0.36\textwidth}}
+\toprule
+Route & API Dependencies & Responsibility \\
+\midrule
+/admin & /configuration/status, /health & Operational overview and backend connectivity. \\
+/admin/users & /admin/users & Search users, inspect profiles, suspend access. \\
+/admin/users/:id & /admin/users/:id, /admin/audit-logs & User details and action history. \\
+/admin/kyc & /admin/kyc/submissions & KYC queue by status and priority. \\
+/admin/kyc/:id & /admin/kyc/:id/approve, /reject & Review documents, approve, reject, request resubmission. \\
+/admin/deals & /admin/deals & Monitor deal activity without editing locked versions. \\
+/admin/reports & /admin/reports & Review platform reports and moderation state. \\
+/admin/subscriptions & /admin/subscriptions & View subscription state and webhook history. \\
+/admin/audit-logs & /admin/audit-logs & Filter immutable audit events. \\
+/admin/settings & /admin/settings & Platform configuration for authorized super admins. \\
+\bottomrule
+\end{longtable}
+
+\section{KYC Review Workflow}
+An admin opens the KYC queue, filters submitted records, reviews private signed document previews issued by the backend, records an approval or rejection reason, and the backend writes an audit event plus a user notification. The dashboard must show loading, empty, error, permission denied, and stale-review states.
+
+\section{Permission Matrix}
+\begin{longtable}{p{0.22\textwidth}p{0.28\textwidth}p{0.38\textwidth}}
+\toprule
+Role & Allowed Areas & Restrictions \\
+\midrule
+admin & Users, KYC, reports, deal monitoring, audit read & Cannot manage super admins or bypass backend workflows. \\
+super admin & All admin areas, platform settings, admin management & All actions audited; production changes require approval. \\
+support reviewer & Users, reports, selected audit views & No KYC approval or subscription changes. \\
+finance reviewer & Subscriptions and payment history & No KYC or deal moderation actions. \\
+\bottomrule
+\end{longtable}

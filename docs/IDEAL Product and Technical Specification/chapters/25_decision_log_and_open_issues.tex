@@ -1,0 +1,25 @@
+\chapter{Decision Log and Open Issues}
+\section{Current Decisions}
+\begin{itemize}
+  \item Flutter is the mobile app framework.
+  \item Next.js is the admin dashboard framework.
+  \item NestJS is the backend API framework.
+  \item Supabase PostgreSQL, Auth, Storage, and Realtime are target platform services.
+  \item Backend owns business logic and audit enforcement.
+\end{itemize}
+\section{Open Issues}
+Select KYC provider, finalize ORM adoption, define initial Supabase migrations, confirm subscription trial limits, and define CI/CD deployment targets.
+
+\section{Document Control}
+\begin{longtable}{p{0.24\textwidth}p{0.66\textwidth}}
+\toprule
+Field & Value \\
+\midrule
+Document owner & Documentation owner under project lead authority. \\
+Reviewers & Mobile owner, backend owner, database owner, admin owner, QA representative. \\
+Approvers & Project lead and designated technical lead. \\
+Confidentiality & Internal project team and authorized stakeholders. \\
+Status meaning & Draft for Team Alignment means implementation may begin, but production release requires approval sign-off. \\
+Change control & Any change to API, database, security, or lifecycle rules must update this document and the OpenAPI file in the same pull request. \\
+\bottomrule
+\end{longtable}

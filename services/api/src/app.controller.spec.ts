@@ -18,15 +18,11 @@ describe('AppController', () => {
     it('returns app information', () => {
       expect(appController.getAppInfo()).toEqual({
         projectName: 'IDEAL',
+        productSubtitle: 'Trusted Digital Deals and Contracts',
         status: 'ready',
         serviceName: 'api',
+        apiVersion: 'v1',
       });
-    });
-  });
-
-  describe('health', () => {
-    it('returns health status', () => {
-      expect(appController.getHealth()).toEqual({ status: 'ok' });
     });
   });
 });

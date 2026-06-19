@@ -1,0 +1,13 @@
+\chapter{Risk Register}
+\begin{longtable}{p{0.1\textwidth}p{0.34\textwidth}p{0.14\textwidth}p{0.14\textwidth}p{0.18\textwidth}}
+\toprule
+ID & Description & Probability & Impact & Mitigation \\
+\midrule
+R-001 & Architecture drift. & Medium & High & Keep backend ownership documented and reviewed. \\
+R-002 & Flutter direct database coupling. & Medium & High & Route business actions through API clients. \\
+R-003 & Missing API contracts. & Medium & High & Maintain endpoint catalog. \\
+R-004 & Weak RLS or storage policies. & Medium & High & Security review and tests. \\
+R-005 & Unclear KYC provider. & High & Medium & Use provider abstraction and placeholder status. \\
+R-006 & Overbuilt MVP. & Medium & Medium & Enforce MVP scope statement. \\
+\bottomrule
+\end{longtable}

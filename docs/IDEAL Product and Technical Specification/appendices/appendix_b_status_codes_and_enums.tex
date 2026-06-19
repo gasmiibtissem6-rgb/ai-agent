@@ -1,0 +1,25 @@
+\chapter{Status Codes and Enums}
+\section{Deal Status}
+draft, negotiation, pending\_approval, approved, locked, changes\_requested, rejected, cancelled, archived.
+\section{KYC Status}
+not\_started, submitted, under\_review, approved, rejected, resubmission\_required.
+\section{Subscription Status}
+trialing, active, past\_due, cancelled, expired.
+\section{Additional Enums}
+\begin{longtable}{p{0.28\textwidth}p{0.62\textwidth}}
+\toprule
+Enum & Values \\
+\midrule
+party\_status & invited, accepted, declined, removed, expired \\
+approval\_status & pending, approved, rejected, changes\_requested, invalidated \\
+notification\_type & deal\_invitation, approval\_requested, approved, rejected, changes\_requested, file\_uploaded, kyc\_updated, subscription\_updated, admin\_action \\
+file\_type & avatar, deal\_attachment, kyc\_document, generated\_contract \\
+file\_visibility & private, participant\_private, admin\_private \\
+company\_member\_role & owner, manager, member, viewer \\
+admin\_role & super\_admin, admin, support\_reviewer, finance\_reviewer \\
+audit\_action\_type & account\_created, kyc\_submitted, kyc\_approved, deal\_created, party\_invited, version\_created, version\_approved, version\_locked, file\_uploaded, subscription\_event, admin\_action \\
+report\_status & open, under\_review, resolved, dismissed \\
+message\_status & sent, edited, deleted, hidden \\
+invitation\_status & pending, accepted, declined, expired, revoked \\
+\bottomrule
+\end{longtable}

@@ -1,0 +1,15 @@
+\chapter{Product Requirements Document}
+\section{Product Overview}
+\projectname{} enables trusted digital deal management from draft to locked approval.
+\section{Target Users}
+Guests, registered users, verified users, deal creators, invited parties, company owners, company members, admins, super admins, and system service accounts.
+\section{Core Capabilities}
+\begin{itemize}
+  \item User account, profile, identity verification, and trust counters.
+  \item Deal creation, invitation, negotiation, versioning, approval, rejection, and locking.
+  \item Deal-scoped chat, private file attachments, notifications, subscriptions, and admin moderation.
+\end{itemize}
+\section{Constraints and Dependencies}
+The backend must be the source of truth for business rules. Stripe, Supabase, and the KYC provider are external dependencies. Frontend applications may display state but must not directly mutate protected business state.
+\section{Product Acceptance Criteria}
+Users can complete the MVP deal lifecycle, unauthorized users cannot access protected deals or files, locked versions cannot be edited, and every sensitive action is auditable.

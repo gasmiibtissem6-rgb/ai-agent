@@ -1,0 +1,50 @@
+\chapter{Security and Access Control Specification}
+\section{Rules}
+JWT validation, RBAC, resource-based access control, admin authorization, RLS, private storage policies, KYC document privacy, audit logging, service role restrictions, secret handling, password reset security, rate limiting, input validation, CORS, and error handling are required.
+\section{Access Controls}
+\begin{itemize}
+  \item Users can only access deals where they are creator or participant.
+  \item Users can only approve versions for deals where they are required parties.
+  \item Users cannot approve on behalf of another user.
+  \item Users cannot edit locked versions.
+  \item Admins can review users and KYC, but actions must be audited.
+  \item Private files are never public.
+\end{itemize}
+
+\section{RLS and Storage Policy Specification}
+\begin{longtable}{p{0.22\textwidth}p{0.34\textwidth}p{0.34\textwidth}}
+\toprule
+Resource & Read Policy & Write Policy \\
+\midrule
+\texttt{profiles} & Authenticated user can read own profile; admins can read reviewed profiles. & User can update safe profile fields; KYC and trust fields backend-only. \\
+\texttt{deals} & Creator or participant can read. & Creator can create; lifecycle updates through backend service role only. \\
+\texttt{deal\_parties} & Deal participants can read party list. & Creator can invite through API; direct client insert disabled. \\
+\texttt{deal\_versions} & Deal participants can read versions. & Draft creation through API; locked versions never update. \\
+\texttt{deal\_approvals} & Deal participants can read approval state. & Required party can approve only for own party row through API. \\
+\texttt{deal\_files} & Deal participants can read metadata. & Upload metadata through API after signed URL authorization. \\
+\texttt{messages} & Deal participants can read. & Participants can create through API; moderation can hide. \\
+\texttt{kyc\_submissions} & User can read own status summary; admins can read queue. & Submission through API; review admin-only. \\
+\texttt{audit\_logs} & Admin-only. & Insert backend-only; update and delete disabled. \\
+\bottomrule
+\end{longtable}
+
+Storage buckets are private. The \texttt{avatars} bucket may expose signed read URLs for profile display. The \texttt{deal-files} bucket is accessible only to authorized deal participants through signed URLs. The \texttt{kyc-documents} bucket is accessible only to backend and authorized admin workflows.
+
+\section{Environment Variable Catalog}
+\begin{longtable}{p{0.32\textwidth}p{0.18\textwidth}p{0.4\textwidth}}
+\toprule
+Variable & Scope & Purpose \\
+\midrule
+API\_PORT & API & Local API port, default 3001. \\
+DATABASE\_URL & API & Supabase PostgreSQL connection string. \\
+SUPABASE\_URL & API/Admin/Mobile & Supabase project URL. \\
+SUPABASE\_ANON\_KEY & Client & Public anon key for auth session lifecycle only. \\
+SUPABASE\_SERVICE\_ROLE\_KEY & API only & Backend privileged operations; never exposed to clients. \\
+SUPABASE\_JWT\_SECRET & API & JWT verification when required by auth strategy. \\
+STRIPE\_SECRET\_KEY & API & Stripe checkout and subscription operations. \\
+STRIPE\_WEBHOOK\_SECRET & API & Stripe webhook signature verification. \\
+KYC\_PROVIDER\_API\_KEY & API & External identity provider integration. \\
+NEXT\_PUBLIC\_API\_BASE\_URL & Admin & Browser-visible NestJS API base URL. \\
+IDEAL\_API\_BASE\_URL & Mobile & Flutter compile-time API base URL. \\
+\bottomrule
+\end{longtable}

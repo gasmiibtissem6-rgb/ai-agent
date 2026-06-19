@@ -1,0 +1,17 @@
+\chapter{Stakeholders and User Roles}
+\begin{longtable}{p{0.18\textwidth}p{0.28\textwidth}p{0.28\textwidth}p{0.16\textwidth}}
+\toprule
+Role & Permissions & Restrictions & Backend Rule \\
+\midrule
+Guest & View public entry points. & No protected data access. & Anonymous only. \\
+Registered user & Manage own profile and create deals. & No verified-only actions if KYC required. & JWT required. \\
+Verified user & Use trust-sensitive workflows. & Cannot approve for others. & KYC status checked. \\
+Deal creator & Manage drafts, invite parties, submit versions. & Cannot edit locked versions. & Creator or participant check. \\
+Invited party & Review, approve, reject, request changes. & Cannot manage unrelated parties. & Party membership check. \\
+Company owner & Manage company settings and members. & Cannot bypass deal rules. & Company RBAC. \\
+Company member & Act within assigned company permissions. & Limited by role. & Company RBAC. \\
+Admin & Review users, KYC, reports, deals, audits. & All actions audited. & Admin guard. \\
+Super admin & Manage platform admins and settings. & Highest accountability. & Super-admin guard. \\
+Service account & Run backend integrations. & No interactive login. & Scoped service credentials. \\
+\bottomrule
+\end{longtable}

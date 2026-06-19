@@ -1,0 +1,39 @@
+\chapter{System Architecture Specification}
+\section{Layer Responsibilities}
+\begin{itemize}
+  \item Flutter owns mobile presentation and local UI state.
+  \item Next.js owns internal admin presentation.
+  \item NestJS owns business workflows, authorization, integrations, and audit triggers.
+  \item Supabase PostgreSQL owns persistence.
+  \item Supabase Auth owns authentication session lifecycle.
+  \item Supabase Storage owns private file bytes.
+  \item Stripe owns payment checkout and subscription events.
+\end{itemize}
+\decisionnote{Backend owns business logic; frontend owns presentation; database owns persistence; storage is private by default; all sensitive actions are audited.}
+
+\section{System Context Diagram}
+\begin{figure}[H]
+\centering
+\begin{tabular}{c}
+Flutter Mobile App \\
+$\downarrow$ HTTPS API calls \\
+NestJS API: auth guards, business workflows, audit, integrations \\
+$\downarrow$ \\
+Supabase PostgreSQL, Supabase Storage, Supabase Auth, Stripe, KYC Provider \\
+$\uparrow$ \\
+Next.js Admin Dashboard through NestJS only
+\end{tabular}
+\caption{IDEAL target architecture data flow}
+\end{figure}
+
+\section{Authentication Flow}
+\begin{figure}[H]
+\centering
+\begin{tabular}{rcl}
+User & $\rightarrow$ & Supabase Auth session \\
+Client & $\rightarrow$ & NestJS API with Bearer JWT \\
+NestJS guard & $\rightarrow$ & Validate JWT, resolve profile, enforce role \\
+Controller & $\rightarrow$ & Execute authorized workflow and write audit events
+\end{tabular}
+\caption{Authentication and authorization flow}
+\end{figure}

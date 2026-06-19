@@ -1,0 +1,20 @@
+\chapter{Software Requirements Specification}
+\section{Requirement Catalog}
+\begin{longtable}{p{0.12\textwidth}p{0.2\textwidth}p{0.31\textwidth}p{0.12\textwidth}p{0.15\textwidth}}
+\toprule
+ID & Title & Description & Priority & Owner \\
+\midrule
+FR-001 & Create Deal & Authenticated users can create draft deals. & High & API \\
+FR-002 & Approve Version & Required parties can approve the same submitted version. & High & API \\
+FR-003 & Lock Version & A fully approved version becomes official and immutable. & High & API \\
+FR-004 & Signed Files & File uploads and downloads use backend-authorized signed URLs. & High & API \\
+NFR-001 & Maintainability & Modules follow clear ownership boundaries. & High & All \\
+NFR-002 & Observability & Sensitive workflows expose logs and audit records. & Medium & API \\
+SEC-001 & Auth Enforcement & Protected endpoints validate JWT sessions. & High & API \\
+SEC-002 & Resource Access & Users only access deals where they are creator or participant. & High & API \\
+AUD-001 & Audit Actions & Sensitive actions create immutable audit logs. & High & API \\
+AUD-002 & Admin Actions & Admin decisions are attributable and reviewable. & High & API \\
+\bottomrule
+\end{longtable}
+\section{Acceptance Criteria}
+Each requirement is accepted when it has automated coverage where practical, documented API behavior, validation rules, error cases, and ownership assigned.

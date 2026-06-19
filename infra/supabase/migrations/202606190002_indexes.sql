@@ -1,0 +1,33 @@
+-- IDEAL lookup and operational indexes.
+
+create index if not exists idx_profiles_auth_user_id on profiles(auth_user_id);
+create index if not exists idx_profiles_email on profiles(email);
+create index if not exists idx_profiles_kyc_status on profiles(kyc_status);
+create index if not exists idx_companies_owner_profile_id on companies(owner_profile_id);
+create index if not exists idx_company_members_company_id on company_members(company_id);
+create index if not exists idx_company_members_profile_id on company_members(profile_id);
+create index if not exists idx_deals_creator_profile_id on deals(creator_profile_id);
+create index if not exists idx_deals_company_id on deals(company_id);
+create index if not exists idx_deals_status on deals(status);
+create index if not exists idx_deal_parties_deal_id on deal_parties(deal_id);
+create index if not exists idx_deal_parties_profile_id on deal_parties(profile_id);
+create index if not exists idx_deal_parties_email on deal_parties(email);
+create index if not exists idx_deal_versions_deal_id on deal_versions(deal_id);
+create index if not exists idx_deal_versions_status on deal_versions(status);
+create index if not exists idx_deal_approvals_version_id on deal_approvals(version_id);
+create index if not exists idx_deal_approvals_party_id on deal_approvals(party_id);
+create index if not exists idx_deal_files_deal_id on deal_files(deal_id);
+create index if not exists idx_deal_files_version_id on deal_files(version_id);
+create index if not exists idx_deal_files_kyc_submission_id on deal_files(kyc_submission_id);
+create index if not exists idx_messages_deal_id on messages(deal_id);
+create index if not exists idx_messages_created_at on messages(created_at);
+create index if not exists idx_notifications_profile_id on notifications(profile_id);
+create index if not exists idx_notifications_read_at on notifications(read_at);
+create index if not exists idx_subscriptions_profile_id on subscriptions(profile_id);
+create index if not exists idx_subscriptions_company_id on subscriptions(company_id);
+create index if not exists idx_audit_logs_action_type on audit_logs(action_type);
+create index if not exists idx_audit_logs_resource_type on audit_logs(resource_type);
+create index if not exists idx_audit_logs_resource_id on audit_logs(resource_id);
+create index if not exists idx_audit_logs_created_at on audit_logs(created_at);
+create index if not exists idx_admin_actions_admin_profile_id on admin_actions(admin_profile_id);
+create index if not exists idx_reports_status on reports(status);

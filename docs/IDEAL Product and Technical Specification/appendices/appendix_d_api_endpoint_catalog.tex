@@ -1,0 +1,24 @@
+\chapter{API Endpoint Catalog}
+The canonical machine-readable starting point is \texttt{docs/api/openapi.yaml}. This appendix summarizes the implementation contract that frontend and backend engineers must follow.
+
+\begin{longtable}{p{0.08\textwidth}p{0.27\textwidth}p{0.18\textwidth}p{0.2\textwidth}p{0.15\textwidth}}
+\toprule
+Method & Endpoint & Request & Response & Errors \\
+\midrule
+GET & /configuration/status & none & ConfigurationStatus & 500 \\
+GET & /health & none & HealthStatus & 500 \\
+POST & /deals & CreateDealDto & DealSummary & VALIDATION\_ERROR, SUBSCRIPTION\_LIMIT \\
+GET & /deals & DealListQueryDto & PaginatedDealList & UNAUTHORIZED \\
+GET & /deals/:dealId & DealParamsDto & DealDetails & FORBIDDEN, NOT\_FOUND \\
+POST & /deals/:dealId/parties & InviteDealPartyDto & DealParty & DUPLICATE\_PARTY \\
+POST & /deals/:dealId/versions & CreateDealVersionDto & DealVersion & DEAL\_LOCKED, VERSION\_CONFLICT \\
+POST & /deal-versions/:versionId/submit & none & DealVersion & VERSION\_CONFLICT \\
+POST & /deal-versions/:versionId/approve & ApprovalDecisionDto & ApprovalResult & FORBIDDEN, VERSION\_CONFLICT \\
+POST & /deal-versions/:versionId/reject & ApprovalDecisionDto & ApprovalResult & FORBIDDEN \\
+POST & /deal-versions/:versionId/request-changes & ApprovalDecisionDto & ApprovalResult & FORBIDDEN \\
+POST & /files/signed-upload-url & SignedUploadUrlDto & SignedUrlResponse & FILE\_TOO\_LARGE, FORBIDDEN \\
+GET & /notifications & NotificationQueryDto & PaginatedNotifications & UNAUTHORIZED \\
+POST & /subscriptions/checkout & CheckoutDto & CheckoutSession & PAYMENT\_CONFIGURATION\_MISSING \\
+POST & /admin/kyc/:submissionId/approve & AdminKycDecisionDto & KycSubmission & ADMIN\_ONLY \\
+\bottomrule
+\end{longtable}

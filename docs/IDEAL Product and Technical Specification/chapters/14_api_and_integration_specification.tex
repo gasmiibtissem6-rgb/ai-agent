@@ -1,0 +1,83 @@
+\chapter{API and Integration Specification}
+\section{Base Path}
+All planned REST endpoints use \texttt{/api/v1}.
+\section{Endpoint Examples}
+\begin{longtable}{p{0.14\textwidth}p{0.36\textwidth}p{0.36\textwidth}}
+\toprule
+Method & Path & Purpose \\
+\midrule
+POST & /api/v1/deals & Create a draft deal. \\
+GET & /api/v1/deals & List authorized deals. \\
+GET & /api/v1/deals/:dealId & Read one authorized deal. \\
+POST & /api/v1/deals/:dealId/parties & Invite a deal party. \\
+POST & /api/v1/deals/:dealId/versions & Create a version. \\
+POST & /api/v1/deal-versions/:versionId/submit & Submit for approval. \\
+POST & /api/v1/deal-versions/:versionId/approve & Approve version. \\
+POST & /api/v1/deal-versions/:versionId/reject & Reject version. \\
+POST & /api/v1/deal-versions/:versionId/request-changes & Request changes. \\
+POST & /api/v1/files/signed-upload-url & Create signed upload URL. \\
+GET & /api/v1/notifications & List notifications. \\
+POST & /api/v1/subscriptions/checkout & Start Stripe checkout. \\
+POST & /api/v1/admin/kyc/:submissionId/approve & Approve KYC. \\
+\bottomrule
+\end{longtable}
+
+\section{Implementation API Catalog}
+\begin{longtable}{p{0.08\textwidth}p{0.25\textwidth}p{0.18\textwidth}p{0.2\textwidth}p{0.17\textwidth}}
+\toprule
+Method & Path & DTO & Authorization & Audit \\
+\midrule
+GET & /api/v1/configuration/status & none & public in local/staging; protected in production if required & no \\
+GET & /api/v1/health & none & public & no \\
+POST & /api/v1/deals & CreateDealDto & registered or verified user; subscription checked & yes \\
+GET & /api/v1/deals & DealListQueryDto & creator or participant results only & no \\
+GET & /api/v1/deals/:dealId & DealParamsDto & creator, participant, or admin & no \\
+POST & /api/v1/deals/:dealId/parties & InviteDealPartyDto & creator or authorized company owner & yes \\
+POST & /api/v1/deals/:dealId/versions & CreateDealVersionDto & creator or authorized editor; locked version cannot update & yes \\
+POST & /api/v1/deal-versions/:versionId/submit & VersionParamsDto & creator or authorized editor & yes \\
+POST & /api/v1/deal-versions/:versionId/approve & ApprovalDecisionDto & required party only & yes \\
+POST & /api/v1/deal-versions/:versionId/reject & ApprovalDecisionDto & required party only & yes \\
+POST & /api/v1/deal-versions/:versionId/request-changes & ApprovalDecisionDto & participant only & yes \\
+POST & /api/v1/files/signed-upload-url & SignedUploadUrlDto & participant or KYC owner, depending bucket & yes \\
+GET & /api/v1/notifications & NotificationQueryDto & current user only & no \\
+POST & /api/v1/subscriptions/checkout & CheckoutDto & current user or company owner & yes \\
+POST & /api/v1/admin/kyc/:submissionId/approve & AdminKycDecisionDto & admin or super admin & yes \\
+\bottomrule
+\end{longtable}
+
+\section{Request and Response Examples}
+\begin{lstlisting}
+POST /api/v1/deals
+{
+  "title": "Office renovation agreement",
+  "description": "Milestone-based renovation work",
+  "currency": "TND"
+}
+
+201 Created
+{
+  "data": {
+    "id": "uuid",
+    "status": "draft",
+    "currentVersionId": null
+  }
+}
+\end{lstlisting}
+
+\begin{lstlisting}
+POST /api/v1/deal-versions/{versionId}/approve
+{
+  "decision": "approved"
+}
+
+200 OK
+{
+  "data": {
+    "versionId": "uuid",
+    "approvalStatus": "approved",
+    "dealStatus": "locked"
+  }
+}
+\end{lstlisting}
+
+Pagination uses \texttt{limit}, \texttt{cursor}, and \texttt{sort}. Filtering uses explicit fields such as \texttt{status}, \texttt{createdAfter}, and \texttt{participantId}. Validation errors return \texttt{VALIDATION\_ERROR}; authorization errors return \texttt{FORBIDDEN}; stale version approvals return \texttt{VERSION\_CONFLICT}.

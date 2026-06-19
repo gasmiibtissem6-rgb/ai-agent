@@ -1,4 +1,6 @@
 import Image from "next/image";
+import { ConfigurationStatusPanel } from "./configuration-status";
+import { adminApiAreas, apiBasePath } from "@/lib/api-foundation";
 
 const adminAreas = [
   {
@@ -58,6 +60,41 @@ export default function Home() {
                 </p>
               </article>
             ))}
+          </div>
+        </section>
+
+        <section>
+          <h2 className="text-2xl font-semibold">Backend API readiness</h2>
+          <p className="mt-2 max-w-3xl leading-7 text-slate-600">
+            Admin workflows are prepared to call the NestJS API at{" "}
+            <code className="rounded bg-slate-100 px-1.5 py-1 text-sm">
+              {apiBasePath}
+            </code>
+            . Sensitive actions stay behind backend authorization and audit
+            logging.
+          </p>
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            {adminApiAreas.map((area) => (
+              <article
+                className="rounded-lg border border-slate-200 bg-white p-5"
+                key={area.title}
+              >
+                <h3 className="text-lg font-semibold">{area.title}</h3>
+                <p className="mt-2 text-sm font-medium text-blue-700">
+                  {area.endpoint}
+                </p>
+                <p className="mt-2 leading-7 text-slate-600">
+                  {area.responsibility}
+                </p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <h2 className="text-2xl font-semibold">Live configuration check</h2>
+          <div className="mt-5">
+            <ConfigurationStatusPanel />
           </div>
         </section>
       </section>

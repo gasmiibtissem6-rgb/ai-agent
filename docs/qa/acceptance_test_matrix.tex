@@ -1,0 +1,76 @@
+\chapter*{QA Acceptance Test Matrix}
+\addcontentsline{toc}{chapter}{QA Acceptance Test Matrix}
+
+\begin{longtable}{p{0.12\linewidth}p{0.1\linewidth}p{0.22\linewidth}p{0.14\linewidth}p{0.14\linewidth}p{0.14\linewidth}p{0.07\linewidth}p{0.08\linewidth}p{0.1\linewidth}p{0.08\linewidth}}
+\caption{QA acceptance matrix}\\
+\toprule
+Test ID & Area & Scenario & Preconditions & Steps & Expected Result & Priority & Owner & Automation Target & Status \\
+\midrule
+\endfirsthead
+\toprule
+Test ID & Area & Scenario & Preconditions & Steps & Expected Result & Priority & Owner & Automation Target & Status \\
+\midrule
+\endhead
+QA-AUTH-001 & Auth & Registration creates profile readiness state & New email & Register & Profile pending readiness & High & Mobile/API & E2E & Not Started \\
+QA-AUTH-002 & Auth & Login returns usable session & Existing user & Login & Bearer token works & High & Mobile/API & E2E & Not Started \\
+QA-AUTH-003 & Auth & Invalid login shows error & Existing user & Login bad password & Error displayed & High & Mobile & Widget & Not Started \\
+QA-AUTH-004 & Auth & Password reset sends valid link & Existing email & Request reset & Reset email issued & High & Mobile/API & Integration & Not Started \\
+QA-AUTH-005 & Auth & Reset token updates password & Valid token & Submit new password & Password changed & High & Mobile/API & E2E & Not Started \\
+QA-AUTH-006 & Auth & Expired reset token shows error & Expired token & Submit password & Token error displayed & Medium & Mobile & Widget & Not Started \\
+QA-PROFILE-001 & Profile & User reads own profile & Session & GET profile & Own profile returned & High & API & Integration & Not Started \\
+QA-PROFILE-002 & Profile & User updates safe fields & Session & PATCH display name & Safe fields updated & High & API & Integration & Not Started \\
+QA-PROFILE-003 & Profile & User cannot update KYC directly & Session & PATCH KYC status & Forbidden/ignored & High & API & Security & Not Started \\
+QA-KYC-001 & KYC & User creates KYC submission & Session & POST submission & Submission created & High & API & Integration & Not Started \\
+QA-KYC-002 & KYC & User uploads private KYC document & Submission & Request signed URL & Private upload URL issued & High & API & Integration & Not Started \\
+QA-KYC-003 & KYC & Admin approves KYC & Admin token & Approve & Profile KYC approved & High & Admin/API & E2E & Not Started \\
+QA-KYC-004 & KYC & Admin rejects KYC with reason & Admin token & Reject with reason & Rejected and notified & High & Admin/API & E2E & Not Started \\
+QA-KYC-005 & KYC & User cannot view another KYC document & Two users & Request other document & Forbidden & High & API & Security & Not Started \\
+QA-DEAL-001 & Deals & User creates draft deal & Session & POST deal & Draft created & High & API & Integration & Not Started \\
+QA-DEAL-002 & Deals & Creator invites party & Draft deal & POST party & Invitation created & High & API & Integration & Not Started \\
+QA-DEAL-003 & Deals & Invited party accepts & Invitation & Accept & Party accepted & High & API & E2E & Not Started \\
+QA-DEAL-004 & Deals & Unauthorized cannot access deal & Other user & GET deal & Forbidden & High & API & Security & Not Started \\
+QA-DEAL-005 & Deals & Deal list only authorized deals & Multiple deals & GET deals & Filtered list & High & API & Integration & Not Started \\
+QA-DEAL-006 & Deals & Creator submits version & Draft version & Submit & Pending approval & High & API & Integration & Not Started \\
+QA-DEAL-007 & Deals & Required party approves exact version & Pending version & Approve & Approval recorded & High & API & Integration & Not Started \\
+QA-DEAL-008 & Deals & All approvals lock version & All parties approve & Last approve & Version locked & High & API & Integration & Not Started \\
+QA-DEAL-009 & Deals & Stale approval returns conflict & Old version & Approve stale & VERSION\_CONFLICT & High & API & Integration & Not Started \\
+QA-DEAL-010 & Deals & Locked version cannot be edited & Locked deal & Patch version & DEAL\_LOCKED & High & API & Integration & Not Started \\
+QA-DEAL-011 & Deals & Post-approval change creates new version & Approved deal & Create change & New version created & Medium & API & Integration & Not Started \\
+QA-FILE-001 & Files & Participant receives upload URL & Deal participant & Request upload URL & Signed URL returned & High & API & Integration & Not Started \\
+QA-FILE-002 & Files & Non-participant cannot upload & Other user & Request URL & Forbidden & High & API & Security & Not Started \\
+QA-FILE-003 & Files & Participant receives download URL & File exists & Request download & Signed URL returned & High & API & Integration & Not Started \\
+QA-FILE-004 & Files & Non-participant cannot download & Other user & Request download & Forbidden & High & API & Security & Not Started \\
+QA-FILE-005 & Files & KYC document blocked from participant & Deal participant & Request KYC doc & Forbidden & High & API & Security & Not Started \\
+QA-MSG-001 & Messages & Participant sends message & Deal participant & POST message & Message sent & Medium & API & Integration & Not Started \\
+QA-MSG-002 & Messages & Non-participant cannot read messages & Other user & GET messages & Forbidden & High & API & Security & Not Started \\
+QA-MSG-003 & Messages & Hidden message hidden from participant & Hidden msg & GET messages & Hidden absent & Medium & API & Integration & Not Started \\
+QA-NOTIF-001 & Notifications & Invitation creates notification & Invite party & Invite & Notification created & Medium & API & Integration & Not Started \\
+QA-NOTIF-002 & Notifications & Approval request creates notification & Submit version & Submit & Notification created & Medium & API & Integration & Not Started \\
+QA-NOTIF-003 & Notifications & User marks read & Notification & Mark read & read\_at set & Medium & API & Integration & Not Started \\
+QA-NOTIF-004 & Notifications & User cannot read other notification & Other user & GET notification & Forbidden & High & API & Security & Not Started \\
+QA-SUB-001 & Subscription & Trial allows first five contracts & Trial user & Create five & Allowed & High & API & Integration & Not Started \\
+QA-SUB-002 & Subscription & Sixth contract requires subscription & Trial used & Create sixth & SUBSCRIPTION\_LIMIT & High & API & Integration & Not Started \\
+QA-SUB-003 & Subscription & Checkout creates session & Stripe configured & POST checkout & URL returned & High & API & Integration & Not Started \\
+QA-SUB-004 & Subscription & Webhook updates subscription & Stripe event & POST webhook & Status updated & High & API & Integration & Not Started \\
+QA-SUB-005 & Subscription & Frontend cannot override state & Client & PATCH state & Forbidden & High & API & Security & Not Started \\
+QA-ADMIN-001 & Admin & Admin can access dashboard & Admin token & Open admin & Dashboard visible & High & Admin & E2E & Not Started \\
+QA-ADMIN-002 & Admin & Support reviewer cannot approve KYC & Support token & Approve & Forbidden & High & Admin/API & E2E & Not Started \\
+QA-ADMIN-003 & Admin & Admin action writes audit log & Admin action & Mutate & Audit exists & High & API & Integration & Not Started \\
+QA-ADMIN-004 & Admin & Super admin settings access & Super token & Open settings & Settings visible & High & Admin & E2E & Not Started \\
+QA-ADMIN-005 & Admin & Finance reviewer subscriptions only & Finance token & Open pages & Subscriptions allowed only & Medium & Admin & E2E & Not Started \\
+QA-SEC-001 & Security & Missing token unauthorized & None & Protected call & UNAUTHORIZED & High & API & Security & Not Started \\
+QA-SEC-002 & Security & Invalid token unauthorized & Bad token & Protected call & UNAUTHORIZED & High & API & Security & Not Started \\
+QA-SEC-003 & Security & No permission forbidden & Valid token & Forbidden resource & FORBIDDEN & High & API & Security & Not Started \\
+QA-SEC-004 & Security & Service role never exposed & Client builds & Inspect bundle & No service key & High & All & Security & Not Started \\
+QA-SEC-005 & Security & Audit logs cannot be edited & Admin token & Try update log & Forbidden/no route & High & API & Security & Not Started \\
+QA-SEC-006 & Security & Private buckets cannot be listed & User token & List bucket & Forbidden & High & Storage & Security & Not Started \\
+QA-CI-001 & CI & Flutter analyze passes & Dependencies & Run analyze & Pass & High & Mobile & CI & Partial \\
+QA-CI-002 & CI & Flutter tests pass & Tests exist & Run tests & Pass & High & Mobile & CI & Not Started \\
+QA-CI-003 & CI & NestJS lint passes & Dependencies & Run lint & Pass & High & API & CI & Not Started \\
+QA-CI-004 & CI & NestJS tests pass & Tests exist & Run tests & Pass & High & API & CI & Partial \\
+QA-CI-005 & CI & Next.js lint passes & Dependencies & Run lint & Pass & High & Admin & CI & Partial \\
+QA-CI-006 & CI & Next.js build passes & Dependencies & Run build & Pass & High & Admin & CI & Partial \\
+QA-CI-007 & CI & Prisma validate passes & Prisma installed & Run validate & Pass & High & API & CI & Not Started \\
+QA-CI-008 & CI & PDF documentation builds & LaTeX installed & Make build & Pass & High & Docs & CI & Partial \\
+\bottomrule
+\end{longtable}

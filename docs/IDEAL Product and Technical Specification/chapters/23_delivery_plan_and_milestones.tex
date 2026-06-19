@@ -1,0 +1,31 @@
+\chapter{Delivery Plan and Milestones}
+\begin{longtable}{p{0.18\textwidth}p{0.72\textwidth}}
+\toprule
+Milestone & Deliverables \\
+\midrule
+0 Alignment & LaTeX specification, repo structure, issue board, architecture freeze, MVP approval. \\
+1 Foundation & Flutter, NestJS, Next.js, Supabase database foundation, environment config, CI checks. \\
+2 Identity & Auth flow, profiles, guards, password reset, JWT verification, admin login. \\
+3 Deal Core & Deals, parties, versions, approvals, locked contract logic. \\
+4 Communication & Chat, files, signed URLs, notifications. \\
+5 Trust/KYC/Payments & KYC, trust counters, subscription enforcement, Stripe. \\
+6 Hardening & Admin dashboard, audit logs, QA, security review, release prep. \\
+\bottomrule
+\end{longtable}
+
+\section{Deliverables by Owner}
+\begin{longtable}{p{0.22\textwidth}p{0.68\textwidth}}
+\toprule
+Owner & Deliverables \\
+\midrule
+Ranime / Mobile owner & Flutter API client, auth screens, profile, deal screens, approval screens, file screens, route guards, widget tests. \\
+Backend owner & NestJS configuration status, auth guard, deal module, party module, version module, approval service, file signed URL service, audit service, OpenAPI contract. \\
+Database owner & Prisma schema, Supabase migrations, RLS policies, storage buckets, seed data, migration checks. \\
+Admin owner & Dashboard shell, live API status panel, admin auth, KYC queue, user management, audit log viewer, admin permission states. \\
+Documentation owner & Product specification, API catalog, database catalog, decision log, revision history, QA matrix. \\
+Project lead & Scope approval, milestone acceptance, release readiness, risk decisions. \\
+\bottomrule
+\end{longtable}
+
+\section{Deployment Environments}
+Local development uses developer Supabase and local NestJS/Next.js servers. Staging uses isolated Supabase, backend, admin, and Stripe test credentials. Production requires protected branches, approved migrations, monitored backend deployment, signed mobile builds, and rollback plans for API and database releases.

@@ -1,0 +1,10 @@
+\chapter{Executive Summary}
+\projectname{} is a cross-platform platform for creating, negotiating, approving, versioning, and managing trusted digital deals and contracts between individuals, companies, and multiple involved parties.
+
+The product exists to reduce ambiguity in informal agreements by giving users a clear workflow: create a deal, invite parties, negotiate terms, approve the final version, lock the official version, and manage future changes through new approved versions.
+
+Target users include registered individuals, verified users, deal creators, invited parties, company owners, company members, administrators, and system service accounts. The target architecture uses Flutter for mobile presentation, Next.js for administration, NestJS for business workflows, Supabase PostgreSQL for persistence, Supabase Auth for identity sessions, Supabase Storage for private files, Supabase Realtime for updates, Stripe for subscriptions, and an external provider for KYC.
+
+\importantnote{Flutter and Next.js must not own sensitive business logic. Deal lifecycle, approval, version locking, trust counters, subscriptions, audit logs, KYC decisions, admin actions, and protected file access must be enforced through the NestJS API.}
+
+The MVP objective is to deliver the foundation for authentication, profile completion, deal creation, party invitation, deal versioning, approval, rejection, change requests, locked approved versions, private file attachments, notifications, audit logging, and basic admin review.

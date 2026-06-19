@@ -1,0 +1,28 @@
+\chapter{Mobile Application Specification}
+The Flutter app currently has a clean welcome foundation. Target structure is feature-first with core config, network, router, theme, shared widgets, and features for auth, home, profile, KYC, deals, approvals, chat, files, notifications, subscription, and settings.
+\section{Important Refactor Note}
+Any direct Supabase business logic in Flutter is temporary foundation work. Business actions must move behind NestJS API clients.
+
+\section{Current Implementation Status}
+The current mobile application has a starter Flutter shell, project identity assets, a welcome screen, and an API configuration foundation pointing to the NestJS base URL. It does not yet contain final auth screens, route guards, Riverpod feature providers, deal screens, Supabase initialization, or production password reset handling on this branch.
+
+\section{Target Screen Specification}
+\begin{longtable}{p{0.18\textwidth}p{0.2\textwidth}p{0.2\textwidth}p{0.32\textwidth}}
+\toprule
+Screen & Required Data & Main Actions & States \\
+\midrule
+Login & Auth configuration & Sign in, forgot password & loading, invalid credentials, offline. \\
+Register & Profile fields & Create account, accept terms & validation, duplicate email, success. \\
+Reset password & Recovery token & Set new password & token expired, success. \\
+Deals list & Paginated deals & Filter, open, create & loading, empty, error. \\
+Deal details & Deal, parties, current version & Review, invite, edit allowed draft & permission denied, locked, stale. \\
+Invite party & Deal id, email, role & Send invitation & invalid email, duplicate party. \\
+Version history & Versions & Compare, open version & empty, locked marker. \\
+Approval & Version, required parties & Approve, reject, request changes & pending others, conflict, success. \\
+Chat & Deal messages & Send message & participant-only, failed send. \\
+Files & File metadata & Upload, preview, download & signed URL expired, unauthorized. \\
+KYC & Submission status & Submit, resubmit & under review, rejected, approved. \\
+Notifications & Notification list & Mark read, navigate & empty, unread, realtime update. \\
+Settings & Session and preferences & Logout, manage account & confirmation, error. \\
+\bottomrule
+\end{longtable}

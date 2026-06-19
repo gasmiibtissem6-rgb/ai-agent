@@ -1,0 +1,26 @@
+\chapter{Database Table Catalog}
+\begin{longtable}{p{0.24\textwidth}p{0.66\textwidth}}
+\toprule
+Table & Purpose \\
+\midrule
+profiles & User profile metadata linked to auth users. \\
+companies & Company records. \\
+company\_members & Company membership and roles. \\
+kyc\_submissions & Identity verification workflow records. \\
+trust\_counters & Backend-managed trust metrics. \\
+deals & Deal aggregate roots. \\
+deal\_parties & Deal participants and required approval state. \\
+deal\_versions & Versioned deal terms. \\
+deal\_approvals & Per-party version approval records. \\
+deal\_files & Private file metadata. \\
+messages & Deal-scoped chat messages. \\
+notifications & User notifications. \\
+subscriptions & Subscription state. \\
+audit\_logs & Immutable action records. \\
+admin\_actions & Admin decisions and metadata. \\
+reports & User and platform reports. \\
+\bottomrule
+\end{longtable}
+
+\section{Column-Level Implementation Notes}
+All application tables use UUID primary keys, \texttt{created\_at}, \texttt{updated\_at} where mutable, and explicit enum columns for workflow state. Historical workflow records such as approvals, audit logs, locked versions, and admin actions must not be hard-deleted. Mutable aggregates such as deals and profiles may use soft deletion or archive timestamps when product policy requires hiding records from active views.

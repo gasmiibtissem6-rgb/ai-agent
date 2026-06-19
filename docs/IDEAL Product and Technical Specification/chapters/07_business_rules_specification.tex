@@ -1,0 +1,60 @@
+\chapter{Business Rules Specification}
+\section{Canonical Deal Lifecycle}
+\begin{center}
+draft $\rightarrow$ negotiation $\rightarrow$ pending\_approval $\rightarrow$ approved $\rightarrow$ locked
+\end{center}
+Other valid states are changes\_requested, rejected, cancelled, and archived.
+\section{Rules}
+\begin{longtable}{p{0.12\textwidth}p{0.78\textwidth}}
+\toprule
+ID & Rule \\
+\midrule
+BR-001 & A deal may have many versions. \\
+BR-002 & Only one version can be the current active version. \\
+BR-003 & Only an approved version can become locked. \\
+BR-004 & A locked version cannot be edited. \\
+BR-005 & Any future change after approval creates a new version. \\
+BR-006 & A new version is not valid until all required parties approve it again. \\
+BR-007 & Users can only access deals where they are creator or participant. \\
+BR-008 & Trust counters are updated only by backend logic. \\
+BR-009 & Trial limits and paid access are enforced by the backend. \\
+BR-010 & Every important action must be written to audit logs. \\
+BR-011 & A party can be required or optional; required parties block final approval until they decide. \\
+BR-012 & A party invitation can be accepted, declined, expired, or revoked. \\
+BR-013 & Approval is valid only for the exact version that was reviewed. \\
+BR-014 & Creating a new version invalidates pending approvals on prior non-locked versions. \\
+BR-015 & A rejection returns the version to rejected state and requires a new version or explicit resubmission policy. \\
+BR-016 & A change request returns the deal to negotiation and records the requested changes. \\
+BR-017 & The prior locked version remains historically valid until a new version is fully approved and locked. \\
+BR-018 & Company deals require the actor to have company permission and deal permission. \\
+BR-019 & Chat messages are visible only to active deal participants and authorized admins. \\
+BR-020 & KYC documents are not visible to normal deal participants. \\
+BR-021 & Subscription downgrade cannot unlock features already completed, but can block new deal creation. \\
+BR-022 & Admin actions cannot directly change trust counters without a backend trust event. \\
+BR-023 & Notifications are derived from backend events, not client-side assumptions. \\
+BR-024 & Audit logs are append-only and cannot be edited through application workflows. \\
+\bottomrule
+\end{longtable}
+
+\section{State Transition Table}
+\begin{longtable}{p{0.18\textwidth}p{0.22\textwidth}p{0.2\textwidth}p{0.28\textwidth}}
+\toprule
+From & To & Actor & Rule \\
+\midrule
+draft & negotiation & creator & At least one invited party begins review or negotiation. \\
+draft & pending\_approval & creator & Current version has required terms and parties. \\
+negotiation & pending\_approval & creator or authorized editor & Version is submitted for approval. \\
+pending\_approval & changes\_requested & participant & Change request reason is required. \\
+pending\_approval & rejected & required party & Rejection reason is required. \\
+pending\_approval & locked & backend & All required parties approved the same version. \\
+changes\_requested & negotiation & creator or editor & A new or updated draft version is prepared. \\
+rejected & negotiation & creator or editor & A new version is created after rejection. \\
+locked & negotiation & creator or authorized editor & Post-approval change creates a new active version while prior locked version remains historical. \\
+draft/negotiation & cancelled & creator & Cancellation allowed before final lock subject to audit. \\
+cancelled & archived & creator or admin & Archived for retention. \\
+locked & archived & creator or admin & Historical record retained and hidden from active list. \\
+\bottomrule
+\end{longtable}
+
+\section{Approval and Locking Rule}
+For IDEAL MVP, \texttt{locked} is the official final state of a version after all required parties approve the same submitted version. The deal may expose \texttt{approved} as an event or transient status, but the implementation must treat the locked version as the immutable source of truth.

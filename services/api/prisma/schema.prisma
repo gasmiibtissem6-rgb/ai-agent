@@ -1,0 +1,488 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum DealStatus {
+  DRAFT
+  NEGOTIATION
+  PENDING_APPROVAL
+  APPROVED
+  LOCKED
+  CHANGES_REQUESTED
+  REJECTED
+  CANCELLED
+  ARCHIVED
+
+  @@map("deal_status")
+}
+
+enum PartyStatus {
+  INVITED
+  ACCEPTED
+  DECLINED
+  REMOVED
+  EXPIRED
+  REVOKED
+
+  @@map("party_status")
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CHANGES_REQUESTED
+  INVALIDATED
+
+  @@map("approval_status")
+}
+
+enum KycStatus {
+  NOT_STARTED
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  RESUBMISSION_REQUIRED
+
+  @@map("kyc_status")
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+
+  @@map("subscription_status")
+}
+
+enum NotificationType {
+  DEAL_INVITATION
+  APPROVAL_REQUESTED
+  APPROVED
+  REJECTED
+  CHANGES_REQUESTED
+  FILE_UPLOADED
+  KYC_UPDATED
+  SUBSCRIPTION_UPDATED
+  ADMIN_ACTION
+
+  @@map("notification_type")
+}
+
+enum FileType {
+  AVATAR
+  DEAL_ATTACHMENT
+  KYC_DOCUMENT
+  GENERATED_CONTRACT
+
+  @@map("file_type")
+}
+
+enum FileVisibility {
+  PRIVATE
+  PARTICIPANT_PRIVATE
+  ADMIN_PRIVATE
+
+  @@map("file_visibility")
+}
+
+enum CompanyMemberRole {
+  OWNER
+  MANAGER
+  MEMBER
+  VIEWER
+
+  @@map("company_member_role")
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+  SUPPORT_REVIEWER
+  FINANCE_REVIEWER
+
+  @@map("admin_role")
+}
+
+enum AuditActionType {
+  ACCOUNT_CREATED
+  KYC_SUBMITTED
+  KYC_APPROVED
+  KYC_REJECTED
+  DEAL_CREATED
+  PARTY_INVITED
+  PARTY_ACCEPTED
+  PARTY_DECLINED
+  VERSION_CREATED
+  VERSION_SUBMITTED
+  VERSION_APPROVED
+  VERSION_REJECTED
+  CHANGES_REQUESTED
+  VERSION_LOCKED
+  FILE_UPLOADED
+  MESSAGE_CREATED
+  SUBSCRIPTION_EVENT
+  ADMIN_ACTION
+
+  @@map("audit_action_type")
+}
+
+enum ReportStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+
+  @@map("report_status")
+}
+
+enum MessageStatus {
+  SENT
+  EDITED
+  DELETED
+  HIDDEN
+
+  @@map("message_status")
+}
+
+model Profile {
+  id                  String          @id @default(uuid()) @db.Uuid
+  authUserId          String          @unique @map("auth_user_id") @db.Uuid
+  email               String          @unique
+  displayName         String?         @map("display_name")
+  avatarUrl           String?         @map("avatar_url")
+  kycStatus           KycStatus       @default(NOT_STARTED) @map("kyc_status")
+  isAdmin             Boolean         @default(false) @map("is_admin")
+  adminRole           AdminRole?      @map("admin_role")
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
+  archivedAt          DateTime?       @map("archived_at")
+  ownedCompanies      Company[]       @relation("CompanyOwner")
+  companyMemberships  CompanyMember[]
+  kycSubmissions      KycSubmission[] @relation("KycOwner")
+  reviewedSubmissions KycSubmission[] @relation("KycReviewer")
+  trustCounter        TrustCounter?
+  createdDeals        Deal[]          @relation("DealCreator")
+  invitedDealParties  DealParty[]     @relation("PartyInviter")
+  dealParties         DealParty[]     @relation("PartyProfile")
+  createdDealVersions DealVersion[]   @relation("VersionCreator")
+  dealApprovals       DealApproval[]
+  uploadedFiles       DealFile[]
+  sentMessages        Message[]
+  notifications       Notification[]
+  subscriptions       Subscription[]
+  auditLogs           AuditLog[]      @relation("AuditActor")
+  adminActions        AdminAction[]   @relation("AdminActor")
+  reportsCreated      Report[]        @relation("ReportCreator")
+  reportsReviewed     Report[]        @relation("ReportReviewer")
+
+  @@index([authUserId])
+  @@index([email])
+  @@index([kycStatus])
+  @@map("profiles")
+}
+
+model Company {
+  id             String          @id @default(uuid()) @db.Uuid
+  ownerProfileId String          @map("owner_profile_id") @db.Uuid
+  legalName      String          @map("legal_name")
+  status         String          @default("active")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  archivedAt     DateTime?       @map("archived_at")
+  owner          Profile         @relation("CompanyOwner", fields: [ownerProfileId], references: [id])
+  members        CompanyMember[]
+  deals          Deal[]
+  subscriptions  Subscription[]
+
+  @@index([ownerProfileId])
+  @@map("companies")
+}
+
+model CompanyMember {
+  id        String            @id @default(uuid()) @db.Uuid
+  companyId String            @map("company_id") @db.Uuid
+  profileId String            @map("profile_id") @db.Uuid
+  role      CompanyMemberRole
+  status    String            @default("active")
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+  company   Company           @relation(fields: [companyId], references: [id])
+  profile   Profile           @relation(fields: [profileId], references: [id])
+
+  @@unique([companyId, profileId])
+  @@index([companyId])
+  @@index([profileId])
+  @@map("company_members")
+}
+
+model KycSubmission {
+  id                  String     @id @default(uuid()) @db.Uuid
+  profileId           String     @map("profile_id") @db.Uuid
+  status              KycStatus  @default(SUBMITTED)
+  providerReference   String?    @map("provider_reference")
+  rejectionReason     String?    @map("rejection_reason")
+  submittedAt         DateTime?  @map("submitted_at")
+  reviewedAt          DateTime?  @map("reviewed_at")
+  reviewedByProfileId String?    @map("reviewed_by_profile_id") @db.Uuid
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
+  profile             Profile    @relation("KycOwner", fields: [profileId], references: [id])
+  reviewedBy          Profile?   @relation("KycReviewer", fields: [reviewedByProfileId], references: [id])
+  files               DealFile[]
+
+  @@index([profileId])
+  @@index([status])
+  @@map("kyc_submissions")
+}
+
+model TrustCounter {
+  id              String   @id @default(uuid()) @db.Uuid
+  profileId       String   @unique @map("profile_id") @db.Uuid
+  successfulDeals Int      @default(0) @map("successful_deals")
+  ongoingDeals    Int      @default(0) @map("ongoing_deals")
+  breachedDeals   Int      @default(0) @map("breached_deals")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  profile         Profile  @relation(fields: [profileId], references: [id])
+
+  @@map("trust_counters")
+}
+
+model Deal {
+  id               String        @id @default(uuid()) @db.Uuid
+  creatorProfileId String        @map("creator_profile_id") @db.Uuid
+  companyId        String?       @map("company_id") @db.Uuid
+  title            String
+  description      String?
+  status           DealStatus    @default(DRAFT)
+  currentVersionId String?       @map("current_version_id") @db.Uuid
+  lockedVersionId  String?       @map("locked_version_id") @db.Uuid
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+  archivedAt       DateTime?     @map("archived_at")
+  cancelledAt      DateTime?     @map("cancelled_at")
+  creator          Profile       @relation("DealCreator", fields: [creatorProfileId], references: [id])
+  company          Company?      @relation(fields: [companyId], references: [id])
+  parties          DealParty[]
+  versions         DealVersion[]
+  files            DealFile[]
+  messages         Message[]
+
+  @@index([creatorProfileId])
+  @@index([companyId])
+  @@index([status])
+  @@map("deals")
+}
+
+model DealParty {
+  id                 String         @id @default(uuid()) @db.Uuid
+  dealId             String         @map("deal_id") @db.Uuid
+  profileId          String?        @map("profile_id") @db.Uuid
+  email              String
+  role               String
+  partyStatus        PartyStatus    @default(INVITED) @map("party_status")
+  requiredApproval   Boolean        @default(true) @map("required_approval")
+  invitedByProfileId String         @map("invited_by_profile_id") @db.Uuid
+  acceptedAt         DateTime?      @map("accepted_at")
+  declinedAt         DateTime?      @map("declined_at")
+  revokedAt          DateTime?      @map("revoked_at")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+  deal               Deal           @relation(fields: [dealId], references: [id])
+  profile            Profile?       @relation("PartyProfile", fields: [profileId], references: [id])
+  invitedBy          Profile        @relation("PartyInviter", fields: [invitedByProfileId], references: [id])
+  approvals          DealApproval[]
+
+  @@unique([dealId, email])
+  @@index([dealId])
+  @@index([profileId])
+  @@index([email])
+  @@map("deal_parties")
+}
+
+model DealVersion {
+  id                 String         @id @default(uuid()) @db.Uuid
+  dealId             String         @map("deal_id") @db.Uuid
+  versionNumber      Int            @map("version_number")
+  status             DealStatus     @default(DRAFT)
+  title              String
+  termsJson          Json           @map("terms_json")
+  summary            String?
+  sourceVersionId    String?        @map("source_version_id") @db.Uuid
+  submittedAt        DateTime?      @map("submitted_at")
+  lockedAt           DateTime?      @map("locked_at")
+  createdByProfileId String         @map("created_by_profile_id") @db.Uuid
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+  deal               Deal           @relation(fields: [dealId], references: [id])
+  createdBy          Profile        @relation("VersionCreator", fields: [createdByProfileId], references: [id])
+  sourceVersion      DealVersion?   @relation("VersionSource", fields: [sourceVersionId], references: [id])
+  derivedVersions    DealVersion[]  @relation("VersionSource")
+  approvals          DealApproval[]
+  files              DealFile[]
+
+  @@unique([dealId, versionNumber])
+  @@index([dealId])
+  @@index([status])
+  @@map("deal_versions")
+}
+
+model DealApproval {
+  id             String         @id @default(uuid()) @db.Uuid
+  versionId      String         @map("version_id") @db.Uuid
+  partyId        String         @map("party_id") @db.Uuid
+  profileId      String         @map("profile_id") @db.Uuid
+  approvalStatus ApprovalStatus @default(PENDING) @map("approval_status")
+  reason         String?
+  decidedAt      DateTime?      @map("decided_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  version        DealVersion    @relation(fields: [versionId], references: [id])
+  party          DealParty      @relation(fields: [partyId], references: [id])
+  profile        Profile        @relation(fields: [profileId], references: [id])
+
+  @@unique([versionId, partyId])
+  @@index([versionId])
+  @@index([partyId])
+  @@map("deal_approvals")
+}
+
+model DealFile {
+  id                  String         @id @default(uuid()) @db.Uuid
+  dealId              String?        @map("deal_id") @db.Uuid
+  versionId           String?        @map("version_id") @db.Uuid
+  kycSubmissionId     String?        @map("kyc_submission_id") @db.Uuid
+  uploadedByProfileId String         @map("uploaded_by_profile_id") @db.Uuid
+  storageBucket       String         @map("storage_bucket")
+  storagePath         String         @map("storage_path")
+  originalFileName    String         @map("original_file_name")
+  contentType         String         @map("content_type")
+  sizeBytes           Int            @map("size_bytes")
+  fileType            FileType       @map("file_type")
+  visibility          FileVisibility
+  createdAt           DateTime       @default(now()) @map("created_at")
+  deletedAt           DateTime?      @map("deleted_at")
+  deal                Deal?          @relation(fields: [dealId], references: [id])
+  version             DealVersion?   @relation(fields: [versionId], references: [id])
+  kycSubmission       KycSubmission? @relation(fields: [kycSubmissionId], references: [id])
+  uploadedBy          Profile        @relation(fields: [uploadedByProfileId], references: [id])
+
+  @@index([dealId])
+  @@index([versionId])
+  @@index([kycSubmissionId])
+  @@map("deal_files")
+}
+
+model Message {
+  id              String        @id @default(uuid()) @db.Uuid
+  dealId          String        @map("deal_id") @db.Uuid
+  senderProfileId String        @map("sender_profile_id") @db.Uuid
+  body            String
+  messageStatus   MessageStatus @default(SENT) @map("message_status")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  editedAt        DateTime?     @map("edited_at")
+  deletedAt       DateTime?     @map("deleted_at")
+  deal            Deal          @relation(fields: [dealId], references: [id])
+  sender          Profile       @relation(fields: [senderProfileId], references: [id])
+
+  @@index([dealId])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+model Notification {
+  id               String           @id @default(uuid()) @db.Uuid
+  profileId        String           @map("profile_id") @db.Uuid
+  notificationType NotificationType @map("notification_type")
+  title            String
+  body             String?
+  payloadJson      Json             @map("payload_json")
+  readAt           DateTime?        @map("read_at")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  profile          Profile          @relation(fields: [profileId], references: [id])
+
+  @@index([profileId])
+  @@index([readAt])
+  @@map("notifications")
+}
+
+model Subscription {
+  id                   String             @id @default(uuid()) @db.Uuid
+  profileId            String?            @map("profile_id") @db.Uuid
+  companyId            String?            @map("company_id") @db.Uuid
+  stripeCustomerId     String?            @map("stripe_customer_id")
+  stripeSubscriptionId String?            @map("stripe_subscription_id")
+  status               SubscriptionStatus @default(TRIALING)
+  trialContractsUsed   Int                @default(0) @map("trial_contracts_used")
+  trialContractsLimit  Int                @default(5) @map("trial_contracts_limit")
+  currentPeriodEnd     DateTime?          @map("current_period_end")
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+  profile              Profile?           @relation(fields: [profileId], references: [id])
+  company              Company?           @relation(fields: [companyId], references: [id])
+
+  @@index([profileId])
+  @@index([companyId])
+  @@map("subscriptions")
+}
+
+model AuditLog {
+  id             String          @id @default(uuid()) @db.Uuid
+  actorProfileId String?         @map("actor_profile_id") @db.Uuid
+  actionType     AuditActionType @map("action_type")
+  resourceType   String          @map("resource_type")
+  resourceId     String?         @map("resource_id") @db.Uuid
+  metadataJson   Json            @map("metadata_json")
+  ipAddress      String?         @map("ip_address")
+  userAgent      String?         @map("user_agent")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  actor          Profile?        @relation("AuditActor", fields: [actorProfileId], references: [id])
+
+  @@index([actionType])
+  @@index([resourceType])
+  @@index([resourceId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model AdminAction {
+  id                 String          @id @default(uuid()) @db.Uuid
+  adminProfileId     String          @map("admin_profile_id") @db.Uuid
+  actionType         AuditActionType @map("action_type")
+  targetResourceType String          @map("target_resource_type")
+  targetResourceId   String          @map("target_resource_id") @db.Uuid
+  reason             String?
+  metadataJson       Json            @map("metadata_json")
+  createdAt          DateTime        @default(now()) @map("created_at")
+  admin              Profile         @relation("AdminActor", fields: [adminProfileId], references: [id])
+
+  @@index([adminProfileId])
+  @@map("admin_actions")
+}
+
+model Report {
+  id                  String       @id @default(uuid()) @db.Uuid
+  reporterProfileId   String       @map("reporter_profile_id") @db.Uuid
+  resourceType        String       @map("resource_type")
+  resourceId          String       @map("resource_id") @db.Uuid
+  status              ReportStatus @default(OPEN)
+  reason              String
+  resolution          String?
+  reviewedByProfileId String?      @map("reviewed_by_profile_id") @db.Uuid
+  reviewedAt          DateTime?    @map("reviewed_at")
+  createdAt           DateTime     @default(now()) @map("created_at")
+  updatedAt           DateTime     @updatedAt @map("updated_at")
+  reporter            Profile      @relation("ReportCreator", fields: [reporterProfileId], references: [id])
+  reviewedBy          Profile?     @relation("ReportReviewer", fields: [reviewedByProfileId], references: [id])
+
+  @@index([status])
+  @@map("reports")
+}

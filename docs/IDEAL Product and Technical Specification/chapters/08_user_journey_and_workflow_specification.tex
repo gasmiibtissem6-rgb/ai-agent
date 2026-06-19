@@ -1,0 +1,30 @@
+\chapter{User Journey and Workflow Specification}
+\section{Core Flow Pattern}
+Each flow defines actors, preconditions, trigger, user steps, backend actions, database changes, failure cases, and success result.
+\section{Deal Approval Flow}
+\begin{enumerate}
+  \item Creator creates a draft deal.
+  \item Creator invites one or more required parties.
+  \item Parties review the current version and request changes or approve.
+  \item Backend records approvals per party and version.
+  \item When every required party approves the same version, backend marks the version approved and locked.
+\end{enumerate}
+\section{Failure Cases}
+Expired invitations, unauthorized deal access, stale version approval, locked-version mutation, subscription limit violation, and missing KYC eligibility must return explicit API errors.
+
+\section{Detailed Workflow Matrix}
+\begin{longtable}{p{0.18\textwidth}p{0.18\textwidth}p{0.26\textwidth}p{0.28\textwidth}}
+\toprule
+Flow & Actors & Backend Actions & Database Changes \\
+\midrule
+Registration & guest, auth service & Create auth user, initialize profile readiness. & profiles row, audit log. \\
+KYC submission & registered user & Validate ownership, issue signed upload URL, submit review record. & kyc\_submissions, deal\_files for documents, audit log. \\
+Create deal & creator & Validate subscription, create draft aggregate. & deals row, audit log, notification optional. \\
+Invite party & creator, invited party & Validate creator access, create invitation, notify invited user. & deal\_parties, notifications, audit log. \\
+Submit version & creator/editor & Validate active version, mark pending approval. & deal\_versions status, deal status, audit log. \\
+Approve version & required party & Validate party membership, record decision, lock if complete. & deal\_approvals, deal\_versions locked\_at, audit log. \\
+Request changes & participant & Record reason, return to negotiation. & approval record, version status, notification, audit log. \\
+Upload file & participant & Authorize bucket and resource, issue signed URL. & deal\_files metadata, audit log. \\
+Admin KYC review & admin & Validate admin role, record decision, notify user. & kyc\_submissions status, admin\_actions, audit log. \\
+\bottomrule
+\end{longtable}

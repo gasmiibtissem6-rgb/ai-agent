@@ -1,0 +1,84 @@
+\chapter*{Mobile Integration Contract}
+\addcontentsline{toc}{chapter}{Mobile Integration Contract}
+
+\section*{Purpose}
+This document guides \texttt{apps/mobile} integration with the NestJS backend and the approved authentication/session model.
+
+\section*{Current Status Correction}
+Current branch evidence shows a Flutter foundation screen with IDEAL branding, main area cards, API configuration constants, endpoint constants, and simple backend readiness probes using Dart \texttt{HttpClient}. It does not yet show production auth screens, app routing, Riverpod auth state, Supabase initialization, password reset, deal screens, approval screens, file screens, or widget tests in the current branch. Those items are incomplete and must be implemented or refactored when introduced.
+
+\section*{Architecture Rule}
+Flutter owns UI and local state. NestJS owns business logic. Direct Supabase business logic in Flutter is temporary and should be removed. Flutter may use Supabase Auth only for session lifecycle if approved. No service role keys are allowed in Flutter.
+
+\section*{Target Folder Structure}
+\begin{verbatim}
+apps/mobile/lib/
+  core/config/
+  core/constants/
+  core/errors/
+  core/network/api_client.dart
+  core/network/api_exception.dart
+  core/network/auth_interceptor.dart
+  core/router/
+  core/theme/
+  core/utils/
+  features/auth/data/domain/presentation/
+  features/home/
+  features/profile/
+  features/kyc/
+  features/deals/
+  features/approvals/
+  features/chat/
+  features/files/
+  features/notifications/
+  features/subscription/
+  features/settings/
+  shared/widgets/
+  shared/models/
+  shared/providers/
+\end{verbatim}
+
+\section*{API Client Requirements}
+The base URL comes from \texttt{IDEAL\_API\_BASE\_URL}. The client attaches bearer tokens, parses the standard success envelope, parses the standard error envelope, handles timeouts, handles offline state, logs requests in debug only, and never stores service role keys.
+
+\section*{Flutter Screen Contract}
+\begin{longtable}{p{0.13\linewidth}p{0.14\linewidth}p{0.21\linewidth}p{0.26\linewidth}p{0.16\linewidth}}
+\caption{Mobile screen specification}\\
+\toprule
+Screen & Route & Purpose & API endpoints/data & States and validation \\
+\midrule
+\endfirsthead
+\toprule
+Screen & Route & Purpose & API endpoints/data & States and validation \\
+\midrule
+\endhead
+Splash & \texttt{/} & Resolve session & Health/config optional & Loading/error \\
+Welcome & \texttt{/welcome} & Brand entry & Configuration status & Connected/unreachable \\
+Login & \texttt{/login} & Sign in & Auth session provider & Email/password validation \\
+Register & \texttt{/register} & Create account & Auth plus profile readiness & Duplicate email/error \\
+Forgot password & \texttt{/forgot-password} & Request reset & Auth provider & Email validation \\
+Reset password & \texttt{/reset-password} & Update password & Auth provider & Token expired/error \\
+Home & \texttt{/home} & Main dashboard & Deals, notifications, profile & Empty/error/offline \\
+Deals list & \texttt{/deals} & Authorized deals & \texttt{/deals} & Pagination/empty \\
+Deal details & \texttt{/deals/:id} & Deal overview & \texttt{/deals/\{id\}} & Forbidden/not found \\
+Create deal & \texttt{/deals/new} & Draft deal & \texttt{POST /deals} & Title/subscription validation \\
+Edit deal & \texttt{/deals/:id/edit} & Update unlocked deal & \texttt{PATCH /deals/\{id\}} & Locked error \\
+Invite party & \texttt{/deals/:id/invite} & Add participant & \texttt{POST /deals/\{id\}/parties} & Email duplicate \\
+Deal parties & \texttt{/deals/:id/parties} & Party list/actions & Party endpoints & Permission state \\
+Version history & \texttt{/deals/:id/versions} & Version list & Version endpoints & Empty/history \\
+Approval & \texttt{/versions/:id/approval} & Approve/reject & Approval endpoints & Version conflict \\
+Chat & \texttt{/deals/:id/chat} & Messages & Message endpoints & Non-participant forbidden \\
+Files & \texttt{/deals/:id/files} & Deal files & File endpoints & Signed URL errors \\
+Notifications & \texttt{/notifications} & User alerts & Notification endpoints & Mark read states \\
+Profile & \texttt{/profile} & Profile settings & Profile endpoints & Safe fields only \\
+KYC & \texttt{/kyc} & Identity submission & KYC endpoints & Private file upload \\
+Subscription & \texttt{/subscription} & Plan state & Subscription endpoints & Trial limit/checkout \\
+Settings & \texttt{/settings} & App preferences & Session/profile & Logout/errors \\
+\bottomrule
+\end{longtable}
+
+\section*{Refactor Requirements}
+Remove direct deal Supabase calls from Flutter, create a NestJS API client, keep Supabase Auth only if approved, move auth state into clean Riverpod providers when Riverpod is introduced, fix password reset redirects/deep links, add form validation, and add tests.
+
+\section*{Done Criteria}
+A mobile feature is done only when the screen exists, route exists, API client method exists, loading/empty/error/permission states exist, validation exists, errors are displayed, tests exist, and direct business Supabase calls are absent.

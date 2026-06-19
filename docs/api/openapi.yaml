@@ -1,0 +1,902 @@
+openapi: 3.0.3
+info:
+  title: IDEAL API
+  version: 1.0.0
+  description: "NestJS backend API for IDEAL. The API accepts Supabase Auth JWTs, owns business logic, and returns standard success/error envelopes."
+servers:
+  - url: http://localhost:3001/api/v1
+    description: "Local development"
+  - url: https://staging-api.ideal.example.com/api/v1
+    description: "Staging placeholder"
+  - url: https://api.ideal.example.com/api/v1
+    description: "Production placeholder"
+tags:
+  - name: Configuration
+  - name: Health
+  - name: Profiles
+  - name: KYC
+  - name: Deals
+  - name: Deal Parties
+  - name: Deal Versions
+  - name: Files
+  - name: Messages
+  - name: Notifications
+  - name: Subscriptions
+  - name: Admin
+paths:
+  /configuration/status:
+    get:
+      tags: [Configuration]
+      summary: Verify API connectivity and environment readiness
+      description: "Public employee-facing readiness endpoint. Authorization rule: no token required in development; protect in production if operational policy requires it. Audit requirement: no audit log."
+      responses:
+        "200": { "$ref": "#/components/responses/ConfigurationStatusResponse" }
+        "500": { "$ref": "#/components/responses/InternalError" }
+  /health:
+    get:
+      tags: [Health]
+      summary: Check API liveness
+      description: "Public liveness check. Authorization rule: no token required. Audit requirement: no audit log."
+      responses:
+        "200": { "$ref": "#/components/responses/HealthResponse" }
+        "500": { "$ref": "#/components/responses/InternalError" }
+  /profiles/me:
+    get:
+      tags: [Profiles]
+      summary: Read current user profile
+      description: "Authorization rule: authenticated user can read only their resolved profile. Audit requirement: no audit log."
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { "$ref": "#/components/responses/ProfileResponse" }
+        "401": { "$ref": "#/components/responses/Unauthorized" }
+    patch:
+      tags: [Profiles]
+      summary: Update safe current profile fields
+      description: "Authorization rule: authenticated user can update safe fields only; KYC/admin fields are backend/admin-only. Audit requirement: write profile_update audit log."
+      security: [{ bearerAuth: [] }]
+      requestBody: { "$ref": "#/components/requestBodies/UpdateProfile" }
+      responses:
+        "200": { "$ref": "#/components/responses/ProfileResponse" }
+        "400": { "$ref": "#/components/responses/ValidationError" }
+        "401": { "$ref": "#/components/responses/Unauthorized" }
+  /profiles/{profileId}:
+    get:
+      tags: [Profiles]
+      summary: Read an authorized profile
+      description: "Authorization rule: authenticated users can read limited public profile fields for authorized deal participants; admins use admin APIs. Audit requirement: no audit log."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/ProfileId" }]
+      responses:
+        "200": { "$ref": "#/components/responses/ProfileResponse" }
+        "403": { "$ref": "#/components/responses/Forbidden" }
+        "404": { "$ref": "#/components/responses/NotFound" }
+  /kyc/me:
+    get:
+      tags: [KYC]
+      summary: Read current user's KYC summary
+      description: "Authorization rule: authenticated user can read own KYC state and submission summary. Audit requirement: no audit log."
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { "$ref": "#/components/responses/KycSubmissionResponse" }
+        "401": { "$ref": "#/components/responses/Unauthorized" }
+  /kyc/submissions:
+    post:
+      tags: [KYC]
+      summary: Create KYC submission
+      description: "Authorization rule: authenticated user creates own KYC submission. Audit requirement: write kyc_submitted audit log."
+      security: [{ bearerAuth: [] }]
+      requestBody: { "$ref": "#/components/requestBodies/CreateKycSubmission" }
+      responses:
+        "201": { "$ref": "#/components/responses/KycSubmissionResponse" }
+        "400": { "$ref": "#/components/responses/ValidationError" }
+        "409": { "$ref": "#/components/responses/Conflict" }
+  /kyc/submissions/{submissionId}/documents/signed-upload-url:
+    post:
+      tags: [KYC, Files]
+      summary: Create KYC document signed upload URL
+      description: "Authorization rule: submission owner can request KYC document upload URLs; KYC bucket remains private. Audit requirement: write file_uploaded after confirm step."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/SubmissionId" }]
+      requestBody: { "$ref": "#/components/requestBodies/KycDocumentUpload" }
+      responses:
+        "201": { "$ref": "#/components/responses/SignedUrlResponse" }
+        "403": { "$ref": "#/components/responses/Forbidden" }
+  /deals:
+    get:
+      tags: [Deals]
+      summary: List authorized deals
+      description: "Authorization rule: authenticated user sees deals where they are creator or participant. Audit requirement: no audit log. Supports cursor pagination."
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { "$ref": "#/components/parameters/Limit" }
+        - { "$ref": "#/components/parameters/Cursor" }
+        - { "$ref": "#/components/parameters/Sort" }
+        - { name: status, in: query, required: false, schema: { "$ref": "#/components/schemas/deal_status" } }
+      responses:
+        "200": { "$ref": "#/components/responses/PaginatedDealsResponse" }
+        "401": { "$ref": "#/components/responses/Unauthorized" }
+    post:
+      tags: [Deals]
+      summary: Create draft deal
+      description: "Authorization rule: authenticated user with subscription allowance can create a draft. Audit requirement: write deal_created audit log."
+      security: [{ bearerAuth: [] }]
+      requestBody: { "$ref": "#/components/requestBodies/CreateDeal" }
+      responses:
+        "201": { "$ref": "#/components/responses/DealResponse" }
+        "400": { "$ref": "#/components/responses/ValidationError" }
+        "409": { "$ref": "#/components/responses/SubscriptionLimit" }
+  /deals/{dealId}:
+    get:
+      tags: [Deals]
+      summary: Read deal details
+      description: "Authorization rule: creator, participant, or admin can read deal details. Audit requirement: no audit log."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/DealId" }]
+      responses:
+        "200": { "$ref": "#/components/responses/DealDetailsResponse" }
+        "403": { "$ref": "#/components/responses/Forbidden" }
+        "404": { "$ref": "#/components/responses/NotFound" }
+    patch:
+      tags: [Deals]
+      summary: Update draft or negotiation deal
+      description: "Authorization rule: creator or authorized company manager can update unlocked deals only. Audit requirement: write admin/deal update audit event."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/DealId" }]
+      requestBody: { "$ref": "#/components/requestBodies/UpdateDeal" }
+      responses:
+        "200": { "$ref": "#/components/responses/DealResponse" }
+        "409": { "$ref": "#/components/responses/DealLocked" }
+  /deals/{dealId}/cancel:
+    post:
+      tags: [Deals]
+      summary: Cancel a deal
+      description: "Authorization rule: creator or authorized company manager can cancel non-locked deals. Audit requirement: write deal_cancelled audit log."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/DealId" }]
+      responses:
+        "200": { "$ref": "#/components/responses/DealResponse" }
+        "409": { "$ref": "#/components/responses/DealLocked" }
+  /deals/{dealId}/archive:
+    post:
+      tags: [Deals]
+      summary: Archive a deal
+      description: "Authorization rule: creator or authorized participant can archive their view; backend enforces shared/archive semantics. Audit requirement: write deal_archived audit log."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/DealId" }]
+      responses:
+        "200": { "$ref": "#/components/responses/DealResponse" }
+  /deals/{dealId}/parties:
+    get:
+      tags: [Deal Parties]
+      summary: List deal parties
+      description: "Authorization rule: deal creator or participant can list parties. Audit requirement: no audit log."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/DealId" }]
+      responses:
+        "200": { "$ref": "#/components/responses/DealPartiesResponse" }
+    post:
+      tags: [Deal Parties]
+      summary: Invite party to deal
+      description: "Authorization rule: creator or authorized manager can invite parties to unlocked deals. Audit requirement: write party_invited audit log."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/DealId" }]
+      requestBody: { "$ref": "#/components/requestBodies/InviteDealParty" }
+      responses:
+        "201": { "$ref": "#/components/responses/DealPartyResponse" }
+        "409": { "$ref": "#/components/responses/DuplicateParty" }
+  /deals/{dealId}/parties/{partyId}:
+    patch:
+      tags: [Deal Parties]
+      summary: Update party requirements
+      description: "Authorization rule: deal creator can update invited party metadata before lock. Audit requirement: write party_updated audit log."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/DealId" }, { "$ref": "#/components/parameters/PartyId" }]
+      requestBody: { "$ref": "#/components/requestBodies/UpdateDealParty" }
+      responses:
+        "200": { "$ref": "#/components/responses/DealPartyResponse" }
+        "409": { "$ref": "#/components/responses/DealLocked" }
+  /deal-parties/{partyId}/accept:
+    post:
+      tags: [Deal Parties]
+      summary: Accept deal invitation
+      description: "Authorization rule: invited authenticated user matching party email/profile can accept. Audit requirement: write party_accepted audit log."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/PartyId" }]
+      responses:
+        "200": { "$ref": "#/components/responses/DealPartyResponse" }
+  /deal-parties/{partyId}/decline:
+    post:
+      tags: [Deal Parties]
+      summary: Decline deal invitation
+      description: "Authorization rule: invited authenticated user matching party email/profile can decline. Audit requirement: write party_declined audit log."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/PartyId" }]
+      responses:
+        "200": { "$ref": "#/components/responses/DealPartyResponse" }
+  /deal-parties/{partyId}/revoke:
+    post:
+      tags: [Deal Parties]
+      summary: Revoke invitation
+      description: "Authorization rule: deal creator can revoke pending invitations. Audit requirement: write party_revoked audit log."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/PartyId" }]
+      responses:
+        "200": { "$ref": "#/components/responses/DealPartyResponse" }
+  /deals/{dealId}/versions:
+    get:
+      tags: [Deal Versions]
+      summary: List deal versions
+      description: "Authorization rule: authorized deal participants can list versions. Audit requirement: no audit log."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/DealId" }]
+      responses:
+        "200": { "$ref": "#/components/responses/DealVersionsResponse" }
+    post:
+      tags: [Deal Versions]
+      summary: Create deal version
+      description: "Authorization rule: creator or authorized manager can create version unless deal is locked. Audit requirement: write version_created audit log."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/DealId" }]
+      requestBody: { "$ref": "#/components/requestBodies/CreateDealVersion" }
+      responses:
+        "201": { "$ref": "#/components/responses/DealVersionResponse" }
+        "409": { "$ref": "#/components/responses/DealLocked" }
+  /deal-versions/{versionId}:
+    get:
+      tags: [Deal Versions]
+      summary: Read deal version
+      description: "Authorization rule: authorized deal participants can read the version. Audit requirement: no audit log."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/VersionId" }]
+      responses:
+        "200": { "$ref": "#/components/responses/DealVersionResponse" }
+  /deal-versions/{versionId}/submit:
+    post:
+      tags: [Deal Versions]
+      summary: Submit version for approval
+      description: "Authorization rule: creator or authorized manager can submit current draft version. Audit requirement: write version_submitted audit log and notify required parties."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/VersionId" }]
+      responses:
+        "200": { "$ref": "#/components/responses/ApprovalResultResponse" }
+        "409": { "$ref": "#/components/responses/VersionConflict" }
+  /deal-versions/{versionId}/approve:
+    post:
+      tags: [Deal Versions]
+      summary: Approve version
+      description: "Authorization rule: required party approves exact submitted version. Audit requirement: write version_approved audit log; may lock version when complete."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/VersionId" }]
+      requestBody: { "$ref": "#/components/requestBodies/ApprovalDecision" }
+      responses:
+        "200": { "$ref": "#/components/responses/ApprovalResultResponse" }
+        "409": { "$ref": "#/components/responses/VersionConflict" }
+  /deal-versions/{versionId}/reject:
+    post:
+      tags: [Deal Versions]
+      summary: Reject version
+      description: "Authorization rule: required party can reject exact submitted version with reason. Audit requirement: write version_rejected audit log."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/VersionId" }]
+      requestBody: { "$ref": "#/components/requestBodies/ApprovalDecision" }
+      responses:
+        "200": { "$ref": "#/components/responses/ApprovalResultResponse" }
+  /deal-versions/{versionId}/request-changes:
+    post:
+      tags: [Deal Versions]
+      summary: Request changes on version
+      description: "Authorization rule: required party can request changes on exact submitted version. Audit requirement: write changes_requested audit log."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/VersionId" }]
+      requestBody: { "$ref": "#/components/requestBodies/ApprovalDecision" }
+      responses:
+        "200": { "$ref": "#/components/responses/ApprovalResultResponse" }
+  /files/signed-upload-url:
+    post:
+      tags: [Files]
+      summary: Create signed upload URL
+      description: "Authorization rule: authenticated authorized user can request upload URL for allowed resource. Audit requirement: no audit until confirm-upload succeeds."
+      security: [{ bearerAuth: [] }]
+      requestBody: { "$ref": "#/components/requestBodies/SignedUploadUrl" }
+      responses:
+        "201": { "$ref": "#/components/responses/SignedUrlResponse" }
+        "413": { "$ref": "#/components/responses/FileTooLarge" }
+  /files/confirm-upload:
+    post:
+      tags: [Files]
+      summary: Confirm uploaded file metadata
+      description: "Authorization rule: uploader must be authorized for target resource. Audit requirement: write file_uploaded audit log."
+      security: [{ bearerAuth: [] }]
+      requestBody: { "$ref": "#/components/requestBodies/ConfirmUpload" }
+      responses:
+        "201": { "$ref": "#/components/responses/DealFileResponse" }
+  /deals/{dealId}/files:
+    get:
+      tags: [Files]
+      summary: List deal file metadata
+      description: "Authorization rule: deal participants can list authorized file metadata. Audit requirement: no audit log."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/DealId" }]
+      responses:
+        "200": { "$ref": "#/components/responses/DealFilesResponse" }
+  /files/{fileId}/signed-download-url:
+    get:
+      tags: [Files]
+      summary: Create signed download URL
+      description: "Authorization rule: authorized participant or admin can download private file. Audit requirement: write file_download_requested for sensitive files."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/FileId" }]
+      responses:
+        "200": { "$ref": "#/components/responses/SignedUrlResponse" }
+  /files/{fileId}:
+    delete:
+      tags: [Files]
+      summary: Delete file metadata and storage object
+      description: "Authorization rule: uploader, deal creator, or admin can delete allowed file before lock. Audit requirement: write file_deleted audit log."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/FileId" }]
+      responses:
+        "200": { "$ref": "#/components/responses/DealFileResponse" }
+  /deals/{dealId}/messages:
+    get:
+      tags: [Messages]
+      summary: List deal messages
+      description: "Authorization rule: deal participants can read visible messages. Audit requirement: no audit log."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/DealId" }, { "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }, { "$ref": "#/components/parameters/Sort" }]
+      responses:
+        "200": { "$ref": "#/components/responses/PaginatedMessagesResponse" }
+    post:
+      tags: [Messages]
+      summary: Create deal message
+      description: "Authorization rule: deal participants can create message if chat is enabled. Audit requirement: write message_created audit log."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/DealId" }]
+      requestBody: { "$ref": "#/components/requestBodies/CreateMessage" }
+      responses:
+        "201": { "$ref": "#/components/responses/MessageResponse" }
+  /messages/{messageId}:
+    patch:
+      tags: [Messages]
+      summary: Edit message
+      description: "Authorization rule: message sender can edit own visible message within policy window; admins moderate through admin report flow. Audit requirement: write message_edited audit log."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/MessageId" }]
+      requestBody: { "$ref": "#/components/requestBodies/CreateMessage" }
+      responses:
+        "200": { "$ref": "#/components/responses/MessageResponse" }
+    delete:
+      tags: [Messages]
+      summary: Delete message
+      description: "Authorization rule: sender can soft-delete own message; admin moderation uses report APIs. Audit requirement: write message_deleted audit log."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/MessageId" }]
+      responses:
+        "200": { "$ref": "#/components/responses/MessageResponse" }
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: List own notifications
+      description: "Authorization rule: authenticated user can read own notifications only. Audit requirement: no audit log."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }, { "$ref": "#/components/parameters/Sort" }]
+      responses:
+        "200": { "$ref": "#/components/responses/PaginatedNotificationsResponse" }
+  /notifications/{notificationId}/read:
+    post:
+      tags: [Notifications]
+      summary: Mark notification read
+      description: "Authorization rule: authenticated user can mark own notification read. Audit requirement: no audit log."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/NotificationId" }]
+      responses:
+        "200": { "$ref": "#/components/responses/NotificationResponse" }
+  /notifications/read-all:
+    post:
+      tags: [Notifications]
+      summary: Mark all own notifications read
+      description: "Authorization rule: authenticated user can mark own notifications read. Audit requirement: no audit log."
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { "$ref": "#/components/responses/PaginatedNotificationsResponse" }
+  /subscriptions/me:
+    get:
+      tags: [Subscriptions]
+      summary: Read subscription state
+      description: "Authorization rule: authenticated user can read own profile/company subscription state. Audit requirement: no audit log."
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { "$ref": "#/components/responses/SubscriptionResponse" }
+  /subscriptions/checkout:
+    post:
+      tags: [Subscriptions]
+      summary: Create Stripe checkout session
+      description: "Authorization rule: authenticated user or company owner can create checkout. Audit requirement: write subscription_event audit log."
+      security: [{ bearerAuth: [] }]
+      requestBody: { "$ref": "#/components/requestBodies/Checkout" }
+      responses:
+        "201": { "$ref": "#/components/responses/CheckoutResponse" }
+        "409": { "$ref": "#/components/responses/PaymentConfigurationMissing" }
+  /subscriptions/webhook:
+    post:
+      tags: [Subscriptions]
+      summary: Receive Stripe webhook
+      description: "Authorization rule: Stripe signature/service authorization required, not user JWT. Audit requirement: write subscription_event audit log."
+      requestBody: { required: true, content: { "application/json": { schema: { type: object, additionalProperties: true } } } }
+      responses:
+        "200": { "$ref": "#/components/responses/GenericSuccess" }
+        "401": { "$ref": "#/components/responses/Unauthorized" }
+  /admin/users:
+    get:
+      tags: [Admin]
+      summary: List users
+      description: "Authorization rule: admin role required. Audit requirement: no audit log for reads unless exported."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }, { "$ref": "#/components/parameters/Sort" }]
+      responses:
+        "200": { "$ref": "#/components/responses/AdminUsersResponse" }
+        "403": { "$ref": "#/components/responses/AdminOnly" }
+  /admin/users/{userId}:
+    get:
+      tags: [Admin]
+      summary: Read admin user detail
+      description: "Authorization rule: admin role required. Audit requirement: no audit log for read."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/UserId" }]
+      responses:
+        "200": { "$ref": "#/components/responses/AdminUserResponse" }
+  /admin/users/{userId}/status:
+    patch:
+      tags: [Admin]
+      summary: Update user account status
+      description: "Authorization rule: admin or super_admin role required. Audit requirement: write admin_action and audit_log."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/UserId" }]
+      requestBody: { required: true, content: { "application/json": { schema: { type: object, required: [status, reason], properties: { status: { type: string, example: suspended }, reason: { type: string, example: Fraud review } } } } } }
+      responses:
+        "200": { "$ref": "#/components/responses/AdminUserResponse" }
+  /admin/kyc/submissions:
+    get:
+      tags: [Admin]
+      summary: List KYC submissions
+      description: "Authorization rule: admin role required; support_reviewer may read only. Audit requirement: no audit log for queue read."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }, { name: status, in: query, schema: { "$ref": "#/components/schemas/kyc_status" } }]
+      responses:
+        "200": { "$ref": "#/components/responses/KycSubmissionsResponse" }
+  /admin/kyc/submissions/{submissionId}:
+    get:
+      tags: [Admin]
+      summary: Read KYC submission detail
+      description: "Authorization rule: admin role required; signed document preview URLs are issued only after authorization. Audit requirement: write sensitive_admin_view audit log if documents are exposed."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/SubmissionId" }]
+      responses:
+        "200": { "$ref": "#/components/responses/KycSubmissionResponse" }
+  /admin/kyc/{submissionId}/approve:
+    post:
+      tags: [Admin]
+      summary: Approve KYC submission
+      description: "Authorization rule: admin or super_admin required; support_reviewer cannot approve. Audit requirement: write kyc_approved, admin_action, and notification."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/SubmissionId" }]
+      requestBody: { "$ref": "#/components/requestBodies/AdminKycDecision" }
+      responses:
+        "200": { "$ref": "#/components/responses/KycSubmissionResponse" }
+        "403": { "$ref": "#/components/responses/AdminOnly" }
+  /admin/kyc/{submissionId}/reject:
+    post:
+      tags: [Admin]
+      summary: Reject KYC submission
+      description: "Authorization rule: admin or super_admin required; reason is mandatory. Audit requirement: write kyc_rejected, admin_action, and notification."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/SubmissionId" }]
+      requestBody: { "$ref": "#/components/requestBodies/AdminKycDecision" }
+      responses:
+        "200": { "$ref": "#/components/responses/KycSubmissionResponse" }
+  /admin/deals:
+    get:
+      tags: [Admin]
+      summary: List deals for moderation
+      description: "Authorization rule: admin role required. Audit requirement: no audit log for normal read."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }, { name: status, in: query, schema: { "$ref": "#/components/schemas/deal_status" } }]
+      responses:
+        "200": { "$ref": "#/components/responses/PaginatedDealsResponse" }
+  /admin/deals/{dealId}:
+    get:
+      tags: [Admin]
+      summary: Read deal for moderation
+      description: "Authorization rule: admin role required. Audit requirement: write sensitive_admin_view if private files/messages are exposed."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/DealId" }]
+      responses:
+        "200": { "$ref": "#/components/responses/DealDetailsResponse" }
+  /admin/reports:
+    get:
+      tags: [Admin]
+      summary: List reports
+      description: "Authorization rule: admin/support reviewer role required. Audit requirement: no audit log for queue read."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }, { name: status, in: query, schema: { "$ref": "#/components/schemas/report_status" } }]
+      responses:
+        "200": { "$ref": "#/components/responses/AdminReportsResponse" }
+  /admin/reports/{reportId}:
+    patch:
+      tags: [Admin]
+      summary: Review report
+      description: "Authorization rule: admin/support reviewer role required. Audit requirement: write admin_action and report_reviewed audit log."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ name: reportId, in: path, required: true, schema: { type: string, format: uuid } }]
+      requestBody: { required: true, content: { "application/json": { schema: { "$ref": "#/components/schemas/AdminReport" } } } }
+      responses:
+        "200": { "$ref": "#/components/responses/AdminReportResponse" }
+  /admin/subscriptions:
+    get:
+      tags: [Admin]
+      summary: List subscriptions
+      description: "Authorization rule: finance_reviewer, admin, or super_admin role required. Audit requirement: no audit log for normal read."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }]
+      responses:
+        "200": { "$ref": "#/components/responses/SubscriptionsResponse" }
+  /admin/audit-logs:
+    get:
+      tags: [Admin]
+      summary: List audit logs
+      description: "Authorization rule: admin or super_admin role required. Audit requirement: audit logs are append-only; reads may be audited for export or sensitive filters."
+      security: [{ bearerAuth: [] }]
+      parameters: [{ "$ref": "#/components/parameters/Limit" }, { "$ref": "#/components/parameters/Cursor" }, { name: actionType, in: query, schema: { "$ref": "#/components/schemas/audit_action_type" } }]
+      responses:
+        "200": { "$ref": "#/components/responses/PaginatedAuditLogsResponse" }
+  /admin/settings:
+    get:
+      tags: [Admin]
+      summary: Read platform settings
+      description: "Authorization rule: super_admin role required. Audit requirement: no audit log for read."
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { "$ref": "#/components/responses/GenericSuccess" }
+    patch:
+      tags: [Admin]
+      summary: Update platform settings
+      description: "Authorization rule: super_admin role required. Audit requirement: write admin_action audit log."
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { "application/json": { schema: { type: object, additionalProperties: true, example: { trialContractsLimit: 5 } } } } }
+      responses:
+        "200": { "$ref": "#/components/responses/GenericSuccess" }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "Supabase Auth JWT accepted by NestJS. Admin endpoints additionally require admin role. Future service/internal endpoints require service authorization."
+  parameters:
+    Limit: { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 25 } }
+    Cursor: { name: cursor, in: query, required: false, schema: { type: string, example: "eyJpZCI6IjEyMyJ9" } }
+    Sort: { name: sort, in: query, required: false, schema: { type: string, example: "-createdAt" } }
+    ProfileId: { name: profileId, in: path, required: true, schema: { type: string, format: uuid } }
+    UserId: { name: userId, in: path, required: true, schema: { type: string, format: uuid } }
+    DealId: { name: dealId, in: path, required: true, schema: { type: string, format: uuid } }
+    PartyId: { name: partyId, in: path, required: true, schema: { type: string, format: uuid } }
+    VersionId: { name: versionId, in: path, required: true, schema: { type: string, format: uuid } }
+    FileId: { name: fileId, in: path, required: true, schema: { type: string, format: uuid } }
+    MessageId: { name: messageId, in: path, required: true, schema: { type: string, format: uuid } }
+    NotificationId: { name: notificationId, in: path, required: true, schema: { type: string, format: uuid } }
+    SubmissionId: { name: submissionId, in: path, required: true, schema: { type: string, format: uuid } }
+  requestBodies:
+    UpdateProfile: { required: true, content: { "application/json": { schema: { "$ref": "#/components/schemas/UpdateProfileDto" } } } }
+    CreateKycSubmission: { required: true, content: { "application/json": { schema: { "$ref": "#/components/schemas/CreateKycSubmissionDto" } } } }
+    KycDocumentUpload: { required: true, content: { "application/json": { schema: { "$ref": "#/components/schemas/KycDocumentUploadDto" } } } }
+    CreateDeal: { required: true, content: { "application/json": { schema: { "$ref": "#/components/schemas/CreateDealDto" } } } }
+    UpdateDeal: { required: true, content: { "application/json": { schema: { "$ref": "#/components/schemas/UpdateDealDto" } } } }
+    InviteDealParty: { required: true, content: { "application/json": { schema: { "$ref": "#/components/schemas/InviteDealPartyDto" } } } }
+    UpdateDealParty: { required: true, content: { "application/json": { schema: { "$ref": "#/components/schemas/UpdateDealPartyDto" } } } }
+    CreateDealVersion: { required: true, content: { "application/json": { schema: { "$ref": "#/components/schemas/CreateDealVersionDto" } } } }
+    ApprovalDecision: { required: true, content: { "application/json": { schema: { "$ref": "#/components/schemas/ApprovalDecisionDto" } } } }
+    SignedUploadUrl: { required: true, content: { "application/json": { schema: { "$ref": "#/components/schemas/SignedUploadUrlDto" } } } }
+    ConfirmUpload: { required: true, content: { "application/json": { schema: { "$ref": "#/components/schemas/ConfirmUploadDto" } } } }
+    CreateMessage: { required: true, content: { "application/json": { schema: { "$ref": "#/components/schemas/CreateMessageDto" } } } }
+    Checkout: { required: true, content: { "application/json": { schema: { "$ref": "#/components/schemas/CheckoutDto" } } } }
+    AdminKycDecision: { required: true, content: { "application/json": { schema: { "$ref": "#/components/schemas/AdminKycDecisionDto" } } } }
+  responses:
+    GenericSuccess:
+      description: Success envelope
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiSuccessResponse" } } }
+    ConfigurationStatusResponse:
+      description: Configuration status envelope
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiSuccessResponse" } } }
+    HealthResponse:
+      description: Health status envelope
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiSuccessResponse" } } }
+    ProfileResponse:
+      description: Profile response
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiSuccessResponse" } } }
+    KycSubmissionResponse:
+      description: KYC submission response
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiSuccessResponse" } } }
+    KycSubmissionsResponse:
+      description: KYC submissions response
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiSuccessResponse" } } }
+    DealResponse:
+      description: Deal response
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiSuccessResponse" } } }
+    DealDetailsResponse:
+      description: Deal details response
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiSuccessResponse" } } }
+    PaginatedDealsResponse:
+      description: Paginated deals response
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/PaginatedDeals" } } }
+    DealPartyResponse:
+      description: Deal party response
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiSuccessResponse" } } }
+    DealPartiesResponse:
+      description: Deal parties response
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiSuccessResponse" } } }
+    DealVersionResponse:
+      description: Deal version response
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiSuccessResponse" } } }
+    DealVersionsResponse:
+      description: Deal versions response
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiSuccessResponse" } } }
+    ApprovalResultResponse:
+      description: Approval result response
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiSuccessResponse" } } }
+    SignedUrlResponse:
+      description: Signed URL response
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiSuccessResponse" } } }
+    DealFileResponse:
+      description: Deal file response
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiSuccessResponse" } } }
+    DealFilesResponse:
+      description: Deal files response
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiSuccessResponse" } } }
+    MessageResponse:
+      description: Message response
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiSuccessResponse" } } }
+    PaginatedMessagesResponse:
+      description: Paginated messages response
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/PaginatedMessages" } } }
+    NotificationResponse:
+      description: Notification response
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiSuccessResponse" } } }
+    PaginatedNotificationsResponse:
+      description: Paginated notifications response
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/PaginatedNotifications" } } }
+    SubscriptionResponse:
+      description: Subscription response
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiSuccessResponse" } } }
+    SubscriptionsResponse:
+      description: Subscriptions response
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiSuccessResponse" } } }
+    CheckoutResponse:
+      description: Checkout session response
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiSuccessResponse" } } }
+    AdminUserResponse:
+      description: Admin user response
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiSuccessResponse" } } }
+    AdminUsersResponse:
+      description: Admin users response
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiSuccessResponse" } } }
+    AdminReportResponse:
+      description: Admin report response
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiSuccessResponse" } } }
+    AdminReportsResponse:
+      description: Admin reports response
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiSuccessResponse" } } }
+    PaginatedAuditLogsResponse:
+      description: Paginated audit logs response
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/PaginatedAuditLogs" } } }
+    ValidationError:
+      description: Validation error
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiErrorResponse" } } }
+    Unauthorized:
+      description: Missing or invalid token
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiErrorResponse" } } }
+    Forbidden:
+      description: Permission denied
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiErrorResponse" } } }
+    AdminOnly:
+      description: Admin role required
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiErrorResponse" } } }
+    NotFound:
+      description: Resource not found
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiErrorResponse" } } }
+    Conflict:
+      description: Conflict
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiErrorResponse" } } }
+    VersionConflict:
+      description: Stale version
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiErrorResponse" } } }
+    DealLocked:
+      description: Deal locked
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiErrorResponse" } } }
+    DuplicateParty:
+      description: Duplicate party
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiErrorResponse" } } }
+    SubscriptionLimit:
+      description: Subscription limit reached
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiErrorResponse" } } }
+    FileTooLarge:
+      description: File too large
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiErrorResponse" } } }
+    PaymentConfigurationMissing:
+      description: Payment configuration missing
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiErrorResponse" } } }
+    InternalError:
+      description: Internal error
+      content: { "application/json": { schema: { "$ref": "#/components/schemas/ApiErrorResponse" } } }
+  schemas:
+    deal_status: { type: string, enum: [draft, negotiation, pending_approval, approved, locked, changes_requested, rejected, cancelled, archived] }
+    party_status: { type: string, enum: [invited, accepted, declined, removed, expired, revoked] }
+    approval_status: { type: string, enum: [pending, approved, rejected, changes_requested, invalidated] }
+    kyc_status: { type: string, enum: [not_started, submitted, under_review, approved, rejected, resubmission_required] }
+    subscription_status: { type: string, enum: [trialing, active, past_due, cancelled, expired] }
+    notification_type: { type: string, enum: [deal_invitation, approval_requested, approved, rejected, changes_requested, file_uploaded, kyc_updated, subscription_updated, admin_action] }
+    file_type: { type: string, enum: [avatar, deal_attachment, kyc_document, generated_contract] }
+    file_visibility: { type: string, enum: [private, participant_private, admin_private] }
+    company_member_role: { type: string, enum: [owner, manager, member, viewer] }
+    admin_role: { type: string, enum: [super_admin, admin, support_reviewer, finance_reviewer] }
+    audit_action_type: { type: string, enum: [account_created, kyc_submitted, kyc_approved, kyc_rejected, deal_created, party_invited, party_accepted, party_declined, version_created, version_submitted, version_approved, version_rejected, changes_requested, version_locked, file_uploaded, message_created, subscription_event, admin_action] }
+    report_status: { type: string, enum: [open, under_review, resolved, dismissed] }
+    message_status: { type: string, enum: [sent, edited, deleted, hidden] }
+    Meta:
+      type: object
+      required: [requestId, timestamp]
+      properties:
+        requestId: { type: string, format: uuid, example: "00000000-0000-4000-8000-000000000000" }
+        timestamp: { type: string, format: date-time, example: "2026-06-19T00:00:00.000Z" }
+    PaginationMeta:
+      type: object
+      required: [requestId, timestamp, limit, nextCursor]
+      properties:
+        requestId: { type: string, format: uuid }
+        timestamp: { type: string, format: date-time }
+        limit: { type: integer, example: 25 }
+        nextCursor: { type: string, nullable: true, example: "next_cursor" }
+    ApiSuccessResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data: { type: object, additionalProperties: true }
+        meta: { "$ref": "#/components/schemas/Meta" }
+    ApiErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message, details, requestId]
+          properties:
+            code: { type: string, enum: [VALIDATION_ERROR, UNAUTHORIZED, FORBIDDEN, NOT_FOUND, CONFLICT, VERSION_CONFLICT, DEAL_LOCKED, DUPLICATE_PARTY, SUBSCRIPTION_LIMIT, FILE_TOO_LARGE, PAYMENT_CONFIGURATION_MISSING, ADMIN_ONLY, INTERNAL_ERROR] }
+            message: { type: string, example: Human readable message }
+            details: { type: object, additionalProperties: true }
+            requestId: { type: string, format: uuid }
+    AuthUser:
+      type: object
+      required: [id, email]
+      properties: { id: { type: string, format: uuid }, email: { type: string, format: email, example: creator@example.com }, role: { type: string, example: authenticated } }
+    Profile:
+      type: object
+      required: [id, authUserId, email, kycStatus, isAdmin, createdAt, updatedAt]
+      properties: { id: { type: string, format: uuid }, authUserId: { type: string, format: uuid }, email: { type: string, format: email, example: creator@example.com }, displayName: { type: string, nullable: true, example: Creator User }, avatarUrl: { type: string, nullable: true, format: uri }, kycStatus: { "$ref": "#/components/schemas/kyc_status" }, isAdmin: { type: boolean }, adminRole: { allOf: [{ "$ref": "#/components/schemas/admin_role" }], nullable: true }, createdAt: { type: string, format: date-time }, updatedAt: { type: string, format: date-time } }
+    UpdateProfileDto:
+      type: object
+      required: [displayName]
+      properties: { displayName: { type: string, minLength: 2, example: Creator User }, avatarUrl: { type: string, format: uri, nullable: true } }
+    KycSubmission:
+      type: object
+      required: [id, profileId, status, createdAt]
+      properties: { id: { type: string, format: uuid }, profileId: { type: string, format: uuid }, status: { "$ref": "#/components/schemas/kyc_status" }, providerReference: { type: string, nullable: true, example: kyc_demo_001 }, rejectionReason: { type: string, nullable: true }, submittedAt: { type: string, format: date-time, nullable: true }, reviewedAt: { type: string, format: date-time, nullable: true }, reviewedByProfileId: { type: string, format: uuid, nullable: true }, createdAt: { type: string, format: date-time } }
+    CreateKycSubmissionDto:
+      type: object
+      required: [country, legalName]
+      properties: { country: { type: string, example: TN }, legalName: { type: string, example: Demo Creator }, documentType: { type: string, example: passport } }
+    KycDocumentUploadDto:
+      type: object
+      required: [fileName, contentType, sizeBytes]
+      properties: { fileName: { type: string, example: passport.pdf }, contentType: { type: string, example: application/pdf }, sizeBytes: { type: integer, example: 500000 } }
+    Deal:
+      type: object
+      required: [id, creatorProfileId, title, status, createdAt, updatedAt]
+      properties: { id: { type: string, format: uuid }, creatorProfileId: { type: string, format: uuid }, companyId: { type: string, format: uuid, nullable: true }, title: { type: string, example: Website delivery agreement }, description: { type: string, nullable: true }, status: { "$ref": "#/components/schemas/deal_status" }, currentVersionId: { type: string, format: uuid, nullable: true }, lockedVersionId: { type: string, format: uuid, nullable: true }, createdAt: { type: string, format: date-time }, updatedAt: { type: string, format: date-time } }
+    DealSummary: { allOf: [{ "$ref": "#/components/schemas/Deal" }] }
+    DealDetails:
+      allOf:
+        - "$ref": "#/components/schemas/Deal"
+        - type: object
+          properties: { parties: { type: array, items: { "$ref": "#/components/schemas/DealParty" } }, versions: { type: array, items: { "$ref": "#/components/schemas/DealVersion" } }, files: { type: array, items: { "$ref": "#/components/schemas/DealFile" } } }
+    CreateDealDto:
+      type: object
+      required: [title]
+      properties: { title: { type: string, minLength: 3, example: Website delivery agreement }, description: { type: string, nullable: true, example: Contract for milestone delivery }, companyId: { type: string, format: uuid, nullable: true } }
+    UpdateDealDto:
+      type: object
+      required: [title]
+      properties: { title: { type: string, example: Updated agreement }, description: { type: string, nullable: true }, status: { "$ref": "#/components/schemas/deal_status" } }
+    DealParty:
+      type: object
+      required: [id, dealId, email, role, partyStatus, requiredApproval]
+      properties: { id: { type: string, format: uuid }, dealId: { type: string, format: uuid }, profileId: { type: string, format: uuid, nullable: true }, email: { type: string, format: email, example: party@example.com }, role: { type: string, example: buyer }, partyStatus: { "$ref": "#/components/schemas/party_status" }, requiredApproval: { type: boolean, example: true } }
+    InviteDealPartyDto:
+      type: object
+      required: [email, role, requiredApproval]
+      properties: { email: { type: string, format: email, example: party@example.com }, role: { type: string, example: reviewer }, requiredApproval: { type: boolean, example: true } }
+    UpdateDealPartyDto:
+      type: object
+      required: [role, requiredApproval]
+      properties: { role: { type: string, example: signer }, requiredApproval: { type: boolean, example: true } }
+    DealVersion:
+      type: object
+      required: [id, dealId, versionNumber, status, title, termsJson, createdByProfileId]
+      properties: { id: { type: string, format: uuid }, dealId: { type: string, format: uuid }, versionNumber: { type: integer, example: 1 }, status: { "$ref": "#/components/schemas/deal_status" }, title: { type: string, example: Initial terms }, termsJson: { type: object, additionalProperties: true, example: { payment: "50 percent upfront" } }, summary: { type: string, nullable: true }, createdByProfileId: { type: string, format: uuid }, submittedAt: { type: string, format: date-time, nullable: true }, lockedAt: { type: string, format: date-time, nullable: true } }
+    CreateDealVersionDto:
+      type: object
+      required: [title, termsJson]
+      properties: { title: { type: string, example: Initial terms }, termsJson: { type: object, additionalProperties: true, example: { deliverable: "MVP" } }, summary: { type: string, nullable: true } }
+    ApprovalDecisionDto:
+      type: object
+      required: [reason]
+      properties: { reason: { type: string, example: Approved after review }, expectedVersionNumber: { type: integer, example: 1 } }
+    ApprovalResult:
+      type: object
+      required: [versionId, approvalStatus, locked]
+      properties: { versionId: { type: string, format: uuid }, approvalStatus: { "$ref": "#/components/schemas/approval_status" }, locked: { type: boolean, example: false }, lockedVersionId: { type: string, format: uuid, nullable: true } }
+    DealFile:
+      type: object
+      required: [id, storageBucket, storagePath, originalFileName, contentType, sizeBytes, fileType, visibility]
+      properties: { id: { type: string, format: uuid }, dealId: { type: string, format: uuid, nullable: true }, versionId: { type: string, format: uuid, nullable: true }, storageBucket: { type: string, example: deal-files }, storagePath: { type: string, example: deals/123/file.pdf }, originalFileName: { type: string, example: contract.pdf }, contentType: { type: string, example: application/pdf }, sizeBytes: { type: integer, example: 900000 }, fileType: { "$ref": "#/components/schemas/file_type" }, visibility: { "$ref": "#/components/schemas/file_visibility" } }
+    SignedUploadUrlDto:
+      type: object
+      required: [resourceType, fileName, contentType, sizeBytes, fileType, visibility]
+      properties: { resourceType: { type: string, example: deal }, resourceId: { type: string, format: uuid }, fileName: { type: string, example: contract.pdf }, contentType: { type: string, example: application/pdf }, sizeBytes: { type: integer, example: 900000 }, fileType: { "$ref": "#/components/schemas/file_type" }, visibility: { "$ref": "#/components/schemas/file_visibility" } }
+    SignedUrlResponse:
+      type: object
+      required: [url, storageBucket, storagePath, expiresAt]
+      properties: { url: { type: string, format: uri, example: "https://storage.example.com/signed" }, storageBucket: { type: string, example: deal-files }, storagePath: { type: string, example: deals/123/file.pdf }, expiresAt: { type: string, format: date-time } }
+    ConfirmUploadDto:
+      type: object
+      required: [storageBucket, storagePath, originalFileName, contentType, sizeBytes, fileType, visibility]
+      properties: { storageBucket: { type: string, example: deal-files }, storagePath: { type: string, example: deals/123/file.pdf }, originalFileName: { type: string, example: contract.pdf }, contentType: { type: string, example: application/pdf }, sizeBytes: { type: integer, example: 900000 }, fileType: { "$ref": "#/components/schemas/file_type" }, visibility: { "$ref": "#/components/schemas/file_visibility" }, dealId: { type: string, format: uuid, nullable: true }, versionId: { type: string, format: uuid, nullable: true } }
+    Message:
+      type: object
+      required: [id, dealId, senderProfileId, body, messageStatus, createdAt]
+      properties: { id: { type: string, format: uuid }, dealId: { type: string, format: uuid }, senderProfileId: { type: string, format: uuid }, body: { type: string, example: Please review clause 4. }, messageStatus: { "$ref": "#/components/schemas/message_status" }, createdAt: { type: string, format: date-time }, editedAt: { type: string, format: date-time, nullable: true } }
+    CreateMessageDto:
+      type: object
+      required: [body]
+      properties: { body: { type: string, minLength: 1, example: Please review clause 4. } }
+    Notification:
+      type: object
+      required: [id, profileId, notificationType, title, payloadJson, createdAt]
+      properties: { id: { type: string, format: uuid }, profileId: { type: string, format: uuid }, notificationType: { "$ref": "#/components/schemas/notification_type" }, title: { type: string, example: Approval requested }, body: { type: string, nullable: true }, payloadJson: { type: object, additionalProperties: true }, readAt: { type: string, format: date-time, nullable: true }, createdAt: { type: string, format: date-time } }
+    Subscription:
+      type: object
+      required: [id, status, trialContractsUsed, trialContractsLimit]
+      properties: { id: { type: string, format: uuid }, profileId: { type: string, format: uuid, nullable: true }, companyId: { type: string, format: uuid, nullable: true }, status: { "$ref": "#/components/schemas/subscription_status" }, stripeCustomerId: { type: string, nullable: true }, trialContractsUsed: { type: integer, example: 1 }, trialContractsLimit: { type: integer, example: 5 }, currentPeriodEnd: { type: string, format: date-time, nullable: true } }
+    CheckoutDto:
+      type: object
+      required: [planCode, successUrl, cancelUrl]
+      properties: { planCode: { type: string, example: ideal_pro_monthly }, successUrl: { type: string, format: uri }, cancelUrl: { type: string, format: uri } }
+    AdminUser:
+      allOf:
+        - "$ref": "#/components/schemas/Profile"
+        - type: object
+          properties: { accountStatus: { type: string, example: active }, lastLoginAt: { type: string, format: date-time, nullable: true } }
+    AdminKycDecisionDto:
+      type: object
+      required: [reason]
+      properties: { reason: { type: string, example: Documents match profile information. }, internalNote: { type: string, nullable: true } }
+    AdminReport:
+      type: object
+      required: [id, reporterProfileId, resourceType, resourceId, status, reason]
+      properties: { id: { type: string, format: uuid }, reporterProfileId: { type: string, format: uuid }, resourceType: { type: string, example: message }, resourceId: { type: string, format: uuid }, status: { "$ref": "#/components/schemas/report_status" }, reason: { type: string, example: Suspicious content }, resolution: { type: string, nullable: true } }
+    AuditLog:
+      type: object
+      required: [id, actionType, resourceType, metadataJson, createdAt]
+      properties: { id: { type: string, format: uuid }, actorProfileId: { type: string, format: uuid, nullable: true }, actionType: { "$ref": "#/components/schemas/audit_action_type" }, resourceType: { type: string, example: deal }, resourceId: { type: string, format: uuid, nullable: true }, metadataJson: { type: object, additionalProperties: true }, createdAt: { type: string, format: date-time } }
+    PaginatedDeals: { allOf: [{ "$ref": "#/components/schemas/ApiSuccessResponse" }, { type: object, properties: { data: { type: array, items: { "$ref": "#/components/schemas/DealSummary" } }, meta: { "$ref": "#/components/schemas/PaginationMeta" } } }] }
+    PaginatedMessages: { allOf: [{ "$ref": "#/components/schemas/ApiSuccessResponse" }, { type: object, properties: { data: { type: array, items: { "$ref": "#/components/schemas/Message" } }, meta: { "$ref": "#/components/schemas/PaginationMeta" } } }] }
+    PaginatedNotifications: { allOf: [{ "$ref": "#/components/schemas/ApiSuccessResponse" }, { type: object, properties: { data: { type: array, items: { "$ref": "#/components/schemas/Notification" } }, meta: { "$ref": "#/components/schemas/PaginationMeta" } } }] }
+    PaginatedAuditLogs: { allOf: [{ "$ref": "#/components/schemas/ApiSuccessResponse" }, { type: object, properties: { data: { type: array, items: { "$ref": "#/components/schemas/AuditLog" } }, meta: { "$ref": "#/components/schemas/PaginationMeta" } } }] }

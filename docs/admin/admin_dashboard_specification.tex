@@ -1,0 +1,108 @@
+\chapter*{Admin Dashboard Specification}
+\addcontentsline{toc}{chapter}{Admin Dashboard Specification}
+
+\section*{Purpose}
+This document guides \texttt{apps/admin} implementation for IDEAL operations, moderation, KYC review, subscriptions, audit visibility, and system status.
+
+\section*{Architecture Rule}
+The Next.js admin dashboard must call NestJS APIs only. It must not write directly to Supabase tables or use the Supabase service role key.
+
+\section*{Target Folder Structure}
+\begin{verbatim}
+apps/admin/
+  app/login/
+  app/admin/page.tsx
+  app/admin/users/
+  app/admin/users/[id]/
+  app/admin/kyc/
+  app/admin/kyc/[id]/
+  app/admin/deals/
+  app/admin/deals/[id]/
+  app/admin/reports/
+  app/admin/subscriptions/
+  app/admin/audit-logs/
+  app/admin/settings/
+  components/
+  lib/api-client.ts
+  lib/auth.ts
+  lib/permissions.ts
+  types/
+  tests/
+\end{verbatim}
+
+\section*{Admin Roles}
+\begin{longtable}{p{0.18\linewidth}p{0.28\linewidth}p{0.26\linewidth}p{0.18\linewidth}}
+\caption{Admin roles and permissions}\\
+\toprule
+Role & Accessible pages & Allowed actions & Forbidden actions \\
+\midrule
+\endfirsthead
+\toprule
+Role & Accessible pages & Allowed actions & Forbidden actions \\
+\midrule
+\endhead
+super\_admin & All admin routes & Settings, users, KYC, reports, subscriptions, audit logs & None by role \\
+admin & Users, KYC, deals, reports, audit logs & Approve/reject KYC, moderate reports, inspect deals & Platform settings unless delegated \\
+support\_reviewer & Users, KYC queue, reports & Read queues, prepare reviews, resolve allowed reports & Approve KYC, settings, finance data \\
+finance\_reviewer & Subscriptions, selected users & Inspect subscriptions and payment state & KYC approval, settings, moderation \\
+\bottomrule
+\end{longtable}
+
+\section*{Admin Route Catalog}
+\begin{longtable}{p{0.17\linewidth}p{0.2\linewidth}p{0.23\linewidth}p{0.28\linewidth}}
+\caption{Admin route catalog}\\
+\toprule
+Route & Purpose & API endpoints & UI states/actions \\
+\midrule
+\endfirsthead
+\toprule
+Route & Purpose & API endpoints & UI states/actions \\
+\midrule
+\endhead
+\texttt{/admin} & Overview and API status & \texttt{/configuration/status}, \texttt{/health} & Loading, unreachable, connected, permission denied \\
+\texttt{/admin/users} & User list & \texttt{/admin/users} & Table columns: email, KYC, admin role, status; filters by status/KYC \\
+\texttt{/admin/users/[id]} & User detail & \texttt{/admin/users/\{id\}}, \texttt{/admin/users/\{id\}/status} & Suspend/reactivate with confirm dialog \\
+\texttt{/admin/kyc} & KYC queue & \texttt{/admin/kyc/submissions} & Filter submitted/under review; empty and error states \\
+\texttt{/admin/kyc/[id]} & KYC review & \texttt{/admin/kyc/submissions/\{id\}}, approve/reject endpoints & Signed preview URL, approve, reject with reason \\
+\texttt{/admin/deals} & Deal monitoring & \texttt{/admin/deals} & Filters by status, creator, date; read-only table \\
+\texttt{/admin/deals/[id]} & Deal inspection & \texttt{/admin/deals/\{id\}} & Parties, versions, files, messages, audit links \\
+\texttt{/admin/reports} & Moderation reports & \texttt{/admin/reports}, \texttt{/admin/reports/\{id\}} & Resolve/dismiss reports with reason \\
+\texttt{/admin/subscriptions} & Subscription review & \texttt{/admin/subscriptions} & Finance role access; status filters \\
+\texttt{/admin/audit-logs} & Audit viewer & \texttt{/admin/audit-logs} & Action/resource filters, request ID display \\
+\texttt{/admin/settings} & Platform settings & \texttt{/admin/settings} & Super admin only, confirm every mutation \\
+\bottomrule
+\end{longtable}
+
+\section*{Required Components}
+\begin{longtable}{p{0.25\linewidth}p{0.68\linewidth}}
+\caption{Admin component catalog}\\
+\toprule
+Component & Requirement \\
+\midrule
+\endfirsthead
+\toprule
+Component & Requirement \\
+\midrule
+\endhead
+AdminLayout & Protected shell with sidebar/topbar and permission fallback. \\
+AdminSidebar & Stable navigation filtered by role. \\
+AdminTopbar & Current user, environment, API status, logout. \\
+StatusBadge, UserStatusBadge, KycStatusBadge & Consistent status rendering. \\
+DataTable & Sort, filter, pagination, empty/error/loading states. \\
+AuditLogTable & Shows action, actor, resource, request ID, timestamp. \\
+ConfirmActionDialog & Required for destructive/sensitive mutations. \\
+PermissionGate & Hides or blocks role-forbidden actions. \\
+ApiStatusPanel & Calls configuration and health endpoints. \\
+KycReviewPanel & Shows KYC submission, signed preview, approve/reject. \\
+ReportReviewPanel & Moderation workflow for reports. \\
+\bottomrule
+\end{longtable}
+
+\section*{KYC Review Workflow}
+Admin opens the KYC queue, filters submitted records, opens a submission detail page, requests a backend-issued signed preview URL, approves or rejects, enters a mandatory rejection reason when rejecting, and submits the decision to NestJS. The backend writes an admin action, an audit log, updates the profile KYC status, and creates a user notification.
+
+\section*{Admin API Client}
+The base URL comes from \texttt{NEXT\_PUBLIC\_API\_BASE\_URL}. The client attaches the bearer token, parses the standard response envelope, parses standard errors, redirects on \texttt{UNAUTHORIZED}, renders permission state on \texttt{FORBIDDEN}, and displays request IDs for support debugging.
+
+\section*{Acceptance Criteria}
+The admin dashboard is done only when protected routes exist, API status panel exists, KYC queue and user list exist, audit log viewer exists, role permission states exist, loading/empty/error states exist, and tests cover core routes and permissions.

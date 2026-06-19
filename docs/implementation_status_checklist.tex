@@ -1,0 +1,75 @@
+\chapter*{Implementation Status Checklist}
+\addcontentsline{toc}{chapter}{Implementation Status Checklist}
+
+Statuses are factual: Done, Partial, Not Started, Blocked, or Needs Review.
+
+\begin{longtable}{p{0.12\linewidth}p{0.2\linewidth}p{0.12\linewidth}p{0.2\linewidth}p{0.18\linewidth}p{0.08\linewidth}p{0.14\linewidth}}
+\caption{Implementation status checklist}\\
+\toprule
+Area & Item & Status & Evidence & Missing Work & Owner & Next Action \\
+\midrule
+\endfirsthead
+\toprule
+Area & Item & Status & Evidence & Missing Work & Owner & Next Action \\
+\midrule
+\endhead
+Mobile & Flutter project foundation & Done & \texttt{apps/mobile} builds/analyzes & Expand feature modules & Mobile & Add routing \\
+Mobile & Theme & Partial & Material theme seed exists & Full design system & Mobile & Define tokens \\
+Mobile & Routing & Not Started & No router package/config & Route table & Mobile & Add router \\
+Mobile & Auth screens & Not Started & Current screen is welcome/status & Login/register/reset & Mobile & Implement auth feature \\
+Mobile & Riverpod auth state & Not Started & Riverpod absent & Providers/session state & Mobile & Add when needed \\
+Mobile & Supabase initialization & Not Started & No Supabase client in branch & Auth lifecycle decision & Mobile/API & Decide auth integration \\
+Mobile & Password reset & Not Started & No reset screen & Deep link handling & Mobile & Design flow \\
+Mobile & API client for NestJS & Partial & Basic \texttt{HttpClient} probe exists & Auth, errors, interceptors & Mobile & Implement contract client \\
+Mobile & Deal screens & Not Started & No feature screens & List/detail/create & Mobile & Create feature \\
+Mobile & Approval screens & Not Started & No approval UI & Version approval flow & Mobile & Create feature \\
+Mobile & File screens & Not Started & No file UI & Signed upload/download & Mobile & Create feature \\
+Mobile & Tests & Not Started & No added widget tests & Widget and integration tests & Mobile & Add tests \\
+Backend & NestJS project foundation & Done & \texttt{services/api} compiles & More modules logic & API & Continue modules \\
+Backend & Config module & Partial & Environment status endpoint & Typed config validation & API & Add config service \\
+Backend & Health endpoint & Done & \texttt{/api/v1/health} exists & None & API & Keep tested \\
+Backend & Auth guard & Not Started & No guard implementation & JWT validation & API & Implement guard \\
+Backend & Profile module & Not Started & Contract only & Controller/service/DTOs & API & Implement profile feature \\
+Backend & Deal module & Partial & Foundation endpoint only & Real CRUD/services & API & Implement deal service \\
+Backend & Party module & Partial & Contract/schema only & Controllers/services & API & Implement party service \\
+Backend & Version module & Partial & Foundation endpoint only & Version business logic & API & Implement version service \\
+Backend & Approval module & Partial & Foundation endpoint only & Approval/lock logic & API & Implement approval service \\
+Backend & Files module & Partial & Foundation endpoint only & Signed URL integration & API & Implement files service \\
+Backend & Audit module & Partial & Module boundary only & Append-only service & API & Implement audit service \\
+Backend & Admin module & Partial & Foundation endpoint only & Admin routes/guards & API & Implement admin APIs \\
+Backend & Tests & Partial & Starter tests pass & Module tests missing & API & Add tests per contract \\
+Backend & OpenAPI alignment & Partial & Contract file exists & Keep synced with implementation & API & Validate in CI \\
+Admin & Next.js foundation & Done & App builds & Protected admin routes & Admin & Add route tree \\
+Admin & Admin layout & Not Started & Current page is foundation screen & Layout/sidebar/topbar & Admin & Build layout \\
+Admin & API status panel & Partial & Live probe panel exists & Auth-aware panel & Admin & Connect token \\
+Admin & Auth flow & Not Started & No login/session flow & Protected auth & Admin & Implement auth \\
+Admin & Users page & Not Started & No route & Table/detail/actions & Admin & Create page \\
+Admin & KYC queue & Not Started & No route & Queue/detail/review & Admin & Create feature \\
+Admin & KYC detail & Not Started & No route & Signed preview/decision & Admin & Create page \\
+Admin & Audit logs & Not Started & No route & Viewer/filtering & Admin & Create page \\
+Admin & Permissions & Partial & Contract only & Runtime PermissionGate & Admin & Implement roles \\
+Admin & Tests & Not Started & No added tests & Component/E2E tests & Admin & Add tests \\
+Database & Prisma schema & Done & \texttt{schema.prisma} exists & Validate after Prisma install & API & Run validation \\
+Database & Initial migration & Done & Migration 001 exists & Apply to Supabase & API & Run migrations \\
+Database & Indexes & Done & Migration 002 exists & Query tuning later & API & Review plans \\
+Database & RLS & Partial & Migration 003 baseline exists & Final policy testing & API/Security & Test with tokens \\
+Database & Storage buckets & Partial & Migration 004 documents/creates buckets & Environment verification & API & Apply to Supabase \\
+Database & Seed data & Done & Development seed exists & Apply locally & API & Seed local DB \\
+Documentation & LaTeX PDF & Partial & Builds as draft & Formatting polish & Docs & Fix warnings \\
+Documentation & OpenAPI & Done & Contract file exists & Tool validation & API & Validate YAML \\
+Documentation & Backend contract & Done & Contract file exists & Review by backend owner & API & Review \\
+Documentation & Admin contract & Done & Contract file exists & Review by admin owner & Admin & Review \\
+Documentation & Mobile contract & Done & Contract file exists & Review by mobile owner & Mobile & Review \\
+Documentation & QA matrix & Done & Matrix file exists & Automate in CI & QA & Review \\
+Documentation & Decision log & Partial & PDF appendix exists & Track implementation decisions & Team & Update continuously \\
+QA & Backend unit tests & Partial & Starter tests pass & Module tests & API & Add tests \\
+QA & Backend integration tests & Not Started & None for real modules & Supertest flows & API & Add tests \\
+QA & Mobile widget tests & Not Started & No feature tests & Widget coverage & Mobile & Add tests \\
+QA & Admin component tests & Not Started & No component tests & UI state tests & Admin & Add tests \\
+QA & E2E tests & Not Started & No E2E harness & Playwright/app flows & QA & Choose harness \\
+QA & Security tests & Not Started & No policy tests & RLS/auth tests & QA/API & Add tests \\
+Infrastructure & Supabase migrations & Done & SQL files exist & Apply in environment & API & Run migrations \\
+Infrastructure & Storage policies & Partial & Bucket contract exists & Supabase policy verification & API/Security & Test buckets \\
+Infrastructure & CI & Not Started & No workflow added in this task & Pipeline setup & Team & Add workflow \\
+\bottomrule
+\end{longtable}

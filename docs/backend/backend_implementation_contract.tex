@@ -1,0 +1,144 @@
+\chapter*{Backend Implementation Contract}
+\addcontentsline{toc}{chapter}{Backend Implementation Contract}
+
+\section*{Purpose}
+This document is the implementation contract for \texttt{services/api}. It converts the product specification into backend work that can be reviewed, estimated, tested, and implemented module by module.
+
+\section*{Backend Responsibility}
+NestJS owns business logic, authorization, validation, state transitions, audit logging, signed URL issuance, and integration orchestration. Flutter and Next.js call API endpoints only. The Supabase service role key is API-only and must never be exposed to Flutter, Next.js, logs, or generated client bundles. Sensitive operations write audit records.
+
+\section*{Target Folder Structure}
+\begin{verbatim}
+services/api/src/
+  main.ts
+  app.module.ts
+  config/
+  common/
+  guards/
+  filters/
+  interceptors/
+  decorators/
+  dto/
+  errors/
+  auth/
+  profiles/
+  kyc/
+  deals/
+  deal-parties/
+  deal-versions/
+  approvals/
+  files/
+  messages/
+  notifications/
+  trust/
+  subscriptions/
+  admin/
+  audit/
+  health/
+  prisma/
+\end{verbatim}
+
+\section*{Common Backend Components}
+\begin{longtable}{p{0.25\linewidth}p{0.68\linewidth}}
+\caption{Backend common components}\\
+\toprule
+Component & Contract \\
+\midrule
+\endfirsthead
+\toprule
+Component & Contract \\
+\midrule
+\endhead
+\texttt{SupabaseJwtAuthGuard} & Validates Supabase JWT, rejects missing/invalid tokens with \texttt{UNAUTHORIZED}, and attaches the resolved auth user. \\
+\texttt{ResourceAccessGuard} & Checks deal, file, message, and profile resource access before controller methods execute. \\
+\texttt{AdminRoleGuard} & Enforces \texttt{super\_admin}, \texttt{admin}, \texttt{support\_reviewer}, and \texttt{finance\_reviewer} permissions. \\
+\texttt{SubscriptionGuard} & Enforces trial and paid subscription limits before deal creation. \\
+\texttt{RequestIdInterceptor} & Creates or propagates request IDs and adds them to success/error envelopes. \\
+\texttt{AuditService} & Writes append-only audit records for sensitive mutations and admin actions. \\
+\texttt{HttpExceptionFilter} & Converts all exceptions to the standard API error shape. \\
+\texttt{ValidationPipe} & Enforces DTO validation, transform, whitelist, and forbidden non-whitelisted fields. \\
+\texttt{CurrentUser} & Decorator returning authenticated user/profile context. \\
+\texttt{Roles} & Decorator describing role requirements consumed by \texttt{AdminRoleGuard}. \\
+\bottomrule
+\end{longtable}
+
+\section*{Modules}
+\begin{longtable}{p{0.16\linewidth}p{0.2\linewidth}p{0.2\linewidth}p{0.2\linewidth}p{0.14\linewidth}}
+\caption{Backend module implementation contract}\\
+\toprule
+Module & Controllers & Services/DTOs & Authorization and audit & Tests \\
+\midrule
+\endfirsthead
+\toprule
+Module & Controllers & Services/DTOs & Authorization and audit & Tests \\
+\midrule
+\endhead
+Auth & AuthController when custom session endpoints are needed & Supabase JWT verification, profile resolver & JWT validation, no service role exposure & Guard tests \\
+Profiles & ProfilesController & ProfilesService, UpdateProfileDto & Own profile safe updates; audit profile changes & Unit/integration \\
+KYC & KycController, AdminKycController & KycService, CreateKycSubmissionDto, AdminKycDecisionDto & Own KYC read/create; admin review; audit review & Unit/integration \\
+Deals & DealsController & DealsService, CreateDealDto, UpdateDealDto & Creator/participant access; audit create/update/cancel/archive & Lifecycle tests \\
+Deal Parties & DealPartiesController & DealPartiesService, InviteDealPartyDto & Creator invite/revoke; invited user accept/decline; audit mutations & Access tests \\
+Deal Versions & DealVersionsController & DealVersionsService, CreateDealVersionDto & Unlocked creator creates/submits; audit version events & Version tests \\
+Approvals & ApprovalsController & ApprovalsService, ApprovalDecisionDto & Required party approves exact version; lock when complete; audit all decisions & Conflict tests \\
+Files & FilesController & FilesService, SignedUploadUrlDto, ConfirmUploadDto & Backend-issued signed URLs only; audit confirm/download sensitive files & Storage tests \\
+Messages & MessagesController & MessagesService, CreateMessageDto & Participants only; moderation status honored; audit creates/edits/deletes & Chat tests \\
+Notifications & NotificationsController & NotificationsService & Own notifications only; no cross-user reads & Ownership tests \\
+Trust & TrustService & Trust counters & Backend updates from deal outcomes only & Counter tests \\
+Subscriptions & SubscriptionsController & SubscriptionsService, CheckoutDto & Stripe webhook/service auth; audit subscription events & Webhook tests \\
+Admin & AdminController family & Admin services and DTOs & Admin roles; admin actions and audit logs & Permission tests \\
+Audit & AuditController, AuditService & Audit repository & Append-only; admin read only & Immutability tests \\
+Health & HealthController & HealthService & Public liveness & Smoke tests \\
+\bottomrule
+\end{longtable}
+
+\section*{Backend Methods}
+\begin{verbatim}
+DealsService.createDeal(user, dto)
+DealsService.listDeals(user, query)
+DealsService.getDealById(user, dealId)
+DealsService.updateDeal(user, dealId, dto)
+DealsService.cancelDeal(user, dealId)
+DealsService.archiveDeal(user, dealId)
+
+DealPartiesService.inviteParty(user, dealId, dto)
+DealPartiesService.listParties(user, dealId)
+DealPartiesService.acceptInvitation(user, partyId)
+DealPartiesService.declineInvitation(user, partyId)
+DealPartiesService.revokeInvitation(user, partyId)
+
+DealVersionsService.createVersion(user, dealId, dto)
+DealVersionsService.listVersions(user, dealId)
+DealVersionsService.getVersion(user, versionId)
+DealVersionsService.submitVersion(user, versionId)
+
+ApprovalsService.approveVersion(user, versionId, dto)
+ApprovalsService.rejectVersion(user, versionId, dto)
+ApprovalsService.requestChanges(user, versionId, dto)
+ApprovalsService.lockVersionIfComplete(versionId)
+
+FilesService.createSignedUploadUrl(user, dto)
+FilesService.confirmUpload(user, dto)
+FilesService.listDealFiles(user, dealId)
+FilesService.createSignedDownloadUrl(user, fileId)
+FilesService.deleteFile(user, fileId)
+
+KycService.getMyKyc(user)
+KycService.createSubmission(user, dto)
+KycService.createDocumentUploadUrl(user, submissionId, dto)
+KycService.approveSubmission(admin, submissionId, dto)
+KycService.rejectSubmission(admin, submissionId, dto)
+
+AuditService.record(actionType, actor, resourceType, resourceId, metadata)
+\end{verbatim}
+
+\section*{Authorization Rules}
+JWT validation uses Supabase signing keys or verified Supabase auth middleware. The backend resolves a profile from the JWT subject before business methods run. Role checks use profile \texttt{is\_admin} and \texttt{admin\_role}. Deal access requires creator, linked party profile, matching invited email after acceptance, or authorized admin role. Service role access is available only inside server-side providers. Company permissions require active company membership and role checks.
+
+\section*{Error Handling}
+All responses use the OpenAPI success/error envelope. Required error codes are \texttt{VALIDATION\_ERROR}, \texttt{UNAUTHORIZED}, \texttt{FORBIDDEN}, \texttt{NOT\_FOUND}, \texttt{CONFLICT}, \texttt{VERSION\_CONFLICT}, \texttt{DEAL\_LOCKED}, \texttt{DUPLICATE\_PARTY}, \texttt{SUBSCRIPTION\_LIMIT}, \texttt{FILE\_TOO\_LARGE}, \texttt{PAYMENT\_CONFIGURATION\_MISSING}, \texttt{ADMIN\_ONLY}, and \texttt{INTERNAL\_ERROR}.
+
+\section*{Testing Requirements}
+Each module requires service unit tests, controller integration tests for authorization, validation tests for DTOs, and at least one negative permission test. Approval/version logic requires stale-version and locked-version tests. Admin and audit paths require append-only and permission tests.
+
+\section*{Done Criteria}
+A backend feature is done only when the endpoint exists, DTO validation exists, authorization exists, service logic exists, audit logging exists where required, tests exist, OpenAPI is updated, and the database schema supports the behavior.

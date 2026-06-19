@@ -1,0 +1,71 @@
+\chapter{Backend Architecture Specification}
+\section{Planned Structure}
+\begin{lstlisting}
+services/api/src/
+  auth/ users/ profiles/ kyc/ deals/ deal-parties/
+  deal-versions/ approvals/ files/ chat/ notifications/
+  trust/ subscriptions/ admin/ audit/ health/
+\end{lstlisting}
+\section{Patterns}
+Controllers expose HTTP endpoints. Services contain business logic. Repositories or Prisma handle persistence. DTOs validate input. Guards enforce authentication, RBAC, and resource access. Filters standardize errors. Interceptors handle response and logging concerns.
+\importantnote{Use Prisma ORM with Supabase PostgreSQL unless another ORM decision is introduced and documented before implementation.}
+
+\section{Backend Module Catalog}
+\begin{longtable}{p{0.2\textwidth}p{0.28\textwidth}p{0.34\textwidth}}
+\toprule
+Module & Controllers and Services & Main Responsibility \\
+\midrule
+auth & AuthGuard, JwtStrategy & Supabase JWT validation and profile resolution. \\
+profiles & ProfilesController, ProfilesService & User profile read/write and completion rules. \\
+kyc & KycController, KycService & KYC submission, status changes, document privacy. \\
+deals & DealsController, DealsService & Deal aggregate, ownership, lifecycle transitions. \\
+deal-parties & DealPartiesController, DealPartiesService & Party invitations, required parties, participant access. \\
+deal-versions & DealVersionsController, DealVersionsService & Draft terms, version creation, current active version. \\
+approvals & ApprovalsController, ApprovalsService & Approve, reject, request changes, lock approved version. \\
+files & FilesController, FilesService & Signed URLs, metadata, private access checks. \\
+chat & MessagesController, ChatService & Deal-scoped messages and participant-only access. \\
+notifications & NotificationsController, NotificationsService & Notification creation, read state, realtime events. \\
+trust & TrustService & Backend-only trust counter updates. \\
+subscriptions & SubscriptionsController, StripeWebhookController & Trial limits, checkout, webhooks, entitlement checks. \\
+admin & AdminController, AdminService & Internal review actions and admin permission enforcement. \\
+audit & AuditService & Immutable audit log creation for sensitive workflows. \\
+configuration & ConfigurationController & Employee-facing API configuration status. \\
+\bottomrule
+\end{longtable}
+
+\section{DTO and Guard Catalog}
+\begin{longtable}{p{0.24\textwidth}p{0.32\textwidth}p{0.34\textwidth}}
+\toprule
+Type & Name & Validation or Authorization Rule \\
+\midrule
+DTO & CreateDealDto & title required, description optional, currency ISO code, expiresAt future date. \\
+DTO & InviteDealPartyDto & email required, role enum, requiredApproval boolean. \\
+DTO & CreateDealVersionDto & terms required, summary optional, sourceVersionId optional UUID. \\
+DTO & ApprovalDecisionDto & decision enum, optional reason required for rejection or change request. \\
+DTO & SignedUploadUrlDto & bucket enum, fileName, contentType, sizeBytes, dealId or kycSubmissionId. \\
+Guard & SupabaseJwtAuthGuard & Validates Bearer JWT and attaches user identity. \\
+Guard & ResourceAccessGuard & Confirms creator, participant, admin, or service account access. \\
+Guard & AdminRoleGuard & Allows admin and super admin operations only. \\
+Guard & SubscriptionGuard & Enforces trial and paid feature access. \\
+\bottomrule
+\end{longtable}
+
+\section{Standard API Response and Error Format}
+\begin{lstlisting}
+{
+  "data": {},
+  "meta": {
+    "requestId": "uuid",
+    "timestamp": "ISO-8601"
+  }
+}
+
+{
+  "error": {
+    "code": "DEAL_LOCKED",
+    "message": "Locked versions cannot be edited.",
+    "details": {},
+    "requestId": "uuid"
+  }
+}
+\end{lstlisting}
