@@ -16,10 +16,13 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { ProfilesModule } from './profiles/profiles.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TrustModule } from './trust/trust.module';
+import { PrismaModule } from './prisma/prisma.module';
+
 
 @Module({
   imports: [
     AdminModule,
+    PrismaModule,
     ApprovalsModule,
     AuditModule,
     ChatModule,
