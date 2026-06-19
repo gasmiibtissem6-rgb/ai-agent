@@ -27,12 +27,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   Future<void> _register() async {
-    await ref.read(authProvider.notifier).signUp(
-          email: _emailController.text.trim(),
+    final email = _emailController.text.trim();
+    final success = await ref.read(authProvider.notifier).signUp(
+          email: email,
           password: _passwordController.text.trim(),
           fullName: _nameController.text.trim(),
         );
+    if (success && mounted) {
+      context.go(AppRoutes.otp, extra: email);
+    }
   }
+  
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +45,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final authState = authAsync.when(
       data: (data) => data,
       loading: () => null,
-      error: (_, __) => null,
+      error: (_, _) => null,
     );
     final status = authState?.status;
 
@@ -48,11 +53,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       final state = next.when(
         data: (data) => data,
         loading: () => null,
-        error: (_, __) => null,
+        error: (_, _) => null,
       );
-      if (state?.status == AuthStatus.authenticated) {
-        context.go(AppRoutes.home);
-      }
       if (state?.status == AuthStatus.error) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(state?.errorMessage ?? 'Signup failed')),
@@ -112,6 +114,30 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 onPressed: () => context.go(AppRoutes.login),
                 child: const Text('Already have an account? Login'),
               ),
+              const SizedBox(height: 12),
+const Row(
+  children: [
+    Expanded(child: Divider()),
+    Padding(
+      padding: EdgeInsets.symmetric(horizontal: 12),
+      child: Text('or', style: TextStyle(color: Colors.grey)),
+    ),
+    Expanded(child: Divider()),
+  ],
+),
+const SizedBox(height: 12),
+SizedBox(
+  width: double.infinity,
+  child: OutlinedButton.icon(
+    icon: const Icon(Icons.g_mobiledata, size: 28),
+    label: const Text('Sign up with Google'),
+    onPressed: status == AuthStatus.loading
+        ? null
+        : () async {
+            await ref.read(authProvider.notifier).signInWithGoogle();
+          },
+  ),
+),
             ],
           ),
         ),

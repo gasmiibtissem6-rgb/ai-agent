@@ -36,7 +36,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     final authState = authAsync.when(
       data: (data) => data,
       loading: () => null,
-      error: (_, __) => null,
+      error: (_, _) => null,
     );
     final status = authState?.status;
 

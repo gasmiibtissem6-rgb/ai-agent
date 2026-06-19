@@ -37,7 +37,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final authState = authAsync.when(
       data: (data) => data,
       loading: () => null,
-      error: (_, __) => null,
+      error: (_, _) => null,
     );
     final status = authState?.status;
 
@@ -45,7 +45,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final state = next.when(
         data: (data) => data,
         loading: () => null,
-        error: (_, __) => null,
+        error: (_, _) => null,
       );
       if (state?.status == AuthStatus.authenticated) {
         context.go(AppRoutes.home);

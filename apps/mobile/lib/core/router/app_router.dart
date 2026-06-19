@@ -6,6 +6,7 @@ import '../../features/auth/domain/auth_state.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
 import '../../features/auth/presentation/forgot_password_screen.dart';
+import '../../features/auth/presentation/otp_screen.dart';
 import '../../features/deal/presentation/welcome_screen.dart';
 
 class AppRoutes {
@@ -15,6 +16,7 @@ class AppRoutes {
   static const login = '/login';
   static const register = '/register';
   static const forgotPassword = '/forgot-password';
+  static const otp = '/otp';
   static const home = '/home';
 }
 
@@ -40,7 +42,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isAuthRoute =
           state.matchedLocation == AppRoutes.login ||
           state.matchedLocation == AppRoutes.register ||
-          state.matchedLocation == AppRoutes.forgotPassword;
+          state.matchedLocation == AppRoutes.forgotPassword ||
+          state.matchedLocation == AppRoutes.otp;
 
       if (status == null || status == AuthStatus.initial || status == AuthStatus.loading) {
         return AppRoutes.splash;
@@ -73,6 +76,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.forgotPassword,
         builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.otp,
+        builder: (context, state) {
+          final email = state.extra as String;
+          return OtpScreen(email: email);
+        },
       ),
       GoRoute(
         path: AppRoutes.home,

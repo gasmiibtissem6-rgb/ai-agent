@@ -27,7 +27,7 @@ class AuthNotifier extends AsyncNotifier<AppAuthState> {
     return AppAuthState.unauthenticated();
   }
 
-  Future<void> signUp({
+  Future<bool> signUp({
     required String email,
     required String password,
     String? fullName,
@@ -39,6 +39,29 @@ class AuthNotifier extends AsyncNotifier<AppAuthState> {
         password: password,
         fullName: fullName,
       );
+      return true;
+    } catch (e) {
+      state = AsyncData(AppAuthState.error(e.toString()));
+      return false;
+    }
+  }
+
+  Future<void> verifyOtp({
+    required String email,
+    required String token,
+  }) async {
+    state = AsyncData(AppAuthState.loading());
+    try {
+      await AuthService.verifyOtp(email: email, token: token);
+    } catch (e) {
+      state = AsyncData(AppAuthState.error(e.toString()));
+    }
+  }
+
+  Future<void> signInWithGoogle() async {
+    state = AsyncData(AppAuthState.loading());
+    try {
+      await AuthService.signInWithGoogle();
     } catch (e) {
       state = AsyncData(AppAuthState.error(e.toString()));
     }

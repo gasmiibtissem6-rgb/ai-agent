@@ -48,4 +48,24 @@ class AuthService {
   static Future<void> signOut() async {
     await _client.auth.signOut();
   }
+
+  // Verify OTP
+  static Future<AuthResponse> verifyOtp({
+    required String email,
+    required String token,
+  }) async {
+    return await _client.auth.verifyOTP(
+      email: email,
+      token: token,
+      type: OtpType.email,
+    );
+  }
+
+  // Google Sign In
+  static Future<void> signInWithGoogle() async {
+    await _client.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: 'io.cybermech.ideal://callback/',
+    );
+  }
 }
