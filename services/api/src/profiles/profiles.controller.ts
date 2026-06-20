@@ -3,7 +3,7 @@ import { Controller, Get, UseGuards, Req } from '@nestjs/common';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { ProfilesService } from './profiles.service';
 
-@Controller()
+@Controller() // Keeping this empty allows the routes below to mount cleanly from root or /api global prefix
 @UseGuards(AuthGuard)
 export class ProfilesController {
   constructor(private readonly profilesService: ProfilesService) {}
