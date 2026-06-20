@@ -1,9 +1,29 @@
-import { Controller, Get } from '@nestjs/common';
+// services/api/src/deals/deals.controller.ts
+import { Controller, Get, UseGuards, Req } from '@nestjs/common';
+import { AuthGuard } from '../common/guards/auth.guard';
+import { DealsService } from './deals.service';
 import type { FoundationModuleSummary } from '../common/foundation.types';
 import { lifecycleStatuses } from '../common/foundation.types';
 
 @Controller('deals')
 export class DealsController {
+  // Inject the deals service to talk to Prisma
+  constructor(private readonly dealsService: DealsService) {}
+
+  /**
+   * Production Endpoint: Fetch authenticated user's deals
+   * Route: GET /deals (or /api/deals depending on global prefix)
+   */
+  @Get()
+  @UseGuards(AuthGuard) // 🔒 Protect this specific route with your Supabase Guard
+  async getMyDeals(@Req() req: any) {
+    return this.dealsService.getDealsByUserId(req.user.sub);
+  }
+
+  /**
+   * Boilerplate Foundation Info Route
+   * Route: GET /deals/foundation
+   */
   @Get('foundation')
   getFoundation(): FoundationModuleSummary & {
     lifecycleStatuses: readonly string[];
