@@ -16,6 +16,8 @@ class Env {
   static String get supabaseAnonKey =>
       dotenv.maybeGet('SUPABASE_ANON_KEY') ?? '';
 
+  static String get apiBaseUrl => dotenv.maybeGet('API_BASE_URL') ?? '';
+
   static bool get hasSupabaseConfig =>
       supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty;
 }

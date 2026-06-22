@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../domain/auth_provider.dart';
 import '../domain/auth_state.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/utils/validators.dart';
+import '../../../core/constants/app_colors.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -13,6 +15,7 @@ class RegisterScreen extends ConsumerStatefulWidget {
 }
 
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -27,118 +30,172 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   }
 
   Future<void> _register() async {
+    if (!_formKey.currentState!.validate()) return;
     final email = _emailController.text.trim();
     final success = await ref.read(authProvider.notifier).signUp(
           email: email,
-          password: _passwordController.text.trim(),
+          password: _passwordController.text,
           fullName: _nameController.text.trim(),
         );
     if (success && mounted) {
       context.go(AppRoutes.otp, extra: email);
     }
   }
-  
+
+  Future<void> _registerWithGoogle() async {
+    await ref.read(authProvider.notifier).signInWithGoogle();
+  }
 
   @override
   Widget build(BuildContext context) {
     final authAsync = ref.watch(authProvider);
-    final authState = authAsync.when(
-      data: (data) => data,
-      loading: () => null,
-      error: (_, _) => null,
-    );
-    final status = authState?.status;
+    final status = authAsync.whenOrNull(data: (s) => s.status);
+    final isLoading = status == AuthStatus.loading;
 
     ref.listen(authProvider, (_, next) {
-      final state = next.when(
-        data: (data) => data,
-        loading: () => null,
-        error: (_, _) => null,
-      );
-      if (state?.status == AuthStatus.error) {
+      final state = next.whenOrNull(data: (s) => s);
+      if (state?.status == AuthStatus.authenticated) {
+        context.go(AppRoutes.home);
+        return;
+      }
+      if (state?.status == AuthStatus.error && state?.errorMessage != null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(state?.errorMessage ?? 'Signup failed')),
+          SnackBar(
+            content: Text(state!.errorMessage!),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     });
 
     return Scaffold(
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                'Create account',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 32),
-              TextField(
-                controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Full name'),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(labelText: 'Email'),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _passwordController,
-                obscureText: _obscurePassword,
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                  suffixIcon: IconButton(
-                    icon: Icon(_obscurePassword
-                        ? Icons.visibility
-                        : Icons.visibility_off),
-                    onPressed: () =>
-                        setState(() => _obscurePassword = !_obscurePassword),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 48),
+                const Text(
+                  'Create account',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary,
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: status == AuthStatus.loading ? null : _register,
-                  child: status == AuthStatus.loading
-                      ? const CircularProgressIndicator()
-                      : const Text('Sign up'),
+                const SizedBox(height: 8),
+                const Text(
+                  'Sign up to get started',
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () => context.go(AppRoutes.login),
-                child: const Text('Already have an account? Login'),
-              ),
-              const SizedBox(height: 12),
-const Row(
-  children: [
-    Expanded(child: Divider()),
-    Padding(
-      padding: EdgeInsets.symmetric(horizontal: 12),
-      child: Text('or', style: TextStyle(color: Colors.grey)),
-    ),
-    Expanded(child: Divider()),
-  ],
-),
-const SizedBox(height: 12),
-SizedBox(
-  width: double.infinity,
-  child: OutlinedButton.icon(
-    icon: const Icon(Icons.g_mobiledata, size: 28),
-    label: const Text('Sign up with Google'),
-    onPressed: status == AuthStatus.loading
-        ? null
-        : () async {
-            await ref.read(authProvider.notifier).signInWithGoogle();
-          },
-  ),
-),
-            ],
+                const SizedBox(height: 40),
+                TextFormField(
+                  controller: _nameController,
+                  keyboardType: TextInputType.name,
+                  textInputAction: TextInputAction.next,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Full name',
+                    prefixIcon: Icon(Icons.person_outlined),
+                  ),
+                  validator: Validators.fullName,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: Icon(Icons.email_outlined),
+                  ),
+                  validator: Validators.email,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _register(),
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    prefixIcon: const Icon(Icons.lock_outlined),
+                    helperText: 'At least 8 characters',
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
+                    ),
+                  ),
+                  validator: Validators.password,
+                ),
+                const SizedBox(height: 32),
+                ElevatedButton(
+                  onPressed: isLoading ? null : _register,
+                  child: isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Create account'),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: const [
+                    Expanded(child: Divider()),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text(
+                        'or',
+                        style: TextStyle(color: AppColors.textSecondary),
+                      ),
+                    ),
+                    Expanded(child: Divider()),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                OutlinedButton.icon(
+                  icon: const Icon(Icons.g_mobiledata, size: 26),
+                  label: const Text('Sign up with Google'),
+                  onPressed: isLoading ? null : _registerWithGoogle,
+                ),
+                const SizedBox(height: 32),
+                Center(
+                  child: TextButton(
+                    onPressed: () => context.go(AppRoutes.login),
+                    child: const Text.rich(
+                      TextSpan(
+                        text: 'Already have an account? ',
+                        style: TextStyle(color: AppColors.textSecondary),
+                        children: [
+                          TextSpan(
+                            text: 'Sign in',
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

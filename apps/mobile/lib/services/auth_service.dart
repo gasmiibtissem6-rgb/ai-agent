@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/network/token_storage.dart';
 import 'supabase_service.dart';
 
 class AuthService {
@@ -7,65 +9,98 @@ class AuthService {
   static SupabaseClient get _client => SupabaseService.client!;
 
   static User? get currentUser => _client.auth.currentUser;
-
   static Session? get currentSession => _client.auth.currentSession;
-
   static bool get isLoggedIn => currentUser != null;
-
   static Stream<AuthState> get authStateChanges =>
       _client.auth.onAuthStateChange;
 
-  // Signup
-  static Future<AuthResponse> signUp({
+  /// Sign up — sends OTP verification code to email
+  static Future<void> signUp({
     required String email,
     required String password,
     String? fullName,
   }) async {
-    return await _client.auth.signUp(
+    await _client.auth.signUp(
       email: email,
       password: password,
       data: fullName != null ? {'full_name': fullName} : null,
     );
   }
 
-  // Login
-  static Future<AuthResponse> signIn({
+  /// Verify OTP code sent to email after signup
+  static Future<void> verifyOtp({
+    required String email,
+    required String token,
+  }) async {
+    final response = await _client.auth.verifyOTP(
+      email: email,
+      token: token,
+      type: OtpType.signup,
+    );
+
+    // Save token to secure storage for NestJS API bearer auth
+    final accessToken = response.session?.accessToken;
+    final refreshToken = response.session?.refreshToken;
+    if (accessToken != null) {
+      await TokenStorage.saveTokens(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+      );
+    }
+  }
+
+  /// Login with email and password
+  static Future<void> signIn({
     required String email,
     required String password,
   }) async {
-    return await _client.auth.signInWithPassword(
+    final response = await _client.auth.signInWithPassword(
       email: email,
       password: password,
     );
+
+    // Save token for NestJS API bearer auth
+    final accessToken = response.session?.accessToken;
+    final refreshToken = response.session?.refreshToken;
+    if (accessToken != null) {
+      await TokenStorage.saveTokens(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+      );
+    }
   }
 
-  // Password reset
+  /// Sign in with Google OAuth
+  static Future<void> signInWithGoogle() async {
+    final redirectTo = kIsWeb ? Uri.base.toString() : null;
+    await _client.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: redirectTo,
+    );
+
+    final session = currentSession;
+    if (session != null) {
+      await TokenStorage.saveTokens(
+        accessToken: session.accessToken,
+        refreshToken: session.refreshToken,
+      );
+    }
+  }
+
+  /// Send password reset email
   static Future<void> resetPassword(String email) async {
     await _client.auth.resetPasswordForEmail(email);
   }
 
-  // Logout
+  /// Sign out and clear stored tokens
   static Future<void> signOut() async {
     await _client.auth.signOut();
+    await TokenStorage.clearTokens();
   }
 
-  // Verify OTP
-  static Future<AuthResponse> verifyOtp({
-    required String email,
-    required String token,
-  }) async {
-    return await _client.auth.verifyOTP(
-      email: email,
-      token: token,
-      type: OtpType.email,
-    );
-  }
-
-  // Google Sign In
-  static Future<void> signInWithGoogle() async {
-    await _client.auth.signInWithOAuth(
-      OAuthProvider.google,
-      redirectTo: 'io.cybermech.ideal://callback/',
-    );
+  /// Delete account via Supabase RPC then sign out
+  static Future<void> deleteAccount() async {
+    await _client.rpc('delete_user');
+    await signOut();
   }
 }

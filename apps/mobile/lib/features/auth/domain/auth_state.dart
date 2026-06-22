@@ -13,9 +13,22 @@ class AppAuthState {
     this.errorMessage,
   });
 
-  factory AppAuthState.initial() => const AppAuthState(status: AuthStatus.initial);
-  factory AppAuthState.loading() => const AppAuthState(status: AuthStatus.loading);
-  factory AppAuthState.unauthenticated() => const AppAuthState(status: AuthStatus.unauthenticated);
-  factory AppAuthState.authenticated(User user) => AppAuthState(status: AuthStatus.authenticated, user: user);
-  factory AppAuthState.error(String message) => AppAuthState(status: AuthStatus.error, errorMessage: message);
+  factory AppAuthState.initial() =>
+      const AppAuthState(status: AuthStatus.initial);
+
+  factory AppAuthState.loading() =>
+      const AppAuthState(status: AuthStatus.loading);
+
+  factory AppAuthState.unauthenticated() =>
+      const AppAuthState(status: AuthStatus.unauthenticated);
+
+  factory AppAuthState.authenticated(User user) =>
+      AppAuthState(status: AuthStatus.authenticated, user: user);
+
+  factory AppAuthState.error(String message) =>
+      AppAuthState(status: AuthStatus.error, errorMessage: message);
+
+  bool get isAuthenticated => status == AuthStatus.authenticated;
+  bool get isLoading => status == AuthStatus.loading;
+  bool get hasError => status == AuthStatus.error;
 }

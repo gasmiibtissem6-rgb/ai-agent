@@ -7,7 +7,7 @@ import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_screen.dart';
 import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/otp_screen.dart';
-import '../../features/deal/presentation/welcome_screen.dart';
+import '../../features/deal/presentation/home_screen.dart';
 
 class AppRoutes {
   const AppRoutes._();
@@ -39,31 +39,37 @@ final routerProvider = Provider<GoRouter>((ref) {
       final authState = authListenable.value;
       final status = authState?.status;
 
-      final isAuthRoute =
-          state.matchedLocation == AppRoutes.login ||
-          state.matchedLocation == AppRoutes.register ||
-          state.matchedLocation == AppRoutes.forgotPassword ||
-          state.matchedLocation == AppRoutes.otp;
+      final isAuthRoute = [
+        AppRoutes.login,
+        AppRoutes.register,
+        AppRoutes.forgotPassword,
+        AppRoutes.otp,
+      ].contains(state.matchedLocation);
 
-      if (status == null || status == AuthStatus.initial || status == AuthStatus.loading) {
+      // Still loading — stay on splash
+      if (status == null ||
+          status == AuthStatus.initial ||
+          status == AuthStatus.loading) {
         return AppRoutes.splash;
       }
-      if (status == AuthStatus.authenticated && isAuthRoute) {
-        return AppRoutes.home;
+
+      // Authenticated — send to home if on auth route or splash
+      if (status == AuthStatus.authenticated) {
+        if (isAuthRoute || state.matchedLocation == AppRoutes.splash) {
+          return AppRoutes.home;
+        }
+        return null;
       }
-      if (status == AuthStatus.authenticated && state.matchedLocation == AppRoutes.splash) {
-        return AppRoutes.home;
-      }
-      if (status != AuthStatus.authenticated && !isAuthRoute) {
-        return AppRoutes.login;
-      }
+
+      // Not authenticated — send to login if not on auth route
+      if (!isAuthRoute) return AppRoutes.login;
+
       return null;
     },
     routes: [
       GoRoute(
         path: AppRoutes.splash,
-        builder: (context, state) =>
-            const Scaffold(body: Center(child: CircularProgressIndicator())),
+        builder: (context, state) => const _SplashScreen(),
       ),
       GoRoute(
         path: AppRoutes.login,
@@ -86,7 +92,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.home,
-        builder: (context, state) => const WelcomeScreen(),
+        builder: (context, state) => const HomeScreen(),
       ),
     ],
   );
@@ -96,4 +102,15 @@ class AppRouter {
   const AppRouter._();
 
   static GoRouter of(WidgetRef ref) => ref.watch(routerProvider);
+}
+
+class _SplashScreen extends StatelessWidget {
+  const _SplashScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
+    );
+  }
 }
