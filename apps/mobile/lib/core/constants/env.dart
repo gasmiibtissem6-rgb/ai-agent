@@ -4,10 +4,13 @@ class Env {
   const Env._();
 
   static Future<void> load() async {
-    try {
-      await dotenv.load(fileName: '.env');
-    } catch (_) {
-      // Local env files are intentionally untracked; the app can boot without one.
+    for (final fileName in const ['.env', '.env.example']) {
+      try {
+        await dotenv.load(fileName: fileName);
+        break;
+      } catch (_) {
+        // Local env files are intentionally untracked; fall back to the safe template.
+      }
     }
   }
 
