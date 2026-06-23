@@ -7,6 +7,13 @@ import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const apiPrefix = 'api/v1';
+
+  app.setGlobalPrefix(apiPrefix);
+  app.enableCors({
+    origin: true,
+    credentials: true,
+  });
 
   // Enable global validations (very useful for incoming post data)
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
@@ -17,6 +24,8 @@ async function bootstrap() {
 
   const port = process.env.API_PORT || 3001;
   await app.listen(port);
-  console.log(`🚀 IDEAL API Foundation is live on: http://localhost:${port}`);
+  console.log(
+    `🚀 IDEAL API Foundation is live on: http://localhost:${port}/${apiPrefix}`,
+  );
 }
 bootstrap();

@@ -8,6 +8,12 @@ import {
   type ConfigurationStatus,
 } from "@/lib/api-foundation";
 
+type ApiEnvelope<T> = {
+  success: boolean;
+  requestId: string;
+  data: T;
+};
+
 type ConnectionState =
   | { state: "loading" }
   | { state: "connected"; data: ConfigurationStatus }
@@ -40,7 +46,20 @@ export function ConfigurationStatusPanel() {
           throw new Error(`API returned HTTP ${response.status}`);
         }
 
-        return (await response.json()) as ConfigurationStatus;
+        const payload = (await response.json()) as
+          | ConfigurationStatus
+          | ApiEnvelope<ConfigurationStatus>;
+
+        if (
+          payload &&
+          typeof payload === "object" &&
+          "data" in payload &&
+          payload.data
+        ) {
+          return payload.data;
+        }
+
+        return payload as ConfigurationStatus;
       })
       .then((data) => setConnection({ state: "connected", data }))
       .catch((error: unknown) => {
