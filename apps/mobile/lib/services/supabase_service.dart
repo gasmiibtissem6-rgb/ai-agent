@@ -24,7 +24,7 @@ class SupabaseService {
 
     await Supabase.initialize(
       url: Env.supabaseUrl,
-      anonKey: Env.supabaseAnonKey,
+      publishableKey: Env.supabaseAnonKey,
     );
 
     _isInitialized = true;

@@ -23,9 +23,25 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter());
 
   const port = process.env.API_PORT || 3001;
-  await app.listen(port);
-  console.log(
-    `🚀 IDEAL API Foundation is live on: http://localhost:${port}/${apiPrefix}`,
-  );
+  try {
+    await app.listen(port);
+    console.log(
+      `🚀 IDEAL API Foundation is live on: http://localhost:${port}/${apiPrefix}`,
+    );
+  } catch (error: unknown) {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      error.code === 'EADDRINUSE'
+    ) {
+      console.error(
+        `Port ${port} is already in use. Stop the existing API process or run with API_PORT=<port> npm run dev:api.`,
+      );
+      process.exit(1);
+    }
+
+    throw error;
+  }
 }
 bootstrap();
