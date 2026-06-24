@@ -62,7 +62,6 @@ export default function Home() {
             ))}
           </div>
         </section>
-
         <section>
           <h2 className="text-2xl font-semibold">Backend API readiness</h2>
           <p className="mt-2 max-w-3xl leading-7 text-slate-600">

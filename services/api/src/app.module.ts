@@ -18,7 +18,6 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TrustModule } from './trust/trust.module';
 import { PrismaModule } from './prisma/prisma.module';
 
-
 @Module({
   imports: [
     AdminModule,
