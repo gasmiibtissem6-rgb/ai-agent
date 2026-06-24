@@ -29,24 +29,33 @@ class AuthNotifier extends AsyncNotifier<AppAuthState> {
 
   /// Sign up — returns true if successful (navigate to OTP screen)
   Future<bool> signUp({
-    required String email,
-    required String password,
-    String? fullName,
-  }) async {
-    state = AsyncData(AppAuthState.loading());
-    try {
-      await AuthService.signUp(
-        email: email,
-        password: password,
-        fullName: fullName,
-      );
-      state = AsyncData(AppAuthState.unauthenticated());
-      return true;
-    } catch (e) {
+  required String email,
+  required String password,
+  String? fullName,
+}) async {
+  state = AsyncData(AppAuthState.loading());
+  try {
+    await AuthService.signUp(
+      email: email,
+      password: password,
+      fullName: fullName,
+    );
+    state = AsyncData(AppAuthState.unauthenticated());
+    return true;
+  } catch (e) {
+    final message = e.toString();
+    if (message.contains('User already registered') ||
+        message.contains('already been registered') ||
+        message.contains('email address is already')) {
+      state = AsyncData(AppAuthState.error(
+        'An account with this email already exists. Please sign in instead.',
+      ));
+    } else {
       state = AsyncData(AppAuthState.error(_formatError(e)));
-      return false;
     }
+    return false;
   }
+}
 
   /// Verify OTP after signup
   Future<void> verifyOtp({

@@ -8,6 +8,9 @@ import '../../features/auth/presentation/register_screen.dart';
 import '../../features/auth/presentation/forgot_password_screen.dart';
 import '../../features/auth/presentation/otp_screen.dart';
 import '../../features/deal/presentation/home_screen.dart';
+import '../../features/kyc/presentation/kyc_status_screen.dart';
+import '../../features/kyc/presentation/kyc_upload_screen.dart';
+
 
 class AppRoutes {
   const AppRoutes._();
@@ -18,6 +21,8 @@ class AppRoutes {
   static const forgotPassword = '/forgot-password';
   static const otp = '/otp';
   static const home = '/home';
+  static const kycStatus = '/kyc';
+static const kycUpload = '/kyc/upload';
 }
 
 final _authListenableProvider = Provider<ValueNotifier<AppAuthState?>>((ref) {
@@ -46,10 +51,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         AppRoutes.otp,
       ].contains(state.matchedLocation);
 
-      // Still loading — stay on splash
-      if (status == null ||
-          status == AuthStatus.initial ||
-          status == AuthStatus.loading) {
+      // Still loading — stay on splash unless user is already on an auth route
+      if (status == null || status == AuthStatus.initial) {
+        return AppRoutes.splash;
+      }
+      if (status == AuthStatus.loading && !isAuthRoute) {
         return AppRoutes.splash;
       }
 
@@ -94,6 +100,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.home,
         builder: (context, state) => const HomeScreen(),
       ),
+      GoRoute(
+  path: AppRoutes.kycStatus,
+  builder: (context, state) => const KycStatusScreen(),
+),
+GoRoute(
+  path: AppRoutes.kycUpload,
+  builder: (context, state) => const KycUploadScreen(),
+),
     ],
   );
 });

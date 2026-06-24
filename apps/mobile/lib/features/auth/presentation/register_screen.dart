@@ -37,8 +37,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           password: _passwordController.text,
           fullName: _nameController.text.trim(),
         );
+    debugPrint('Register success: $success, email: $email');
     if (success && mounted) {
       context.go(AppRoutes.otp, extra: email);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Signup failed. Please check your email and try again.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
   }
 
@@ -53,20 +61,28 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final isLoading = status == AuthStatus.loading;
 
     ref.listen(authProvider, (_, next) {
-      final state = next.whenOrNull(data: (s) => s);
-      if (state?.status == AuthStatus.authenticated) {
-        context.go(AppRoutes.home);
-        return;
-      }
-      if (state?.status == AuthStatus.error && state?.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(state!.errorMessage!),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    });
+  final state = next.whenOrNull(data: (s) => s);
+  if (state?.status == AuthStatus.authenticated) {
+    context.go(AppRoutes.home);
+    return;
+  }
+  if (state?.status == AuthStatus.error && state?.errorMessage != null) {
+    final message = state!.errorMessage!;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: AppColors.error,
+        action: message.contains('already exists')
+            ? SnackBarAction(
+                label: 'Sign in',
+                textColor: Colors.white,
+                onPressed: () => context.go(AppRoutes.login),
+              )
+            : null,
+      ),
+    );
+  }
+});
 
     return Scaffold(
       body: SafeArea(

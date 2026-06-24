@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
 import '../../auth/domain/auth_provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/router/app_router.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -31,7 +34,8 @@ class HomeScreen extends ConsumerWidget {
                 builder: (context) => AlertDialog(
                   title: const Text('Delete account'),
                   content: const Text(
-                    'This will permanently delete your account and all your data. This action cannot be undone.',
+                    'This will permanently delete your account and all your data. '
+                    'This action cannot be undone.',
                   ),
                   actions: [
                     TextButton(
@@ -50,9 +54,7 @@ class HomeScreen extends ConsumerWidget {
               );
 
               if (confirm == true) {
-                await ref
-                    .read(authProvider.notifier)
-                    .deleteAccount();
+                await ref.read(authProvider.notifier).deleteAccount();
               }
             },
           ),
@@ -62,28 +64,36 @@ class HomeScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(24),
         children: [
           const SizedBox(height: 8),
+
+          // Logo
           Center(
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
               child: Image.asset(
                 'assets/images/logo/ideal-logo.png',
-                width: 80,
-                height: 80,
+                width: 100,
+                height: 100,
                 fit: BoxFit.cover,
               ),
             ),
           ),
-          const SizedBox(height: 16),
+
+          const SizedBox(height: 20),
+
+          // App Name
           const Text(
             'IDEAL',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 28,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.bold,
               color: AppColors.textPrimary,
             ),
           ),
+
           const SizedBox(height: 8),
+
+          // Description
           const Text(
             'Trusted digital deals and contracts for people, companies, and every involved party.',
             textAlign: TextAlign.center,
@@ -93,15 +103,40 @@ class HomeScreen extends ConsumerWidget {
               height: 1.5,
             ),
           ),
-          const SizedBox(height: 32),
+
+          const SizedBox(height: 40),
+
+          // Account section
           const Text(
-            'Main areas',
+            'Your account',
             style: TextStyle(
               fontSize: 18,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.bold,
               color: AppColors.textPrimary,
             ),
           ),
+
+          const SizedBox(height: 12),
+
+          Card(
+            child: ListTile(
+              leading: const Icon(
+                Icons.verified_user_outlined,
+                color: AppColors.primary,
+              ),
+              title: const Text('Identity Verification'),
+              subtitle: const Text(
+                'Verify your identity to build trust',
+              ),
+              trailing: const Icon(
+                Icons.arrow_forward_ios,
+                size: 16,
+              ),
+              onTap: () => context.go(AppRoutes.kycStatus),
+            ),
+          ),
+
+          const SizedBox(height: 24),
         ],
       ),
     );
