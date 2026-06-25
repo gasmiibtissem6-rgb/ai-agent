@@ -2,6 +2,8 @@
 
 import { useEffect, useState, ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { Header } from "@/components/Layouts/header";
+import { Sidebar } from "@/components/Layouts/sidebar";
 import { apiRequest } from "@/lib/api-client";
 
 interface AdminUser {
@@ -65,10 +67,14 @@ setAdmin(profile);
   if (!admin) return null;
 
   return (
-    <div className="flex h-screen w-full bg-gray-50 overflow-hidden text-gray-900">
-      <div className="flex flex-col flex-1 min-w-0">
-        <main className="flex-1 overflow-y-auto p-6">
-          {children}
+    <div className="flex h-screen overflow-hidden">
+      <Sidebar />
+      <div className="relative flex flex-1 flex-col overflow-y-auto overflow-x-hidden bg-gray-50 text-gray-900">
+        <Header />
+        <main>
+          <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
+            {children}
+          </div>
         </main>
       </div>
     </div>

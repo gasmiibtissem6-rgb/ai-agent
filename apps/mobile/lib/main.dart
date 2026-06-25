@@ -4,10 +4,12 @@ import 'core/constants/env.dart';
 import 'core/theme/theme.dart';
 import 'services/supabase_service.dart';
 import 'core/router/app_router.dart';
+import 'core/security/security_config.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Env.load();
+  final securityResult = await SecurityConfig.runStartupChecks();
   await SupabaseService.initialize();
   runApp(const ProviderScope(child: IdealApp()));
 }
@@ -18,6 +20,7 @@ class IdealApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = AppRouter.of(ref);
+  
     return MaterialApp.router(
       title: 'IDEAL',
       debugShowCheckedModeBanner: false,

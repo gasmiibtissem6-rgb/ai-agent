@@ -24,14 +24,16 @@ export default async function SettingsPage() {
       <div className="grid grid-cols-5 gap-8">
         <div className="col-span-5 xl:col-span-3">
           <PersonalInfoForm
-            name={user?.name!}
-            email={user?.email!}
-            bio={user?.bio ?? undefined}
-            phoneNumber={user?.phoneNumber?.toString()}
+            name={user.name}
+            email={user.email}
+            bio={user.bio ?? undefined}
+            phoneNumber={
+              user.phoneNumber === undefined ? undefined : String(user.phoneNumber)
+            }
           />
         </div>
         <div className="col-span-5 xl:col-span-2">
-          <UploadPhotoForm initialImage={user?.image ?? null} />
+          <UploadPhotoForm initialImage={user.image ?? null} />
         </div>
       </div>
     </div>

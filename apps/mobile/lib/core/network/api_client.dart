@@ -3,6 +3,7 @@ import 'package:logger/logger.dart';
 import '../constants/env.dart';
 import '../errors/app_exception.dart';
 import 'token_storage.dart';
+import '../security/security_config.dart';
 
 class ApiClient {
   ApiClient._() {
@@ -20,6 +21,7 @@ class ApiClient {
 
     _dio.interceptors.add(_AuthInterceptor());
     _dio.interceptors.add(_LoggingInterceptor());
+    SecurityConfig.applyCertificatePinning(_dio);
   }
 
   static final ApiClient instance = ApiClient._();
