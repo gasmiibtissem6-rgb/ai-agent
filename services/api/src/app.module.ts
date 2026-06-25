@@ -17,10 +17,14 @@ import { ProfilesModule } from './profiles/profiles.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TrustModule } from './trust/trust.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { AuthModule } from './auth/auth.module';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
+    ConfigModule.forRoot(),
     AdminModule,
+    AuthModule,
     PrismaModule,
     ApprovalsModule,
     AuditModule,
