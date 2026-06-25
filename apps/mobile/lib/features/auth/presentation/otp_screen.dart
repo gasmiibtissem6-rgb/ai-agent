@@ -29,10 +29,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
 
   Future<void> _verify() async {
     if (!_formKey.currentState!.validate()) return;
-    await ref.read(authProvider.notifier).verifyOtp(
-          email: widget.email,
-          token: _otpController.text.trim(),
-        );
+    await ref
+        .read(authProvider.notifier)
+        .verifyOtp(email: widget.email, token: _otpController.text.trim());
   }
 
   @override

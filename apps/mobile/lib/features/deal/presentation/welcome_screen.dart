@@ -20,10 +20,7 @@ class WelcomeScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         child: Center(
-          child: Image.asset(
-            'assets/images/logo/ideal-logo.png',
-            width: 200,
-          ),
+          child: Image.asset('assets/images/logo/ideal-logo.png', width: 200),
         ),
       ),
     );

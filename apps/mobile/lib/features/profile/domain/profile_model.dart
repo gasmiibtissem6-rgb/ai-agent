@@ -27,13 +27,13 @@ class ProfileModel {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'email': email,
-        'full_name': fullName,
-        'avatar_url': avatarUrl,
-        'verification_status': verificationStatus,
-        'created_at': createdAt.toIso8601String(),
-      };
+    'id': id,
+    'email': email,
+    'full_name': fullName,
+    'avatar_url': avatarUrl,
+    'verification_status': verificationStatus,
+    'created_at': createdAt.toIso8601String(),
+  };
 
   ProfileModel copyWith({
     String? fullName,

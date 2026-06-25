@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../domain/deal_model.dart';
 import '../domain/deal_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/router/app_router.dart';
+import '../../../shared/ideal_ui.dart';
 
 class DealDetailScreen extends ConsumerWidget {
   final Deal deal;
@@ -14,169 +16,170 @@ class DealDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final versionsAsync = ref.watch(dealVersionsProvider(deal.id));
+    final statusColor = _statusColor(deal.status);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(deal.title),
-        actions: [
-          if (deal.isEditable)
-            IconButton(
-              icon: const Icon(Icons.send_outlined),
-              tooltip: 'Send deal',
-              onPressed: () async {
-                final confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Send deal'),
-                    content: const Text(
-                        'Send this deal to the other party for review?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text('Cancel'),
-                      ),
-                      ElevatedButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const Text('Send'),
-                      ),
-                    ],
+    return IdealAppScaffold(
+      activeRoute: 'deals',
+      showBack: true,
+      actions: [
+        if (deal.isEditable)
+          IconButton(
+            icon: const Icon(Icons.send_outlined),
+            tooltip: 'Send deal',
+            onPressed: () => _sendDeal(context, ref),
+          ),
+      ],
+      body: IdealGradientBackground(
+        child: DefaultTabController(
+          length: 3,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  IconButton(
+                    onPressed: () => context.go(AppRoutes.deals),
+                    icon: const Icon(Icons.arrow_back),
                   ),
-                );
-                if (confirm == true) {
-                  await ref.read(dealProvider.notifier).sendDeal(deal.id);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Deal sent successfully!'),
-                        backgroundColor: AppColors.success,
-                      ),
-                    );
-                    context.go(AppRoutes.deals);
-                  }
-                }
-              },
-            ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Status badge
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _statusColor(deal.status).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: _statusColor(deal.status).withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Text(
-                    deal.statusLabel,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: _statusColor(deal.status),
-                    ),
-                  ),
-                ),
-                if (deal.isFinalized) ...[
                   const SizedBox(width: 8),
-                  const Icon(Icons.lock_outlined,
-                      size: 16, color: AppColors.success),
-                  const SizedBox(width: 4),
-                  const Text(
-                    'Locked',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.success,
-                      fontWeight: FontWeight.w600,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          deal.title,
+                          style: Theme.of(context).textTheme.headlineMedium,
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            StatusPill(
+                              label: deal.statusLabel,
+                              color: statusColor,
+                            ),
+                            if (deal.isFinalized)
+                              const _InlineMeta(
+                                icon: Icons.lock_outline,
+                                label: 'Locked official version',
+                                color: AppColors.success,
+                              )
+                            else
+                              const _InlineMeta(
+                                icon: Icons.lock_open_outlined,
+                                label: 'Editable before approval',
+                              ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 ],
-              ],
-            ),
-            const SizedBox(height: 16),
-            if (deal.description != null) ...[
-              Text(
-                deal.description!,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  height: 1.5,
-                ),
               ),
-              const SizedBox(height: 24),
-            ],
-
-            // Versions
-            const Text(
-              'Version history',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            versionsAsync.when(
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
-              error: (e, _) =>
-                  Text('Error loading versions: $e'),
-              data: (versions) {
-                if (versions.isEmpty) {
-                  return const Text(
-                    'No versions yet.',
-                    style: TextStyle(color: AppColors.textSecondary),
-                  );
-                }
-                return Column(
-                  children: versions
-                      .map((v) => _VersionCard(
-                            version: v,
+              const SizedBox(height: 22),
+              _InfoGrid(deal: deal),
+              const SizedBox(height: 22),
+              IdealCard(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    const TabBar(
+                      labelColor: AppColors.primary,
+                      unselectedLabelColor: AppColors.textSecondary,
+                      indicatorColor: AppColors.primary,
+                      tabs: [
+                        Tab(text: 'Overview'),
+                        Tab(text: 'Versions'),
+                        Tab(text: 'Actions'),
+                      ],
+                    ),
+                    const Divider(height: 1),
+                    SizedBox(
+                      height: 460,
+                      child: TabBarView(
+                        children: [
+                          _OverviewTab(deal: deal),
+                          _VersionsTab(
+                            versionsAsync: versionsAsync,
                             deal: deal,
-                            onApprove: () => _showApprovalDialog(
+                            onApprove: (version) => _showApprovalDialog(
                               context,
                               ref,
                               deal: deal,
-                              version: v,
+                              version: version,
                               action: 'approve',
                             ),
-                            onReject: () => _showApprovalDialog(
+                            onReject: (version) => _showApprovalDialog(
                               context,
                               ref,
                               deal: deal,
-                              version: v,
+                              version: version,
                               action: 'reject',
                             ),
-                            onModify: () => _showApprovalDialog(
+                            onModify: (version) => _showApprovalDialog(
                               context,
                               ref,
                               deal: deal,
-                              version: v,
+                              version: version,
                               action: 'modify',
                             ),
-                            onFinalize: () => _showFinalizeDialog(
+                            onFinalize: (version) => _showFinalizeDialog(
                               context,
                               ref,
                               deal: deal,
-                              version: v,
+                              version: version,
                             ),
-                          ))
-                      .toList(),
-                );
-              },
-            ),
-          ],
+                          ),
+                          _ActionsTab(
+                            deal: deal,
+                            onSend: () => _sendDeal(context, ref),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  Future<void> _sendDeal(BuildContext context, WidgetRef ref) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Send deal'),
+        content: const Text('Send this deal to the other party for review?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Send'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await ref.read(dealProvider.notifier).sendDeal(deal.id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Deal sent successfully!'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        context.go(AppRoutes.deals);
+      }
+    }
   }
 
   Future<void> _showApprovalDialog(
@@ -190,8 +193,8 @@ class DealDetailScreen extends ConsumerWidget {
     final title = action == 'approve'
         ? 'Approve deal'
         : action == 'reject'
-            ? 'Reject deal'
-            : 'Request modification';
+        ? 'Reject deal'
+        : 'Request modification';
 
     await showDialog(
       context: context,
@@ -204,8 +207,8 @@ class DealDetailScreen extends ConsumerWidget {
               action == 'approve'
                   ? 'Are you sure you want to approve version ${version.versionNumber}?'
                   : action == 'reject'
-                      ? 'Are you sure you want to reject this deal?'
-                      : 'Describe what changes you need.',
+                  ? 'Are you sure you want to reject this deal?'
+                  : 'Describe what changes you need.',
             ),
             const SizedBox(height: 16),
             TextField(
@@ -226,19 +229,22 @@ class DealDetailScreen extends ConsumerWidget {
           ),
           ElevatedButton(
             style: action == 'reject'
-                ? ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.error)
+                ? ElevatedButton.styleFrom(backgroundColor: AppColors.error)
                 : null,
             onPressed: () async {
               Navigator.pop(context);
               if (action == 'approve') {
-                await ref.read(dealProvider.notifier).approveDeal(
+                await ref
+                    .read(dealProvider.notifier)
+                    .approveDeal(
                       dealId: deal.id,
                       versionId: version.id,
                       comment: commentController.text.trim(),
                     );
               } else if (action == 'reject') {
-                await ref.read(dealProvider.notifier).rejectDeal(
+                await ref
+                    .read(dealProvider.notifier)
+                    .rejectDeal(
                       dealId: deal.id,
                       versionId: version.id,
                       comment: commentController.text.trim(),
@@ -252,16 +258,14 @@ class DealDetailScreen extends ConsumerWidget {
                       comment: commentController.text.trim(),
                     );
               }
-              if (context.mounted) {
-                context.go(AppRoutes.deals);
-              }
+              if (context.mounted) context.go(AppRoutes.deals);
             },
             child: Text(
               action == 'approve'
                   ? 'Approve'
                   : action == 'reject'
-                      ? 'Reject'
-                      : 'Request',
+                  ? 'Reject'
+                  : 'Request',
             ),
           ),
         ],
@@ -288,8 +292,7 @@ class DealDetailScreen extends ConsumerWidget {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.success),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Finalize'),
           ),
@@ -298,10 +301,9 @@ class DealDetailScreen extends ConsumerWidget {
     );
 
     if (confirm == true) {
-      await ref.read(dealProvider.notifier).finalizeDeal(
-            dealId: deal.id,
-            versionId: version.id,
-          );
+      await ref
+          .read(dealProvider.notifier)
+          .finalizeDeal(dealId: deal.id, versionId: version.id);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -313,22 +315,237 @@ class DealDetailScreen extends ConsumerWidget {
       }
     }
   }
+}
 
-  Color _statusColor(DealStatus status) {
-    switch (status) {
-      case DealStatus.draft:
-        return AppColors.textSecondary;
-      case DealStatus.sent:
-        return AppColors.primary;
-      case DealStatus.negotiating:
-        return AppColors.warning;
-      case DealStatus.approved:
-        return AppColors.success;
-      case DealStatus.rejected:
-        return AppColors.error;
-      case DealStatus.finalized:
-        return AppColors.success;
-    }
+class _InfoGrid extends StatelessWidget {
+  final Deal deal;
+
+  const _InfoGrid({required this.deal});
+
+  @override
+  Widget build(BuildContext context) {
+    final items = [
+      _InfoItem('Status', deal.statusLabel, Icons.flag_outlined),
+      _InfoItem('Created', _formatDate(deal.createdAt), Icons.event_outlined),
+      _InfoItem(
+        'Versions',
+        deal.versions.length.toString(),
+        Icons.description_outlined,
+      ),
+      _InfoItem(
+        'Lock',
+        deal.isFinalized ? 'Final' : 'Open',
+        deal.isFinalized ? Icons.lock_outline : Icons.lock_open_outlined,
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: items.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: constraints.maxWidth > 700 ? 4 : 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 2.2,
+          ),
+          itemBuilder: (context, index) {
+            final item = items[index];
+            return IdealCard(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                children: [
+                  Icon(item.icon, color: AppColors.primary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.title.toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: AppColors.textSecondary,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          item.value,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.textPrimary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _OverviewTab extends StatelessWidget {
+  final Deal deal;
+
+  const _OverviewTab({required this.deal});
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Description',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            deal.description?.isNotEmpty == true
+                ? deal.description!
+                : 'No description provided.',
+            style: const TextStyle(color: AppColors.textSecondary, height: 1.5),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Workflow',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const _WorkflowStep(
+            icon: Icons.edit_note_outlined,
+            title: 'Draft and negotiate',
+            subtitle: 'Terms remain editable until approval.',
+          ),
+          const _WorkflowStep(
+            icon: Icons.task_alt_outlined,
+            title: 'Approve same version',
+            subtitle: 'Every required party accepts one version.',
+          ),
+          const _WorkflowStep(
+            icon: Icons.lock_outline,
+            title: 'Finalize contract',
+            subtitle: 'The approved version becomes locked and official.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VersionsTab extends StatelessWidget {
+  final AsyncValue<List<DealVersion>> versionsAsync;
+  final Deal deal;
+  final ValueChanged<DealVersion> onApprove;
+  final ValueChanged<DealVersion> onReject;
+  final ValueChanged<DealVersion> onModify;
+  final ValueChanged<DealVersion> onFinalize;
+
+  const _VersionsTab({
+    required this.versionsAsync,
+    required this.deal,
+    required this.onApprove,
+    required this.onReject,
+    required this.onModify,
+    required this.onFinalize,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return versionsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Error loading versions: $e')),
+      data: (versions) {
+        if (versions.isEmpty) {
+          return const Center(
+            child: Text(
+              'No versions yet.',
+              style: TextStyle(color: AppColors.textSecondary),
+            ),
+          );
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.all(18),
+          itemCount: versions.length,
+          separatorBuilder: (_, _) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            final version = versions[index];
+            return _VersionCard(
+              version: version,
+              deal: deal,
+              onApprove: () => onApprove(version),
+              onReject: () => onReject(version),
+              onModify: () => onModify(version),
+              onFinalize: () => onFinalize(version),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _ActionsTab extends StatelessWidget {
+  final Deal deal;
+  final VoidCallback onSend;
+
+  const _ActionsTab({required this.deal, required this.onSend});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Available Actions',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _ActionRow(
+            icon: Icons.send_outlined,
+            title: 'Send for review',
+            subtitle: deal.isEditable
+                ? 'Send the current draft to the other party.'
+                : 'This deal cannot be sent in its current status.',
+            enabled: deal.isEditable,
+            onTap: onSend,
+          ),
+          const SizedBox(height: 12),
+          const _ActionRow(
+            icon: Icons.history_outlined,
+            title: 'Version history',
+            subtitle: 'Review submitted versions and approval actions.',
+            enabled: false,
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -351,113 +568,279 @@ class _VersionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
                   'Version ${version.versionNumber}',
                   style: const TextStyle(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w900,
                     color: AppColors.textPrimary,
                   ),
                 ),
-                if (version.isFinal)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.success.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
+              ),
+              if (version.isFinal)
+                const StatusPill(label: 'Final', color: AppColors.success),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            version.content,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              height: 1.45,
+            ),
+            maxLines: 5,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _formatDateTime(version.createdAt),
+            style: const TextStyle(
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          if (!deal.isFinalized && !version.isFinal) ...[
+            const SizedBox(height: 14),
+            const Divider(),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onReject,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      side: const BorderSide(color: AppColors.error),
                     ),
-                    child: const Text(
-                      'Final',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.success,
-                      ),
-                    ),
+                    child: const Text('Reject'),
                   ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onModify,
+                    child: const Text('Modify'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: onApprove,
+                    child: const Text('Approve'),
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              version.content,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                height: 1.5,
-              ),
-              maxLines: 5,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              _formatDate(version.createdAt),
-              style: const TextStyle(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-              ),
-            ),
-            if (!deal.isFinalized && !version.isFinal) ...[
-              const SizedBox(height: 16),
-              const Divider(),
+            if (deal.status == DealStatus.approved) ...[
               const SizedBox(height: 8),
-              Row(
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.lock_outlined),
+                  label: const Text('Finalize & Lock'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.success,
+                  ),
+                  onPressed: onFinalize,
+                ),
+              ),
+            ],
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _WorkflowStep extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _WorkflowStep({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: AppColors.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionRow extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool enabled;
+  final VoidCallback? onTap;
+
+  const _ActionRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.enabled,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: enabled ? onTap : null,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: enabled
+              ? AppColors.primary.withValues(alpha: 0.06)
+              : AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: enabled ? AppColors.primary : AppColors.textSecondary,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: onReject,
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.error,
-                        side: const BorderSide(color: AppColors.error),
-                      ),
-                      child: const Text('Reject'),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: onModify,
-                      child: const Text('Modify'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: onApprove,
-                      child: const Text('Approve'),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              if (deal.status == DealStatus.approved)
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.lock_outlined),
-                    label: const Text('Finalize & Lock'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.success,
-                    ),
-                    onPressed: onFinalize,
-                  ),
-                ),
-            ],
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: enabled ? AppColors.primary : AppColors.textSecondary,
+            ),
           ],
         ),
       ),
     );
   }
+}
 
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+class _InlineMeta extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  const _InlineMeta({
+    required this.icon,
+    required this.label,
+    this.color = AppColors.textSecondary,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
   }
+}
+
+class _InfoItem {
+  final String title;
+  final String value;
+  final IconData icon;
+
+  const _InfoItem(this.title, this.value, this.icon);
+}
+
+Color _statusColor(DealStatus status) {
+  switch (status) {
+    case DealStatus.draft:
+      return AppColors.textSecondary;
+    case DealStatus.sent:
+      return AppColors.primary;
+    case DealStatus.negotiating:
+      return AppColors.warning;
+    case DealStatus.approved:
+      return AppColors.success;
+    case DealStatus.rejected:
+      return AppColors.error;
+    case DealStatus.finalized:
+      return AppColors.success;
+  }
+}
+
+String _formatDate(DateTime date) {
+  return '${date.day}/${date.month}/${date.year}';
+}
+
+String _formatDateTime(DateTime date) {
+  return '${_formatDate(date)} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
 }

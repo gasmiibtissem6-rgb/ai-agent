@@ -33,8 +33,7 @@ class KycNotifier extends AsyncNotifier<KycState> {
   }) async {
     state = AsyncData(KycState.uploading(0));
     try {
-      final userId =
-          SupabaseService.client?.auth.currentUser?.id ?? '';
+      final userId = SupabaseService.client?.auth.currentUser?.id ?? '';
       final docTypeStr = _documentTypeToString(documentType);
 
       state = AsyncData(KycState.uploading(0.2));
@@ -77,9 +76,9 @@ class KycNotifier extends AsyncNotifier<KycState> {
 
       state = AsyncData(KycState.success(submission));
     } catch (e) {
-      state = AsyncData(KycState.error(
-        'Failed to submit KYC. Please try again.',
-      ));
+      state = AsyncData(
+        KycState.error('Failed to submit KYC. Please try again.'),
+      );
     }
   }
 

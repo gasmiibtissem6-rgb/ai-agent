@@ -4,7 +4,9 @@ class Validators {
   static String? email(String? value) {
     if (value == null || value.trim().isEmpty) return 'Email is required.';
     final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-    if (!emailRegex.hasMatch(value.trim())) return 'Enter a valid email address.';
+    if (!emailRegex.hasMatch(value.trim())) {
+      return 'Enter a valid email address.';
+    }
     return null;
   }
 
@@ -21,9 +23,13 @@ class Validators {
   }
 
   static String? otp(String? value) {
-    if (value == null || value.trim().isEmpty) return 'Verification code is required.';
+    if (value == null || value.trim().isEmpty) {
+      return 'Verification code is required.';
+    }
     if (value.trim().length != 6) return 'Enter the 6-digit code.';
-    if (!RegExp(r'^\d{6}$').hasMatch(value.trim())) return 'Code must be 6 digits.';
+    if (!RegExp(r'^\d{6}$').hasMatch(value.trim())) {
+      return 'Code must be 6 digits.';
+    }
     return null;
   }
 

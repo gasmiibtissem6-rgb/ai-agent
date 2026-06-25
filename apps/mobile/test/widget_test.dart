@@ -1,18 +1,25 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ideal_app/main.dart';
+import 'package:ideal_app/core/theme/theme.dart';
+import 'package:ideal_app/shared/ideal_ui.dart';
 
 void main() {
-  testWidgets('shows the IDEAL welcome screen', (tester) async {
-    await tester.pumpWidget(const IdealApp());
+  testWidgets('shows the IDEAL brand shell components', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: const Scaffold(
+          body: AuthShell(
+            title: 'Welcome back',
+            subtitle: 'Sign in to continue managing trusted deals.',
+            child: Text('Sign In'),
+          ),
+        ),
+      ),
+    );
 
-    expect(find.text('IDEAL'), findsOneWidget);
-    expect(find.text('Main areas'), findsOneWidget);
-    expect(find.text('Deals'), findsOneWidget);
-
-    await tester.scrollUntilVisible(find.text('Contracts'), 200);
-    expect(find.text('Contracts'), findsOneWidget);
-
-    await tester.scrollUntilVisible(find.text('Approvals'), 200);
-    expect(find.text('Approvals'), findsOneWidget);
+    expect(find.text('Welcome back'), findsOneWidget);
+    expect(find.text('Sign In'), findsOneWidget);
+    expect(find.byType(IdealLogo), findsOneWidget);
   });
 }

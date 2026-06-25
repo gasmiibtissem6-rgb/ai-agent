@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../domain/deal_model.dart';
 import '../domain/deal_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/router/app_router.dart';
+import '../../../shared/ideal_ui.dart';
 
 class DealsListScreen extends ConsumerStatefulWidget {
   const DealsListScreen({super.key});
@@ -14,6 +16,18 @@ class DealsListScreen extends ConsumerStatefulWidget {
 }
 
 class _DealsListScreenState extends ConsumerState<DealsListScreen> {
+  String _searchTerm = '';
+  String _activeFilter = 'all';
+
+  final List<String> _filters = [
+    'All',
+    'Draft',
+    'Negotiation',
+    'Approved',
+    'Rejected',
+    'Archived',
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -24,101 +38,369 @@ class _DealsListScreenState extends ConsumerState<DealsListScreen> {
   Widget build(BuildContext context) {
     final dealAsync = ref.watch(dealProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Deals'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => context.go(AppRoutes.createDeal),
+    return IdealAppScaffold(
+      activeRoute: 'deals',
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [AppColors.surface, AppColors.surfaceAlt],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
           ),
-        ],
-      ),
-      body: dealAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
-        data: (state) {
-          if (state.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (state.deals.isEmpty) {
-            return _EmptyDealsView(
-              onCreateDeal: () => context.go(AppRoutes.createDeal),
-            );
-          }
-          return RefreshIndicator(
-            onRefresh: () => ref.read(dealProvider.notifier).loadDeals(),
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: state.deals.length,
-              itemBuilder: (context, index) {
-                final deal = state.deals[index];
-                return _DealCard(
-                  deal: deal,
-                  onTap: () => context.go(
-                    AppRoutes.dealDetail,
-                    extra: deal,
+        ),
+        child: dealAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('Error: $e')),
+          data: (state) {
+            if (state.isLoading) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final filteredDeals = state.deals.where((deal) {
+              final matchesFilter =
+                  _activeFilter == 'all' ||
+                  _filterStatus(deal.status) == _activeFilter;
+              final query = _searchTerm.toLowerCase();
+              final matchesSearch =
+                  deal.title.toLowerCase().contains(query) ||
+                  (deal.description ?? '').toLowerCase().contains(query);
+              return matchesFilter && matchesSearch;
+            }).toList();
+
+            return RefreshIndicator(
+              onRefresh: () => ref.read(dealProvider.notifier).loadDeals(),
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 24,
+                    ),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate([
+                        _DealsHeader(
+                          onCreate: () => context.go(AppRoutes.createDeal),
+                        ),
+                        const SizedBox(height: 24),
+                        TextField(
+                          onChanged: (value) =>
+                              setState(() => _searchTerm = value),
+                          decoration: InputDecoration(
+                            hintText: 'Search deals...',
+                            prefixIcon: const Icon(Icons.search),
+                            filled: true,
+                            fillColor: AppColors.card,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: AppColors.border,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        _FilterBar(
+                          filters: _filters,
+                          activeFilter: _activeFilter,
+                          onSelected: (filter) =>
+                              setState(() => _activeFilter = filter),
+                        ),
+                        const SizedBox(height: 24),
+                      ]),
+                    ),
                   ),
-                );
-              },
-            ),
-          );
-        },
+                  if (state.deals.isEmpty)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: EmptyState(
+                        icon: Icons.handshake_outlined,
+                        title: 'No deals yet',
+                        subtitle:
+                            'Create your first deal to start negotiating.',
+                        actionLabel: 'Create deal',
+                        onAction: () => context.go(AppRoutes.createDeal),
+                      ),
+                    )
+                  else if (filteredDeals.isEmpty)
+                    const SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Center(
+                        child: Text(
+                          'No deals found',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                      sliver: SliverList.separated(
+                        itemCount: filteredDeals.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 14),
+                        itemBuilder: (context, index) {
+                          final deal = filteredDeals[index];
+                          return _DealRow(
+                            deal: deal,
+                            onTap: () =>
+                                context.go(AppRoutes.dealDetail, extra: deal),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.go(AppRoutes.createDeal),
-        child: const Icon(Icons.add),
+    );
+  }
+
+  String _filterStatus(DealStatus status) {
+    switch (status) {
+      case DealStatus.draft:
+        return 'draft';
+      case DealStatus.sent:
+      case DealStatus.negotiating:
+        return 'negotiation';
+      case DealStatus.approved:
+      case DealStatus.finalized:
+        return 'approved';
+      case DealStatus.rejected:
+        return 'rejected';
+    }
+  }
+}
+
+class _DealsHeader extends StatelessWidget {
+  final VoidCallback onCreate;
+
+  const _DealsHeader({required this.onCreate});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Deals',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                'Manage and track all your deals',
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        ElevatedButton.icon(
+          onPressed: onCreate,
+          icon: const Icon(Icons.add, size: 18),
+          label: const Text('New Deal'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FilterBar extends StatelessWidget {
+  final List<String> filters;
+  final String activeFilter;
+  final ValueChanged<String> onSelected;
+
+  const _FilterBar({
+    required this.filters,
+    required this.activeFilter,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final filter in filters) ...[
+            _FilterButton(
+              label: filter,
+              selected: activeFilter == filter.toLowerCase(),
+              onTap: () => onSelected(filter.toLowerCase()),
+            ),
+            const SizedBox(width: 8),
+          ],
+        ],
       ),
     );
   }
 }
 
-class _EmptyDealsView extends StatelessWidget {
-  final VoidCallback onCreateDeal;
+class _FilterButton extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
 
-  const _EmptyDealsView({required this.onCreateDeal});
+  const _FilterButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        height: 44,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : AppColors.card,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: selected ? AppColors.primary : AppColors.border,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.white : AppColors.textPrimary,
+            fontWeight: FontWeight.w800,
+            fontSize: 13,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DealRow extends StatelessWidget {
+  final Deal deal;
+  final VoidCallback onTap;
+
+  const _DealRow({required this.deal, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = _statusColor(deal.status);
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 96,
-              height: 96,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: const Icon(
-                Icons.handshake_outlined,
-                size: 48,
-                color: AppColors.primary,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    deal.title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                      color: AppColors.textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.calendar_today,
+                        size: 14,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _formatDate(deal.createdAt),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(width: 20),
+                      const Icon(
+                        Icons.people_outline,
+                        size: 16,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: 6),
+                      const Text(
+                        '1 participant',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 24),
-            const Text(
-              'No deals yet',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              'Create your first deal to get started.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
-              icon: const Icon(Icons.add),
-              label: const Text('Create deal'),
-              onPressed: onCreateDeal,
+            const SizedBox(width: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    deal.statusLabel,
+                    style: TextStyle(
+                      color: statusColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -127,114 +409,21 @@ class _EmptyDealsView extends StatelessWidget {
   }
 }
 
-class _DealCard extends StatelessWidget {
-  final Deal deal;
-  final VoidCallback onTap;
-
-  const _DealCard({required this.deal, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Card(
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: _statusColor(deal.status).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    Icons.handshake_outlined,
-                    color: _statusColor(deal.status),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        deal.title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _statusColor(deal.status)
-                                  .withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              deal.statusLabel,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: _statusColor(deal.status),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _formatDate(deal.createdAt),
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const Icon(
-                  Icons.arrow_forward_ios,
-                  size: 16,
-                  color: AppColors.textSecondary,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+Color _statusColor(DealStatus status) {
+  switch (status) {
+    case DealStatus.draft:
+      return Colors.grey;
+    case DealStatus.sent:
+    case DealStatus.negotiating:
+      return Colors.orange;
+    case DealStatus.approved:
+    case DealStatus.finalized:
+      return Colors.green;
+    case DealStatus.rejected:
+      return Colors.red;
   }
+}
 
-  Color _statusColor(DealStatus status) {
-    switch (status) {
-      case DealStatus.draft:
-        return AppColors.textSecondary;
-      case DealStatus.sent:
-        return AppColors.primary;
-      case DealStatus.negotiating:
-        return AppColors.warning;
-      case DealStatus.approved:
-        return AppColors.success;
-      case DealStatus.rejected:
-        return AppColors.error;
-      case DealStatus.finalized:
-        return AppColors.success;
-    }
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
-  }
+String _formatDate(DateTime date) {
+  return '${date.day}/${date.month}/${date.year}';
 }

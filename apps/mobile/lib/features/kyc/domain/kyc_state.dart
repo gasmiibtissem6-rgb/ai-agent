@@ -15,11 +15,9 @@ class KycState {
     this.uploadProgress = 0,
   });
 
-  factory KycState.initial() =>
-      const KycState(status: KycLoadStatus.initial);
+  factory KycState.initial() => const KycState(status: KycLoadStatus.initial);
 
-  factory KycState.loading() =>
-      const KycState(status: KycLoadStatus.loading);
+  factory KycState.loading() => const KycState(status: KycLoadStatus.loading);
 
   factory KycState.loaded(KycSubmission? submission) =>
       KycState(status: KycLoadStatus.loaded, submission: submission);

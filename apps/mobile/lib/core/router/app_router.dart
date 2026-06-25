@@ -13,9 +13,10 @@ import '../../features/kyc/presentation/kyc_upload_screen.dart';
 import '../../features/deal/presentation/deals_list_screen.dart';
 import '../../features/deal/presentation/create_deal_screen.dart';
 import '../../features/deal/presentation/deal_detail_screen.dart';
+import '../../features/deal/presentation/contracts_screen.dart';
+import '../../features/notifications/presentation/notifications_screen.dart';
+import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/deal/domain/deal_model.dart';
-
-
 
 class AppRoutes {
   const AppRoutes._();
@@ -27,10 +28,13 @@ class AppRoutes {
   static const otp = '/otp';
   static const home = '/home';
   static const kycStatus = '/kyc';
-static const kycUpload = '/kyc/upload';
-static const deals = '/deals';
-static const createDeal = '/deals/create';
-static const dealDetail = '/deals/detail';
+  static const kycUpload = '/kyc/upload';
+  static const deals = '/deals';
+  static const createDeal = '/deals/create';
+  static const dealDetail = '/deals/detail';
+  static const contracts = '/contracts';
+  static const notifications = '/notifications';
+  static const settings = '/settings';
 }
 
 final _authListenableProvider = Provider<ValueNotifier<AppAuthState?>>((ref) {
@@ -109,28 +113,40 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const HomeScreen(),
       ),
       GoRoute(
-  path: AppRoutes.kycStatus,
-  builder: (context, state) => const KycStatusScreen(),
-),
-GoRoute(
-  path: AppRoutes.kycUpload,
-  builder: (context, state) => const KycUploadScreen(),
-),
-GoRoute(
-  path: AppRoutes.deals,
-  builder: (context, state) => const DealsListScreen(),
-),
-GoRoute(
-  path: AppRoutes.createDeal,
-  builder: (context, state) => const CreateDealScreen(),
-),
-GoRoute(
-  path: AppRoutes.dealDetail,
-  builder: (context, state) {
-    final deal = state.extra as Deal;
-    return DealDetailScreen(deal: deal);
-  },
-),
+        path: AppRoutes.kycStatus,
+        builder: (context, state) => const KycStatusScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.kycUpload,
+        builder: (context, state) => const KycUploadScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.deals,
+        builder: (context, state) => const DealsListScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.createDeal,
+        builder: (context, state) => const CreateDealScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.dealDetail,
+        builder: (context, state) {
+          final deal = state.extra as Deal;
+          return DealDetailScreen(deal: deal);
+        },
+      ),
+      GoRoute(
+        path: AppRoutes.contracts,
+        builder: (context, state) => const ContractsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.notifications,
+        builder: (context, state) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.settings,
+        builder: (context, state) => const SettingsScreen(),
+      ),
     ],
   );
 });
@@ -146,8 +162,6 @@ class _SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
-    );
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
   }
 }

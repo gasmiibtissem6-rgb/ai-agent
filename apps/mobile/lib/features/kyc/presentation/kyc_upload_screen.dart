@@ -1,4 +1,3 @@
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +7,7 @@ import '../domain/kyc_provider.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/router/app_router.dart';
+import '../../../shared/ideal_ui.dart';
 
 class KycUploadScreen extends ConsumerStatefulWidget {
   const KycUploadScreen({super.key});
@@ -55,7 +55,9 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
       );
       return;
     }
-    await ref.read(kycProvider.notifier).submitKyc(
+    await ref
+        .read(kycProvider.notifier)
+        .submitKyc(
           documentType: _selectedType,
           frontBytes: _frontFile!.bytes!,
           frontFileName: _frontFile!.name,
@@ -94,149 +96,179 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
       }
     });
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Upload Documents')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Select document type',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: KycDocumentType.values.map((type) {
-                final isSelected = type == _selectedType;
-                final label = type == KycDocumentType.nationalId
-                    ? 'National ID'
-                    : type == KycDocumentType.passport
-                        ? 'Passport'
-                        : 'Driver License';
-                return Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _selectedType = type),
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: isSelected ? AppColors.primary : Colors.white,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: isSelected
-                              ? AppColors.primary
-                              : AppColors.border,
-                        ),
-                      ),
-                      child: Text(
-                        label,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: isSelected
-                              ? Colors.white
-                              : AppColors.textSecondary,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 32),
-            const Text(
-              'Upload documents',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            _FileUploadCard(
-              label: 'Front of document',
-              subtitle: 'Clear photo of the front side',
-              required: true,
-              file: _frontFile,
-              onTap: () => _pickFile('front'),
-            ),
-            const SizedBox(height: 12),
-            _FileUploadCard(
-              label: 'Back of document',
-              subtitle: 'Clear photo of the back side',
-              required: false,
-              file: _backFile,
-              onTap: () => _pickFile('back'),
-            ),
-            const SizedBox(height: 12),
-            _FileUploadCard(
-              label: 'Selfie with document',
-              subtitle: 'Hold your document next to your face',
-              required: false,
-              file: _selfieFile,
-              onTap: () => _pickFile('selfie'),
-            ),
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.05),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.2)),
-              ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return IdealAppScaffold(
+      activeRoute: 'kyc',
+      showBack: true,
+      body: IdealGradientBackground(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Text(
-                    'Security notice',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    ),
+                  IconButton(
+                    onPressed: () => context.go(AppRoutes.kycStatus),
+                    icon: const Icon(Icons.arrow_back),
                   ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Your documents are encrypted and stored in a private secure bucket. Only authorized reviewers can access them.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                      height: 1.4,
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: SectionTitle(
+                      title: 'Upload Documents',
+                      subtitle: 'Submit identity files for secure review.',
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 32),
-            if (isUploading) ...[
-              Text(
-                'Uploading... ${(progress * 100).toInt()}%',
-                style: const TextStyle(color: AppColors.textSecondary),
-              ),
-              const SizedBox(height: 8),
-              LinearProgressIndicator(value: progress),
-              const SizedBox(height: 16),
-            ],
-            ElevatedButton(
-              onPressed: isUploading ? null : _submit,
-              child: isUploading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
+              const SizedBox(height: 24),
+              IdealCard(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Select document type',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
                       ),
-                    )
-                  : const Text('Submit for verification'),
-            ),
-          ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: KycDocumentType.values.map((type) {
+                        final isSelected = type == _selectedType;
+                        final label = type == KycDocumentType.nationalId
+                            ? 'National ID'
+                            : type == KycDocumentType.passport
+                            ? 'Passport'
+                            : 'Driver License';
+                        return Expanded(
+                          child: GestureDetector(
+                            onTap: () => setState(() => _selectedType = type),
+                            child: Container(
+                              margin: const EdgeInsets.only(right: 8),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? AppColors.primary
+                                      : AppColors.border,
+                                ),
+                              ),
+                              child: Text(
+                                label,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 32),
+                    const Text(
+                      'Upload documents',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _FileUploadCard(
+                      label: 'Front of document',
+                      subtitle: 'Clear photo of the front side',
+                      required: true,
+                      file: _frontFile,
+                      onTap: () => _pickFile('front'),
+                    ),
+                    const SizedBox(height: 12),
+                    _FileUploadCard(
+                      label: 'Back of document',
+                      subtitle: 'Clear photo of the back side',
+                      required: false,
+                      file: _backFile,
+                      onTap: () => _pickFile('back'),
+                    ),
+                    const SizedBox(height: 12),
+                    _FileUploadCard(
+                      label: 'Selfie with document',
+                      subtitle: 'Hold your document next to your face',
+                      required: false,
+                      file: _selfieFile,
+                      onTap: () => _pickFile('selfie'),
+                    ),
+                    const SizedBox(height: 24),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Security notice',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'Your documents are encrypted and stored in a private secure bucket. Only authorized reviewers can access them.',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textSecondary,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    if (isUploading) ...[
+                      Text(
+                        'Uploading... ${(progress * 100).toInt()}%',
+                        style: const TextStyle(color: AppColors.textSecondary),
+                      ),
+                      const SizedBox(height: 8),
+                      LinearProgressIndicator(value: progress),
+                      const SizedBox(height: 16),
+                    ],
+                    ElevatedButton(
+                      onPressed: isUploading ? null : _submit,
+                      child: isUploading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text('Submit for verification'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -309,8 +341,10 @@ class _FileUploadCard extends StatelessWidget {
                       ),
                       if (required) ...[
                         const SizedBox(width: 4),
-                        const Text('*',
-                            style: TextStyle(color: AppColors.error)),
+                        const Text(
+                          '*',
+                          style: TextStyle(color: AppColors.error),
+                        ),
                       ],
                     ],
                   ),
@@ -329,8 +363,11 @@ class _FileUploadCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_ios,
-                size: 16, color: AppColors.textSecondary),
+            const Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+              color: AppColors.textSecondary,
+            ),
           ],
         ),
       ),

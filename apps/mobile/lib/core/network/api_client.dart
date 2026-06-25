@@ -92,7 +92,9 @@ class ApiClient {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.receiveTimeout:
       case DioExceptionType.sendTimeout:
-        return const NetworkException('Connection timed out. Check your internet.');
+        return const NetworkException(
+          'Connection timed out. Check your internet.',
+        );
       case DioExceptionType.connectionError:
         return const NetworkException('No connection. Check your internet.');
       case DioExceptionType.badResponse:
@@ -114,7 +116,9 @@ class ApiClient {
       // NestJS standard error format
       final message = data['message'];
       if (message is String) return message;
-      if (message is List && message.isNotEmpty) return message.first.toString();
+      if (message is List && message.isNotEmpty) {
+        return message.first.toString();
+      }
       return data['error']?.toString() ?? 'Something went wrong.';
     }
     return 'Something went wrong.';
@@ -154,7 +158,9 @@ class _LoggingInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    _logger.e('[API] Error ${err.response?.statusCode} ${err.requestOptions.path}');
+    _logger.e(
+      '[API] Error ${err.response?.statusCode} ${err.requestOptions.path}',
+    );
     handler.next(err);
   }
 }

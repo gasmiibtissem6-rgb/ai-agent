@@ -7,11 +7,7 @@ class AppAuthState {
   final User? user;
   final String? errorMessage;
 
-  const AppAuthState({
-    required this.status,
-    this.user,
-    this.errorMessage,
-  });
+  const AppAuthState({required this.status, this.user, this.errorMessage});
 
   factory AppAuthState.initial() =>
       const AppAuthState(status: AuthStatus.initial);

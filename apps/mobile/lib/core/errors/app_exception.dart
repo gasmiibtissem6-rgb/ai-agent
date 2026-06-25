@@ -13,7 +13,9 @@ class NetworkException extends AppException {
 }
 
 class UnauthorizedException extends AppException {
-  const UnauthorizedException([super.message = 'Session expired. Please log in again.']);
+  const UnauthorizedException([
+    super.message = 'Session expired. Please log in again.',
+  ]);
 }
 
 class ValidationException extends AppException {
@@ -23,5 +25,7 @@ class ValidationException extends AppException {
 }
 
 class ServerException extends AppException {
-  const ServerException([super.message = 'Something went wrong. Please try again.']);
+  const ServerException([
+    super.message = 'Something went wrong. Please try again.',
+  ]);
 }

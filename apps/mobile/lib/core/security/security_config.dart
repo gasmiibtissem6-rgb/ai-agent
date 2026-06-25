@@ -82,7 +82,14 @@ class SecurityConfig {
   static String sanitizeInput(String input) {
     return input
         .trim()
-        .replaceAll(RegExp(r'[<>"' "'" r']'), '')
+        .replaceAll(
+          RegExp(
+            r'[<>"'
+            "'"
+            r']',
+          ),
+          '',
+        )
         .replaceAll(RegExp(r'\s+'), ' ');
   }
 
@@ -95,14 +102,14 @@ class SecurityConfig {
     final first = name[0];
     final last = name[name.length - 1];
     final stars = '*' * (name.length - 2);
-    return first + stars + last + '@' + domain;
+    return '$first$stars$last@$domain';
   }
 
   static String maskToken(String token) {
     if (token.length <= 8) return '***';
     final start = token.substring(0, 4);
     final end = token.substring(token.length - 4);
-    return start + '...**********...' + end;
+    return '$start...**********...$end';
   }
 }
 

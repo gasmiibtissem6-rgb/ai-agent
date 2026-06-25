@@ -106,10 +106,7 @@ class DealNotifier extends AsyncNotifier<DealState> {
     required String versionId,
   }) async {
     try {
-      await DealService.finalizeDeal(
-        dealId: dealId,
-        versionId: versionId,
-      );
+      await DealService.finalizeDeal(dealId: dealId, versionId: versionId);
       await loadDeals();
     } catch (e) {
       state = AsyncData(DealState.error('Failed to finalize deal.'));
@@ -121,7 +118,9 @@ final dealProvider = AsyncNotifierProvider<DealNotifier, DealState>(
   DealNotifier.new,
 );
 
-final dealVersionsProvider =
-    FutureProvider.family<List<DealVersion>, String>((ref, dealId) async {
+final dealVersionsProvider = FutureProvider.family<List<DealVersion>, String>((
+  ref,
+  dealId,
+) async {
   return DealService.getDealVersions(dealId);
 });
