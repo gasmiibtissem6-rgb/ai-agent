@@ -12,12 +12,45 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
 
+  # Environment
+  flutter_dotenv: ^6.0.0
+
+  # State management
+  flutter_riverpod: ^3.0.3
+
+  # Routing
+  go_router: ^17.0.0
+
+  # Auth (Supabase — session lifecycle only)
+  supabase_flutter: ^2.10.3
+
+  # HTTP client for NestJS API
+  dio: ^5.8.0+1
+
+  # Secure token storage
+  flutter_secure_storage: ^10.0.0
+
+  # File & image picking (KYC upload)
+  file_picker: ^8.1.2
+  image_picker: ^1.1.2
+
+  # Image display
+  cached_network_image: ^3.4.1
+
+  # Utilities
+  logger: ^2.6.2
+  uuid: ^4.5.1
+  intl: ^0.20.2
+  path: ^1.9.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  mocktail: ^1.0.4
 
 flutter:
   uses-material-design: true
   assets:
+    - .env.example
     - assets/images/logo/ideal-logo.png

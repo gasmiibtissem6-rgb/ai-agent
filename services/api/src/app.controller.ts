@@ -1,21 +1,24 @@
-// services/api/src/app.controller.ts
-import { Controller, Get, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Req, UseGuards } from '@nestjs/common';
+import type { Request } from 'express';
+import type { AppInfo } from './app.service';
+import { AppService } from './app.service';
 import { AuthGuard } from './common/guards/auth.guard';
-// We import it without assigning it directly to the decorated parameter signature row
-import type { Request } from 'express'; 
 
 @Controller()
 export class AppController {
-  
-  
+  constructor(private readonly appService: AppService) {}
+
+  @Get()
+  getAppInfo(): AppInfo {
+    return this.appService.getAppInfo();
+  }
+
+  @Get('secure')
   @UseGuards(AuthGuard)
-  getSecureData(@Req() req: any) { // 👈 Changing this to 'any' satisfies isolatedModules metadata rules
-    const expressReq = req as Request; // Cast it back inside if you want local typing utilities
-    
+  getSecureData(@Req() req: any) {
     return {
       message: 'If you see this, your AuthGuard successfully verified the token!',
-      // Using explicit type bypass cleanly resolves the index type warning
-      userPayload: (req as any).user, 
+      userPayload: (req as Request & { user?: unknown }).user,
     };
   }
 }
