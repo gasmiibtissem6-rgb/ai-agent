@@ -87,65 +87,76 @@ final routerProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: AppRoutes.splash,
-        builder: (context, state) => const _SplashScreen(),
+        pageBuilder: (context, state) =>
+            _fadePage(state, const _SplashScreen()),
       ),
       GoRoute(
         path: AppRoutes.login,
-        builder: (context, state) => const LoginScreen(),
+        pageBuilder: (context, state) => _fadePage(state, const LoginScreen()),
       ),
       GoRoute(
         path: AppRoutes.register,
-        builder: (context, state) => const RegisterScreen(),
+        pageBuilder: (context, state) =>
+            _fadePage(state, const RegisterScreen()),
       ),
       GoRoute(
         path: AppRoutes.forgotPassword,
-        builder: (context, state) => const ForgotPasswordScreen(),
+        pageBuilder: (context, state) =>
+            _fadePage(state, const ForgotPasswordScreen()),
       ),
       GoRoute(
         path: AppRoutes.otp,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final email = state.extra as String;
-          return OtpScreen(email: email);
+          return _fadePage(state, OtpScreen(email: email));
         },
       ),
       GoRoute(
         path: AppRoutes.home,
-        builder: (context, state) => const HomeScreen(),
+        pageBuilder: (context, state) =>
+            _sectionPage(state, const HomeScreen()),
       ),
       GoRoute(
         path: AppRoutes.kycStatus,
-        builder: (context, state) => const KycStatusScreen(),
+        pageBuilder: (context, state) =>
+            _sectionPage(state, const KycStatusScreen()),
       ),
       GoRoute(
         path: AppRoutes.kycUpload,
-        builder: (context, state) => const KycUploadScreen(),
+        pageBuilder: (context, state) =>
+            _flowPage(state, const KycUploadScreen()),
       ),
       GoRoute(
         path: AppRoutes.deals,
-        builder: (context, state) => const DealsListScreen(),
+        pageBuilder: (context, state) =>
+            _sectionPage(state, const DealsListScreen()),
       ),
       GoRoute(
         path: AppRoutes.createDeal,
-        builder: (context, state) => const CreateDealScreen(),
+        pageBuilder: (context, state) =>
+            _flowPage(state, const CreateDealScreen()),
       ),
       GoRoute(
         path: AppRoutes.dealDetail,
-        builder: (context, state) {
+        pageBuilder: (context, state) {
           final deal = state.extra as Deal;
-          return DealDetailScreen(deal: deal);
+          return _flowPage(state, DealDetailScreen(deal: deal));
         },
       ),
       GoRoute(
         path: AppRoutes.contracts,
-        builder: (context, state) => const ContractsScreen(),
+        pageBuilder: (context, state) =>
+            _sectionPage(state, const ContractsScreen()),
       ),
       GoRoute(
         path: AppRoutes.notifications,
-        builder: (context, state) => const NotificationsScreen(),
+        pageBuilder: (context, state) =>
+            _sectionPage(state, const NotificationsScreen()),
       ),
       GoRoute(
         path: AppRoutes.settings,
-        builder: (context, state) => const SettingsScreen(),
+        pageBuilder: (context, state) =>
+            _sectionPage(state, const SettingsScreen()),
       ),
     ],
   );
@@ -155,6 +166,43 @@ class AppRouter {
   const AppRouter._();
 
   static GoRouter of(WidgetRef ref) => ref.watch(routerProvider);
+}
+
+Page<void> _sectionPage(GoRouterState state, Widget child) {
+  return NoTransitionPage<void>(key: state.pageKey, child: child);
+}
+
+Page<void> _fadePage(GoRouterState state, Widget child) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 160),
+    reverseTransitionDuration: const Duration(milliseconds: 120),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      return FadeTransition(opacity: animation, child: child);
+    },
+  );
+}
+
+Page<void> _flowPage(GoRouterState state, Widget child) {
+  return CustomTransitionPage<void>(
+    key: state.pageKey,
+    child: child,
+    transitionDuration: const Duration(milliseconds: 180),
+    reverseTransitionDuration: const Duration(milliseconds: 140),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final offset = Tween<Offset>(
+        begin: const Offset(0.03, 0),
+        end: Offset.zero,
+      ).chain(CurveTween(curve: Curves.easeOutCubic)).animate(animation);
+      final opacity = CurvedAnimation(parent: animation, curve: Curves.easeOut);
+
+      return FadeTransition(
+        opacity: opacity,
+        child: SlideTransition(position: offset, child: child),
+      );
+    },
+  );
 }
 
 class _SplashScreen extends StatelessWidget {

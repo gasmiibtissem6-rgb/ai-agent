@@ -110,82 +110,186 @@ class IdealAppScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final navWidth = (MediaQuery.sizeOf(context).width - 160).clamp(0.0, 560.0);
-    final navItems = <({String key, String label, String route})>[
-      (key: 'home', label: 'Home', route: AppRoutes.home),
-      (key: 'deals', label: 'Deals', route: AppRoutes.deals),
-      (key: 'contracts', label: 'Contracts', route: AppRoutes.contracts),
-      (
-        key: 'notifications',
-        label: 'Notifications',
-        route: AppRoutes.notifications,
-      ),
-      (key: 'settings', label: 'Settings', route: AppRoutes.settings),
-    ];
+    final isDesktop = MediaQuery.sizeOf(context).width >= 900;
+    final navItems = _navItems;
 
+    if (isDesktop) {
+      return Scaffold(
+        body: SafeArea(
+          child: Row(
+            children: [
+              _DesktopNav(
+                activeRoute: activeRoute,
+                items: navItems,
+                actions: actions,
+              ),
+              Expanded(child: body),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final activeIndex = navItems.indexWhere((item) => item.key == activeRoute);
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: showBack,
         toolbarHeight: 56,
-        titleSpacing: 12,
         title: GestureDetector(
           onTap: () => context.go(AppRoutes.home),
           child: const IdealLogo(size: 30),
         ),
-        actions: [
-          SizedBox(
-            width: navWidth,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: navItems.map((item) {
-                  final selected = activeRoute == item.key;
-                  return GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () {
-                      if (item.route.isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('This feature is still being built.'),
-                          ),
-                        );
-                        return;
-                      }
-                      context.go(item.route);
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 16,
-                      ),
-                      child: Text(
-                        item.label,
-                        style: TextStyle(
-                          color: selected
-                              ? AppColors.primary
-                              : AppColors.textPrimary,
-                          fontWeight: selected
-                              ? FontWeight.w800
-                              : FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
+        actions: actions,
+      ),
+      body: SafeArea(child: body),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: activeIndex < 0 ? 0 : activeIndex,
+        onTap: (index) => context.go(navItems[index].route),
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: AppColors.card,
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: AppColors.textSecondary,
+        selectedFontSize: 11,
+        unselectedFontSize: 11,
+        items: navItems
+            .map(
+              (item) => BottomNavigationBarItem(
+                icon: Icon(item.icon),
+                label: item.label,
               ),
+            )
+            .toList(),
+      ),
+    );
+  }
+}
+
+const _navItems = <_NavItem>[
+  _NavItem('home', 'Home', Icons.home_outlined, AppRoutes.home),
+  _NavItem('deals', 'Deals', Icons.business_center_outlined, AppRoutes.deals),
+  _NavItem(
+    'contracts',
+    'Contracts',
+    Icons.description_outlined,
+    AppRoutes.contracts,
+  ),
+  _NavItem(
+    'notifications',
+    'Notifications',
+    Icons.notifications_outlined,
+    AppRoutes.notifications,
+  ),
+  _NavItem('settings', 'Settings', Icons.settings_outlined, AppRoutes.settings),
+];
+
+class _DesktopNav extends StatelessWidget {
+  final String activeRoute;
+  final List<_NavItem> items;
+  final List<Widget> actions;
+
+  const _DesktopNav({
+    required this.activeRoute,
+    required this.items,
+    required this.actions,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 248,
+      height: double.infinity,
+      decoration: const BoxDecoration(
+        color: AppColors.card,
+        border: Border(right: BorderSide(color: AppColors.border)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: GestureDetector(
+              onTap: () => context.go(AppRoutes.home),
+              child: const IdealLogo(size: 34),
             ),
           ),
-          ...actions,
+          const SizedBox(height: 8),
+          for (final item in items)
+            _DesktopNavItem(item: item, selected: activeRoute == item.key),
+          const Spacer(),
+          if (actions.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Wrap(spacing: 4, runSpacing: 4, children: actions),
+            ),
           const Padding(
-            padding: EdgeInsets.only(left: 4, right: 12),
-            child: Icon(Icons.wb_sunny, color: AppColors.primary),
+            padding: EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Icon(Icons.wb_sunny, color: AppColors.primary),
+                SizedBox(width: 10),
+                Text(
+                  'Dark Mode',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
-      body: SafeArea(child: body),
     );
   }
+}
+
+class _DesktopNavItem extends StatelessWidget {
+  final _NavItem item;
+  final bool selected;
+
+  const _DesktopNavItem({required this.item, required this.selected});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => context.go(item.route),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary.withValues(alpha: 0.12) : null,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              item.icon,
+              color: selected ? AppColors.primary : AppColors.textSecondary,
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              item.label,
+              style: TextStyle(
+                color: selected ? AppColors.primary : AppColors.textPrimary,
+                fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem {
+  final String key;
+  final String label;
+  final IconData icon;
+  final String route;
+
+  const _NavItem(this.key, this.label, this.icon, this.route);
 }
 
 class AuthShell extends StatelessWidget {

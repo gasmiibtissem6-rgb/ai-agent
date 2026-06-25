@@ -133,6 +133,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const SizedBox(height: 20),
             _SettingsCard(
+              title: 'Account Management',
+              icon: Icons.person_outline,
+              children: [
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Edit Profile'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _comingSoon(context),
+                ),
+                const Divider(),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Active Sessions'),
+                  subtitle: const Text('View signed-in devices'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _comingSoon(context),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            _SettingsCard(
               title: 'Privacy',
               icon: Icons.security,
               children: [

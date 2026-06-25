@@ -64,6 +64,8 @@ class HomeScreen extends ConsumerWidget {
               _ActionGrid(
                 onIdentity: () => context.go(AppRoutes.kycStatus),
                 onDeals: () => context.go(AppRoutes.deals),
+                onContracts: () => context.go(AppRoutes.contracts),
+                onApprovals: () => _comingSoon(context),
               ),
               const SizedBox(height: 30),
               Row(
@@ -158,6 +160,12 @@ class HomeScreen extends ConsumerWidget {
       await ref.read(authProvider.notifier).deleteAccount();
     }
   }
+
+  void _comingSoon(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('This feature is still being built.')),
+    );
+  }
 }
 
 class _StatsGrid extends StatelessWidget {
@@ -231,7 +239,7 @@ class _StatsGrid extends StatelessWidget {
             crossAxisCount: columns,
             crossAxisSpacing: 14,
             mainAxisSpacing: 14,
-            childAspectRatio: columns == 1 ? 2.9 : 1.55,
+            childAspectRatio: columns == 1 ? 2.0 : 1.55,
           ),
           itemBuilder: (context, index) => _StatCard(item: items[index]),
         );
@@ -348,7 +356,7 @@ class _ActionPanel extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: primary ? AppColors.primary : Colors.white,
+          color: primary ? AppColors.primary : AppColors.card,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: primary
@@ -396,16 +404,23 @@ class _ActionPanel extends StatelessWidget {
 class _ActionGrid extends StatelessWidget {
   final VoidCallback onIdentity;
   final VoidCallback onDeals;
+  final VoidCallback onContracts;
+  final VoidCallback onApprovals;
 
-  const _ActionGrid({required this.onIdentity, required this.onDeals});
+  const _ActionGrid({
+    required this.onIdentity,
+    required this.onDeals,
+    required this.onContracts,
+    required this.onApprovals,
+  });
 
   @override
   Widget build(BuildContext context) {
     final actions = [
       _MiniAction('Identity', Icons.verified_user_outlined, onIdentity),
       _MiniAction('Deals', Icons.handshake_outlined, onDeals),
-      _MiniAction('Contracts', Icons.description_outlined, onDeals),
-      _MiniAction('Approvals', Icons.task_alt_outlined, onDeals),
+      _MiniAction('Contracts', Icons.description_outlined, onContracts),
+      _MiniAction('Approvals', Icons.task_alt_outlined, onApprovals),
     ];
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -427,7 +442,7 @@ class _ActionGrid extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppColors.card,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AppColors.border),
                 ),
