@@ -1,23 +1,35 @@
 // services/api/src/deals/deals.controller.ts
-import { Controller, Get, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Req } from '@nestjs/common';
 import { AuthGuard } from '../common/guards/auth.guard';
+import { KycVerifiedGuard } from '../common/guards/kyc-verified.guard'; // 👈 Import the KYC guard
 import { DealsService } from './deals.service';
 import type { FoundationModuleSummary } from '../common/foundation.types';
 import { lifecycleStatuses } from '../common/foundation.types';
 
 @Controller('deals')
 export class DealsController {
-  // Inject the deals service to talk to Prisma
   constructor(private readonly dealsService: DealsService) {}
 
   /**
    * Production Endpoint: Fetch authenticated user's deals
-   * Route: GET /deals (or /api/deals depending on global prefix)
+   * Route: GET /deals
+   * Permissive: Accessible by any logged-in user so they can track historical info or incoming invites.
    */
   @Get()
-  @UseGuards(AuthGuard) // 🔒 Protect this specific route with your Supabase Guard
+  @UseGuards(AuthGuard) 
   async getMyDeals(@Req() req: any) {
     return this.dealsService.getDealsByUserId(req.user.sub);
+  }
+
+  /**
+   * Planned Production Endpoint Example: Create a draft deal
+   * Route: POST /deals
+   * Restrictive: Enforces sequential gates: Is logged in? -> Is identity approved?
+   */
+  @Post()
+  @UseGuards(AuthGuard, KycVerifiedGuard) // 🔒 Stacking gates blocks unauthorized creation natively
+  async createDraftDeal(@Req() req: any, @Body() body: any) {
+    // return this.dealsService.createDeal(req.user.sub, body);
   }
 
   /**
@@ -41,7 +53,7 @@ export class DealsController {
         {
           method: 'POST',
           path: '/api/v1/deals',
-          purpose: 'Create a draft deal.',
+          purpose: 'Create a draft deal. Requires full KYC validation confirmation.',
           authenticated: true,
           auditRequired: true,
         },
