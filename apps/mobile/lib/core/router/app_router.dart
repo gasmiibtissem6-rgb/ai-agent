@@ -1,22 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../features/auth/domain/auth_provider.dart';
 import '../../features/auth/domain/auth_state.dart';
-import '../../features/auth/presentation/login_screen.dart';
-import '../../features/auth/presentation/register_screen.dart';
 import '../../features/auth/presentation/forgot_password_screen.dart';
+import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/otp_screen.dart';
+import '../../features/auth/presentation/register_screen.dart';
+import '../../features/auth/presentation/reset_password_screen.dart';
+import '../../features/auth/presentation/splash_screen.dart';
+import '../../features/deal/domain/deal_model.dart';
+import '../../features/deal/presentation/contracts_screen.dart';
+import '../../features/deal/presentation/create_deal_screen.dart';
+import '../../features/deal/presentation/deal_detail_screen.dart';
+import '../../features/deal/presentation/deals_list_screen.dart';
 import '../../features/deal/presentation/home_screen.dart';
 import '../../features/kyc/presentation/kyc_status_screen.dart';
 import '../../features/kyc/presentation/kyc_upload_screen.dart';
-import '../../features/deal/presentation/deals_list_screen.dart';
-import '../../features/deal/presentation/create_deal_screen.dart';
-import '../../features/deal/presentation/deal_detail_screen.dart';
-import '../../features/deal/presentation/contracts_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
-import '../../features/deal/domain/deal_model.dart';
 
 class AppRoutes {
   const AppRoutes._();
@@ -25,6 +28,7 @@ class AppRoutes {
   static const login = '/login';
   static const register = '/register';
   static const forgotPassword = '/forgot-password';
+  static const resetPassword = '/reset-password';
   static const otp = '/otp';
   static const home = '/home';
   static const kycStatus = '/kyc';
@@ -55,23 +59,39 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final authState = authListenable.value;
       final status = authState?.status;
+      final isResetPasswordDeepLink = _isResetPasswordDeepLink(state);
 
       final isAuthRoute = [
         AppRoutes.login,
         AppRoutes.register,
         AppRoutes.forgotPassword,
         AppRoutes.otp,
+        AppRoutes.resetPassword,
       ].contains(state.matchedLocation);
 
-      // Still loading — stay on splash unless user is already on an auth route
-      if (status == null || status == AuthStatus.initial) {
-        return AppRoutes.splash;
-      }
-      if (status == AuthStatus.loading && !isAuthRoute) {
-        return AppRoutes.splash;
+      if (isResetPasswordDeepLink &&
+          state.matchedLocation != AppRoutes.resetPassword) {
+        return AppRoutes.resetPassword;
       }
 
-      // Authenticated — send to home if on auth route or splash
+      if (status == null || status == AuthStatus.initial) {
+        return isResetPasswordDeepLink
+            ? AppRoutes.resetPassword
+            : AppRoutes.splash;
+      }
+      if (status == AuthStatus.loading && !isAuthRoute) {
+        return isResetPasswordDeepLink
+            ? AppRoutes.resetPassword
+            : AppRoutes.splash;
+      }
+
+      if (status == AuthStatus.passwordRecovery) {
+        if (state.matchedLocation != AppRoutes.resetPassword) {
+          return AppRoutes.resetPassword;
+        }
+        return null;
+      }
+
       if (status == AuthStatus.authenticated) {
         if (isAuthRoute || state.matchedLocation == AppRoutes.splash) {
           return AppRoutes.home;
@@ -79,16 +99,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         return null;
       }
 
-      // Not authenticated — send to login if not on auth route
-      if (!isAuthRoute) return AppRoutes.login;
+      if (!isAuthRoute && state.matchedLocation != AppRoutes.splash) {
+        return AppRoutes.login;
+      }
 
       return null;
     },
     routes: [
       GoRoute(
         path: AppRoutes.splash,
-        pageBuilder: (context, state) =>
-            _fadePage(state, const _SplashScreen()),
+        pageBuilder: (context, state) => _fadePage(state, const SplashScreen()),
       ),
       GoRoute(
         path: AppRoutes.login,
@@ -105,6 +125,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             _fadePage(state, const ForgotPasswordScreen()),
       ),
       GoRoute(
+        path: AppRoutes.resetPassword,
+        pageBuilder: (context, state) =>
+            _fadePage(state, const ResetPasswordScreen()),
+      ),
+      GoRoute(
         path: AppRoutes.otp,
         pageBuilder: (context, state) {
           final email = state.extra as String;
@@ -113,8 +138,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.home,
-        pageBuilder: (context, state) =>
-            _sectionPage(state, const HomeScreen()),
+        pageBuilder: (context, state) => _sectionPage(state, const HomeScreen()),
       ),
       GoRoute(
         path: AppRoutes.kycStatus,
@@ -205,11 +229,10 @@ Page<void> _flowPage(GoRouterState state, Widget child) {
   );
 }
 
-class _SplashScreen extends StatelessWidget {
-  const _SplashScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
-  }
+bool _isResetPasswordDeepLink(GoRouterState state) {
+  final uri = state.uri;
+  return uri.scheme == 'io.supabase.idealapp' &&
+      (uri.host == 'reset-password' ||
+          uri.path == '/reset-password' ||
+          state.matchedLocation == AppRoutes.resetPassword);
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/theme/theme_provider.dart';
 import '../../../features/auth/domain/auth_provider.dart';
 import '../../../shared/ideal_ui.dart';
 
@@ -26,7 +27,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [AppColors.surface, AppColors.surfaceAlt],
             begin: Alignment.topCenter,
@@ -36,7 +37,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           children: [
-            const Text(
+            Text(
               'Settings',
               style: TextStyle(
                 color: AppColors.textPrimary,
@@ -45,7 +46,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Manage your preferences and account security',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
             ),
@@ -82,8 +83,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       icon: Icon(Icons.nightlight_round),
                     ),
                   ],
-                  selected: const {true},
-                  onSelectionChanged: (_) => _comingSoon(context),
+                  selected: {ref.watch(themeProvider) == ThemeMode.dark},
+                  onSelectionChanged: (selection) {
+                    ref.read(themeProvider.notifier).toggleTheme(selection.first);
+                  },
                 ),
               ],
             ),
@@ -324,7 +327,7 @@ class _SwitchRow extends StatelessWidget {
       ),
       subtitle: Text(
         subtitle,
-        style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+        style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
       ),
       value: value,
       onChanged: onChanged,

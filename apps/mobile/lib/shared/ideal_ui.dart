@@ -50,7 +50,7 @@ class IdealGradientBackground extends StatelessWidget {
     return Container(
       width: double.infinity,
       height: double.infinity,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [AppColors.surface, AppColors.surfaceAlt],
           begin: Alignment.topCenter,
@@ -198,7 +198,7 @@ class _DesktopNav extends StatelessWidget {
     return Container(
       width: 248,
       height: double.infinity,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.card,
         border: Border(right: BorderSide(color: AppColors.border)),
       ),
@@ -221,22 +221,6 @@ class _DesktopNav extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Wrap(spacing: 4, runSpacing: 4, children: actions),
             ),
-          const Padding(
-            padding: EdgeInsets.all(20),
-            child: Row(
-              children: [
-                Icon(Icons.wb_sunny, color: AppColors.primary),
-                SizedBox(width: 10),
-                Text(
-                  'Dark Mode',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -330,7 +314,7 @@ class AuthShell extends StatelessWidget {
                       Text(
                         subtitle,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: AppColors.textSecondary),
+                        style: TextStyle(color: AppColors.textSecondary),
                       ),
                     ],
                     const SizedBox(height: 26),
@@ -362,7 +346,7 @@ class SectionTitle extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             subtitle!,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textSecondary,
               fontSize: 14,
             ),
@@ -442,7 +426,7 @@ class EmptyState extends StatelessWidget {
             Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.textSecondary,
                 height: 1.45,
               ),

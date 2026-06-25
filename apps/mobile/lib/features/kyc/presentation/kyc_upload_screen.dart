@@ -126,7 +126,7 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Select document type',
                       style: TextStyle(
                         fontSize: 16,
@@ -177,7 +177,7 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
                       }).toList(),
                     ),
                     const SizedBox(height: 32),
-                    const Text(
+                    Text(
                       'Upload documents',
                       style: TextStyle(
                         fontSize: 16,
@@ -219,7 +219,7 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
                           color: AppColors.primary.withValues(alpha: 0.2),
                         ),
                       ),
-                      child: const Column(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
@@ -229,7 +229,7 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
                               color: AppColors.primary,
                             ),
                           ),
-                          SizedBox(height: 8),
+                          const SizedBox(height: 8),
                           Text(
                             'Your documents are encrypted and stored in a private secure bucket. Only authorized reviewers can access them.',
                             style: TextStyle(
@@ -245,7 +245,7 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
                     if (isUploading) ...[
                       Text(
                         'Uploading... ${(progress * 100).toInt()}%',
-                        style: const TextStyle(color: AppColors.textSecondary),
+                        style: TextStyle(color: AppColors.textSecondary),
                       ),
                       const SizedBox(height: 8),
                       LinearProgressIndicator(value: progress),
@@ -334,7 +334,7 @@ class _FileUploadCard extends StatelessWidget {
                     children: [
                       Text(
                         label,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w600,
                           color: AppColors.textPrimary,
                         ),
@@ -363,7 +363,7 @@ class _FileUploadCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(
+            Icon(
               Icons.arrow_forward_ios,
               size: 16,
               color: AppColors.textSecondary,

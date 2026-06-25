@@ -71,7 +71,7 @@ class _NotSubmittedView extends StatelessWidget {
                 color: AppColors.primary,
               ),
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 'Verify your identity',
                 textAlign: TextAlign.center,
                 style: TextStyle(
@@ -81,7 +81,7 @@ class _NotSubmittedView extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'To participate in deals and build trust with other parties, verify your identity with a government-issued ID.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
@@ -151,7 +151,7 @@ class _StatusView extends StatelessWidget {
               Text(
                 _statusMessage(submission.status),
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   color: AppColors.textSecondary,
                   height: 1.5,
@@ -183,7 +183,7 @@ class _StatusView extends StatelessWidget {
                       const SizedBox(height: 8),
                       Text(
                         submission.rejectionReason!,
-                        style: const TextStyle(color: AppColors.textSecondary),
+                        style: TextStyle(color: AppColors.textSecondary),
                       ),
                     ],
                   ),
@@ -222,7 +222,7 @@ class _InfoCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Submission details',
             style: TextStyle(
               fontWeight: FontWeight.w900,
@@ -283,10 +283,10 @@ class _DetailRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: AppColors.textSecondary)),
+          Text(label, style: TextStyle(color: AppColors.textSecondary)),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.w700,
               color: AppColors.textPrimary,
             ),
@@ -312,7 +312,7 @@ class _InfoRow extends StatelessWidget {
         Expanded(
           child: Text(
             text,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               color: AppColors.textSecondary,
             ),

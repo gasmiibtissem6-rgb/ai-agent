@@ -225,48 +225,54 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               ],
             ),
             const SizedBox(height: 18),
-            ElevatedButton(
-              onPressed: isLoading ? null : _register,
-              child: isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text('Create Account'),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: isLoading ? null : _register,
+                child: isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Create Account'),
+              ),
             ),
             const SizedBox(height: 20),
-            const Row(
+            Row(
               children: [
-                Expanded(child: Divider()),
+                const Expanded(child: Divider()),
                 Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: Text(
                     'or',
                     style: TextStyle(color: AppColors.textSecondary),
                   ),
                 ),
-                Expanded(child: Divider()),
+                const Expanded(child: Divider()),
               ],
             ),
             const SizedBox(height: 20),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.g_mobiledata, size: 26),
-              label: const Text('Sign up with Google'),
-              onPressed: isLoading ? null : _registerWithGoogle,
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.g_mobiledata, size: 26),
+                label: const Text('Sign up with Google'),
+                onPressed: isLoading ? null : _registerWithGoogle,
+              ),
             ),
             const SizedBox(height: 22),
             Center(
               child: TextButton(
                 onPressed: () => context.go(AppRoutes.login),
-                child: const Text.rich(
+                child: Text.rich(
                   TextSpan(
                     text: 'Already have an account? ',
                     style: TextStyle(color: AppColors.textSecondary),
-                    children: [
+                    children: const [
                       TextSpan(
                         text: 'Sign In',
                         style: TextStyle(
@@ -297,7 +303,7 @@ class _FieldLabel extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w800,
           color: AppColors.textPrimary,

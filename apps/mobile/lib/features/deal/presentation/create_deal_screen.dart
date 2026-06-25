@@ -139,7 +139,7 @@ ${_descriptionController.text.trim()}
       showBack: true,
       body: Container(
         width: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [AppColors.surface, AppColors.surfaceAlt],
             begin: Alignment.topCenter,
@@ -158,7 +158,7 @@ ${_descriptionController.text.trim()}
                     icon: const Icon(Icons.arrow_back),
                   ),
                   const SizedBox(width: 8),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -250,7 +250,7 @@ ${_descriptionController.text.trim()}
                       const SizedBox(height: 24),
                       const Divider(),
                       const SizedBox(height: 16),
-                      const Text(
+                      Text(
                         'Participants',
                         style: TextStyle(
                           fontWeight: FontWeight.w900,
@@ -371,7 +371,7 @@ class _FieldLabel extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
           fontWeight: FontWeight.w900,
           fontSize: 14,
           color: AppColors.textSecondary,

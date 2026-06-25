@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,8 +6,8 @@ import 'package:go_router/go_router.dart';
 import '../domain/auth_provider.dart';
 import '../domain/auth_state.dart';
 import '../../../core/router/app_router.dart';
-import '../../../core/utils/validators.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../shared/ideal_ui.dart';
 
 class OtpScreen extends ConsumerStatefulWidget {
   final String email;
@@ -18,20 +19,63 @@ class OtpScreen extends ConsumerStatefulWidget {
 }
 
 class _OtpScreenState extends ConsumerState<OtpScreen> {
-  final _formKey = GlobalKey<FormState>();
   final _otpController = TextEditingController();
+  final _focusNode = FocusNode();
+  bool _canResend = true;
+  int _resendCooldown = 0;
+  Timer? _resendTimer;
 
   @override
   void dispose() {
     _otpController.dispose();
+    _focusNode.dispose();
+    _resendTimer?.cancel();
     super.dispose();
   }
 
   Future<void> _verify() async {
-    if (!_formKey.currentState!.validate()) return;
+    final code = _otpController.text.trim();
+    if (code.length != 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please enter the complete 6-digit code.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
     await ref
         .read(authProvider.notifier)
-        .verifyOtp(email: widget.email, token: _otpController.text.trim());
+        .verifyOtp(email: widget.email, token: code);
+  }
+
+  Future<void> _resendCode() async {
+    if (!_canResend) return;
+    await ref.read(authProvider.notifier).resendOtp(email: widget.email);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('A new verification code has been sent.'),
+        backgroundColor: AppColors.success,
+      ),
+    );
+    setState(() {
+      _canResend = false;
+      _resendCooldown = 60;
+    });
+    _resendTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() {
+        _resendCooldown--;
+        if (_resendCooldown <= 0) {
+          _canResend = true;
+          timer.cancel();
+        }
+      });
+    });
   }
 
   @override
@@ -55,107 +99,216 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
       }
     });
 
+    final codeText = _otpController.text;
+
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go(AppRoutes.register),
-        ),
-      ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const SizedBox(height: 32),
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Icon(
-                    Icons.mark_email_unread_outlined,
-                    size: 40,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Check your email',
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  'We sent a 6-digit verification code to',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  widget.email,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 40),
-                TextFormField(
-                  controller: _otpController,
-                  keyboardType: TextInputType.number,
-                  textAlign: TextAlign.center,
-                  maxLength: 6,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  style: const TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 12,
-                  ),
-                  decoration: const InputDecoration(
-                    counterText: '',
-                    hintText: '------',
-                    hintStyle: TextStyle(
-                      fontSize: 32,
-                      letterSpacing: 12,
-                      color: AppColors.border,
+        child: IdealGradientBackground(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Column(
+                  children: [
+                    // Mail icon
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        color: AppColors.accent,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.email_outlined,
+                        color: Colors.white,
+                        size: 36,
+                      ),
                     ),
-                  ),
-                  validator: Validators.otp,
-                  onFieldSubmitted: (_) => _verify(),
-                ),
-                const SizedBox(height: 32),
-                ElevatedButton(
-                  onPressed: isLoading ? null : _verify,
-                  child: isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
+                    const SizedBox(height: 20),
+                    Text(
+                      'Verify Email',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "We've sent a code to your email",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 15,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // OTP Card
+                    IdealCard(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 28,
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            'Enter the 6-digit code sent to your email address',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: AppColors.textSecondary,
+                              fontSize: 14,
+                            ),
                           ),
-                        )
-                      : const Text('Verify email'),
+                          const SizedBox(height: 24),
+
+                          // 6 digit boxes with hidden TextField
+                          GestureDetector(
+                            onTap: () => _focusNode.requestFocus(),
+                            child: Stack(
+                              children: [
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceEvenly,
+                                  children: List.generate(6, (index) {
+                                    final hasDigit = index < codeText.length;
+                                    final isActive =
+                                        index == codeText.length &&
+                                        _focusNode.hasFocus;
+                                    return AnimatedContainer(
+                                      duration:
+                                          const Duration(milliseconds: 200),
+                                      width: 46,
+                                      height: 56,
+                                      decoration: BoxDecoration(
+                                        color: AppColors.input,
+                                        borderRadius:
+                                            BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: isActive
+                                              ? AppColors.accent
+                                              : hasDigit
+                                                  ? AppColors.primary
+                                                  : AppColors.border,
+                                          width: isActive ? 2 : 1,
+                                        ),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          hasDigit
+                                              ? codeText[index]
+                                              : '',
+                                          style: TextStyle(
+                                            color: AppColors.textPrimary,
+                                            fontSize: 24,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  }),
+                                ),
+                                // Hidden text field for keyboard input
+                                Positioned.fill(
+                                  child: Opacity(
+                                    opacity: 0,
+                                    child: TextField(
+                                      controller: _otpController,
+                                      focusNode: _focusNode,
+                                      keyboardType: TextInputType.number,
+                                      maxLength: 6,
+                                      autofocus: true,
+                                      inputFormatters: [
+                                        FilteringTextInputFormatter.digitsOnly,
+                                      ],
+                                      onChanged: (_) => setState(() {}),
+                                      onSubmitted: (_) => _verify(),
+                                      decoration: const InputDecoration(
+                                        counterText: '',
+                                        border: InputBorder.none,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Resend
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                "Didn't receive the code? ",
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: _canResend ? _resendCode : null,
+                                child: Text(
+                                  _canResend
+                                      ? 'Resend'
+                                      : 'Resend (${_resendCooldown}s)',
+                                  style: TextStyle(
+                                    color: _canResend
+                                        ? AppColors.accent
+                                        : AppColors.textSecondary,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 28),
+
+                          // Verify button
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: isLoading ? null : _verify,
+                              style: ElevatedButton.styleFrom(
+                                minimumSize: const Size(double.infinity, 54),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: isLoading
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'Verify Email',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'This code will expire in 10 minutes',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 24),
-                TextButton(
-                  onPressed: () => context.go(AppRoutes.register),
-                  child: const Text('Back to sign up'),
-                ),
-              ],
+              ),
             ),
           ),
         ),

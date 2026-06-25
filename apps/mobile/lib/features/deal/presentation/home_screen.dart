@@ -71,7 +71,7 @@ class HomeScreen extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Recent Deals',
                     style: TextStyle(
                       fontSize: 20,
@@ -103,7 +103,7 @@ class HomeScreen extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(width: 14),
-                      const Expanded(
+                      Expanded(
                         child: Text(
                           'Create your first deal to start tracking agreements.',
                           style: TextStyle(color: AppColors.textSecondary),
@@ -272,7 +272,7 @@ class _StatCard extends StatelessWidget {
           const Spacer(),
           Text(
             item.value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w900,
               color: AppColors.textPrimary,
@@ -280,7 +280,7 @@ class _StatCard extends StatelessWidget {
           ),
           Text(
             item.label,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textSecondary,
               fontSize: 13,
             ),
@@ -492,7 +492,7 @@ class _RecentDealTile extends StatelessWidget {
                     deal.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w800,
                       color: AppColors.textPrimary,
                     ),
@@ -500,7 +500,7 @@ class _RecentDealTile extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     _formatDate(deal.createdAt),
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 12,
                     ),

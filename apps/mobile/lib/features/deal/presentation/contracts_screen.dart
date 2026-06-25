@@ -47,7 +47,7 @@ class _ContractsScreenState extends ConsumerState<ContractsScreen> {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [AppColors.surface, AppColors.surfaceAlt],
             begin: Alignment.topCenter,
@@ -57,7 +57,7 @@ class _ContractsScreenState extends ConsumerState<ContractsScreen> {
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           children: [
-            const Text(
+            Text(
               'Contracts',
               style: TextStyle(
                 color: AppColors.textPrimary,
@@ -66,7 +66,7 @@ class _ContractsScreenState extends ConsumerState<ContractsScreen> {
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'View and manage all your finalized contracts',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
             ),
@@ -102,9 +102,9 @@ class _ContractsScreenState extends ConsumerState<ContractsScreen> {
             ),
             const SizedBox(height: 24),
             if (contracts.isEmpty)
-              const Center(
+              Center(
                 child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 48),
+                  padding: const EdgeInsets.symmetric(vertical: 48),
                   child: Text(
                     'No contracts found',
                     style: TextStyle(
@@ -157,7 +157,7 @@ class _ContractCard extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   'Deal #${deal.id}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     color: AppColors.textSecondary,
                   ),

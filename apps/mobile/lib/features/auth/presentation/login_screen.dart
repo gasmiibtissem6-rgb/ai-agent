@@ -47,13 +47,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       );
       return;
     }
+    final email = _emailController.text.trim();
     await ref
         .read(authProvider.notifier)
         .signIn(
-          email: _emailController.text.trim(),
+          email: email,
           password: _passwordController.text,
         );
     final state = ref.read(authProvider).whenOrNull(data: (s) => s);
+    if (state?.errorMessage == 'Please verify your email first.') {
+      await ref.read(authProvider.notifier).resendOtp(email: email);
+      if (!mounted) return;
+      context.go(AppRoutes.otp, extra: email);
+      return;
+    }
     if (state?.status == AuthStatus.error) {
       _rateLimiter.recordFailure();
     } else {
@@ -80,7 +87,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (state?.status == AuthStatus.authenticated) {
         context.go(AppRoutes.home);
       }
-      if (state?.status == AuthStatus.error && state?.errorMessage != null) {
+      if (state?.status == AuthStatus.error &&
+          state?.errorMessage != null &&
+          state?.errorMessage != 'Please verify your email first.') {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(state!.errorMessage!),
@@ -150,48 +159,54 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ],
             ),
             const SizedBox(height: 18),
-            ElevatedButton(
-              onPressed: isLoading ? null : _login,
-              child: isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text('Sign In'),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: isLoading ? null : _login,
+                child: isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Sign In'),
+              ),
             ),
             const SizedBox(height: 20),
-            const Row(
+            Row(
               children: [
-                Expanded(child: Divider()),
+                const Expanded(child: Divider()),
                 Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: Text(
                     'or',
                     style: TextStyle(color: AppColors.textSecondary),
                   ),
                 ),
-                Expanded(child: Divider()),
+                const Expanded(child: Divider()),
               ],
             ),
             const SizedBox(height: 20),
-            OutlinedButton.icon(
-              icon: const Icon(Icons.g_mobiledata, size: 26),
-              label: const Text('Continue with Google'),
-              onPressed: isLoading ? null : _loginWithGoogle,
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.g_mobiledata, size: 26),
+                label: const Text('Continue with Google'),
+                onPressed: isLoading ? null : _loginWithGoogle,
+              ),
             ),
             const SizedBox(height: 22),
             Center(
               child: TextButton(
                 onPressed: () => context.go(AppRoutes.register),
-                child: const Text.rich(
+                child: Text.rich(
                   TextSpan(
                     text: "Don't have an account? ",
                     style: TextStyle(color: AppColors.textSecondary),
-                    children: [
+                    children: const [
                       TextSpan(
                         text: 'Sign Up',
                         style: TextStyle(
@@ -222,7 +237,7 @@ class _FieldLabel extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w800,
           color: AppColors.textPrimary,

@@ -86,11 +86,11 @@ class DealDetailScreen extends ConsumerWidget {
                 padding: EdgeInsets.zero,
                 child: Column(
                   children: [
-                    const TabBar(
+                    TabBar(
                       labelColor: AppColors.primary,
                       unselectedLabelColor: AppColors.textSecondary,
                       indicatorColor: AppColors.primary,
-                      tabs: [
+                      tabs: const [
                         Tab(text: 'Overview'),
                         Tab(text: 'Versions'),
                         Tab(text: 'Actions'),
@@ -366,7 +366,7 @@ class _InfoGrid extends StatelessWidget {
                       children: [
                         Text(
                           item.title.toUpperCase(),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 10,
                             color: AppColors.textSecondary,
                             fontWeight: FontWeight.w800,
@@ -377,7 +377,7 @@ class _InfoGrid extends StatelessWidget {
                           item.value,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontWeight: FontWeight.w900,
                             color: AppColors.textPrimary,
                           ),
@@ -407,7 +407,7 @@ class _OverviewTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Description',
             style: TextStyle(
               fontSize: 16,
@@ -420,10 +420,10 @@ class _OverviewTab extends StatelessWidget {
             deal.description?.isNotEmpty == true
                 ? deal.description!
                 : 'No description provided.',
-            style: const TextStyle(color: AppColors.textSecondary, height: 1.5),
+            style: TextStyle(color: AppColors.textSecondary, height: 1.5),
           ),
           const SizedBox(height: 24),
-          const Text(
+          Text(
             'Workflow',
             style: TextStyle(
               fontSize: 16,
@@ -477,7 +477,7 @@ class _VersionsTab extends StatelessWidget {
       error: (e, _) => Center(child: Text('Error loading versions: $e')),
       data: (versions) {
         if (versions.isEmpty) {
-          return const Center(
+          return Center(
             child: Text(
               'No versions yet.',
               style: TextStyle(color: AppColors.textSecondary),
@@ -518,7 +518,7 @@ class _ActionsTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Available Actions',
             style: TextStyle(
               fontSize: 16,
@@ -583,7 +583,7 @@ class _VersionCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Version ${version.versionNumber}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w900,
                     color: AppColors.textPrimary,
                   ),
@@ -596,7 +596,7 @@ class _VersionCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             version.content,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.textSecondary,
               height: 1.45,
             ),
@@ -606,7 +606,7 @@ class _VersionCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             _formatDateTime(version.createdAt),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               color: AppColors.textSecondary,
             ),
@@ -690,7 +690,7 @@ class _WorkflowStep extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w800,
                     color: AppColors.textPrimary,
                   ),
@@ -698,7 +698,7 @@ class _WorkflowStep extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 13,
                   ),
@@ -754,7 +754,7 @@ class _ActionRow extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w800,
                       color: AppColors.textPrimary,
                     ),
@@ -762,7 +762,7 @@ class _ActionRow extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     subtitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 13,
                     ),
@@ -784,25 +784,26 @@ class _ActionRow extends StatelessWidget {
 class _InlineMeta extends StatelessWidget {
   final IconData icon;
   final String label;
-  final Color color;
+  final Color? color;
 
   const _InlineMeta({
     required this.icon,
     required this.label,
-    this.color = AppColors.textSecondary,
+    this.color,
   });
 
   @override
   Widget build(BuildContext context) {
+    final displayColor = color ?? AppColors.textSecondary;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 16, color: color),
+        Icon(icon, size: 16, color: displayColor),
         const SizedBox(width: 4),
         Text(
           label,
           style: TextStyle(
-            color: color,
+            color: displayColor,
             fontSize: 13,
             fontWeight: FontWeight.w700,
           ),

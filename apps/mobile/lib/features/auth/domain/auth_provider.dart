@@ -6,6 +6,7 @@ import 'auth_state.dart';
 
 class AuthNotifier extends AsyncNotifier<AppAuthState> {
   StreamSubscription<AuthState>? _subscription;
+  bool _suppressSignedInEvents = false;
 
   @override
   Future<AppAuthState> build() async {
@@ -14,7 +15,12 @@ class AuthNotifier extends AsyncNotifier<AppAuthState> {
     _subscription?.cancel();
     _subscription = AuthService.authStateChanges.listen((authState) {
       final u = authState.session?.user;
-      if (u != null) {
+      if (authState.event == AuthChangeEvent.passwordRecovery) {
+        state = AsyncData(AppAuthState.passwordRecovery());
+      } else if (_suppressSignedInEvents &&
+          authState.event == AuthChangeEvent.signedIn) {
+        return;
+      } else if (u != null) {
         state = AsyncData(AppAuthState.authenticated(u));
       } else {
         state = AsyncData(AppAuthState.unauthenticated());
@@ -34,12 +40,21 @@ class AuthNotifier extends AsyncNotifier<AppAuthState> {
     String? fullName,
   }) async {
     state = AsyncData(AppAuthState.loading());
+    _suppressSignedInEvents = true;
     try {
       await AuthService.signUp(
         email: email,
         password: password,
         fullName: fullName,
       );
+      if (AuthService.currentSession != null) {
+        try {
+          await AuthService.signOut();
+        } catch (_) {
+          // If Supabase already cleared the session, we still want to continue
+          // into the OTP flow without interrupting signup.
+        }
+      }
       state = AsyncData(AppAuthState.unauthenticated());
       return true;
     } catch (e) {
@@ -56,6 +71,8 @@ class AuthNotifier extends AsyncNotifier<AppAuthState> {
         state = AsyncData(AppAuthState.error(_formatError(e)));
       }
       return false;
+    } finally {
+      _suppressSignedInEvents = false;
     }
   }
 
@@ -69,13 +86,45 @@ class AuthNotifier extends AsyncNotifier<AppAuthState> {
     }
   }
 
+  /// Resend OTP code
+  Future<void> resendOtp({required String email}) async {
+    try {
+      await AuthService.resendOtp(email: email);
+    } catch (e) {
+      state = AsyncData(AppAuthState.error(_formatError(e)));
+    }
+  }
+
   /// Sign in with email and password
   Future<void> signIn({required String email, required String password}) async {
     state = AsyncData(AppAuthState.loading());
+    _suppressSignedInEvents = true;
     try {
       await AuthService.signIn(email: email, password: password);
+      final user = AuthService.currentUser;
+      if (user == null) {
+        state = AsyncData(AppAuthState.unauthenticated());
+        return;
+      }
+
+      if (user.emailConfirmedAt == null) {
+        try {
+          await AuthService.signOut();
+        } catch (_) {
+          // Ignore sign-out errors here. The important part is to keep the
+          // user in the verification flow instead of treating this as a login.
+        }
+        state = AsyncData(
+          AppAuthState.error('Please verify your email first.'),
+        );
+        return;
+      }
+
+      state = AsyncData(AppAuthState.authenticated(user));
     } catch (e) {
       state = AsyncData(AppAuthState.error(_formatError(e)));
+    } finally {
+      _suppressSignedInEvents = false;
     }
   }
 
@@ -103,6 +152,21 @@ class AuthNotifier extends AsyncNotifier<AppAuthState> {
       state = AsyncData(AppAuthState.unauthenticated());
     } catch (e) {
       state = AsyncData(AppAuthState.error(_formatError(e)));
+    }
+  }
+
+  /// Update the user's password after PASSWORD_RECOVERY
+  Future<bool> updatePassword(String newPassword) async {
+    state = AsyncData(AppAuthState.loading());
+    try {
+      await AuthService.updatePassword(newPassword);
+      // Sign the user out and redirect to login for security
+      await AuthService.signOut();
+      state = AsyncData(AppAuthState.unauthenticated());
+      return true;
+    } catch (e) {
+      state = AsyncData(AppAuthState.error(_formatError(e)));
+      return false;
     }
   }
 

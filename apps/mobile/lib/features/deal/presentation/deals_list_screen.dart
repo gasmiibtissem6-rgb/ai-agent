@@ -43,7 +43,7 @@ class _DealsListScreenState extends ConsumerState<DealsListScreen> {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [AppColors.surface, AppColors.surfaceAlt],
             begin: Alignment.topCenter,
@@ -95,7 +95,7 @@ class _DealsListScreenState extends ConsumerState<DealsListScreen> {
                             fillColor: AppColors.card,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(
+                              borderSide: BorderSide(
                                 color: AppColors.border,
                               ),
                             ),
@@ -125,7 +125,7 @@ class _DealsListScreenState extends ConsumerState<DealsListScreen> {
                       ),
                     )
                   else if (filteredDeals.isEmpty)
-                    const SliverFillRemaining(
+                    SliverFillRemaining(
                       hasScrollBody: false,
                       child: Center(
                         child: Text(
@@ -189,7 +189,7 @@ class _DealsHeader extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -201,7 +201,7 @@ class _DealsHeader extends StatelessWidget {
                   color: AppColors.textPrimary,
                 ),
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
                 'Manage and track all your deals',
                 style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
@@ -335,7 +335,7 @@ class _DealRow extends StatelessWidget {
                 children: [
                   Text(
                     deal.title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w900,
                       color: AppColors.textPrimary,
@@ -346,7 +346,7 @@ class _DealRow extends StatelessWidget {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.calendar_today,
                         size: 14,
                         color: AppColors.textSecondary,
@@ -354,19 +354,19 @@ class _DealRow extends StatelessWidget {
                       const SizedBox(width: 6),
                       Text(
                         _formatDate(deal.createdAt),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           color: AppColors.textSecondary,
                         ),
                       ),
                       const SizedBox(width: 20),
-                      const Icon(
+                      Icon(
                         Icons.people_outline,
                         size: 16,
                         color: AppColors.textSecondary,
                       ),
                       const SizedBox(width: 6),
-                      const Text(
+                      Text(
                         '1 participant',
                         style: TextStyle(
                           fontSize: 12,

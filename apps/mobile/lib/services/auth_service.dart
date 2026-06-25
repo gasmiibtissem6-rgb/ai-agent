@@ -49,6 +49,11 @@ class AuthService {
     }
   }
 
+  /// Resend OTP code to email after signup
+  static Future<void> resendOtp({required String email}) async {
+    await _client.auth.resend(type: OtpType.signup, email: email);
+  }
+
   /// Login with email and password
   static Future<void> signIn({
     required String email,
@@ -89,7 +94,17 @@ class AuthService {
 
   /// Send password reset email
   static Future<void> resetPassword(String email) async {
-    await _client.auth.resetPasswordForEmail(email);
+    await _client.auth.resetPasswordForEmail(
+      email,
+      redirectTo: 'io.supabase.idealapp://reset-password',
+    );
+  }
+
+  /// Update the authenticated user's password (called after PASSWORD_RECOVERY)
+  static Future<void> updatePassword(String newPassword) async {
+    await _client.auth.updateUser(
+      UserAttributes(password: newPassword),
+    );
   }
 
   /// Sign out and clear stored tokens
