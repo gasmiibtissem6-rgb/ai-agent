@@ -3,6 +3,9 @@
 import { useActionState } from "react";
 import { useRouter } from "next/navigation";
 
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001/api";
+
 export default function LoginPage() {
   const router = useRouter();
 
@@ -12,17 +15,17 @@ export default function LoginPage() {
       const password = formData.get("password") as string;
 
       // 🔍 DEBUG STEP 1: Check your terminal/browser console when you click submit.
-      // If this prints "admin@api.com" but you typed something else, your browser's 
+      // If this prints "admin@api.com" but you typed something else, your browser's
       // password manager/autofill is hijacking the form submission at the last millisecond.
       console.log("SUBMITTING -> Email:", email, "Password:", password);
 
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/auth/login/admin`, {
+        const res = await fetch(`${API_BASE_URL}/auth/login/admin`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password }),
           // 🛡️ DEBUG STEP 2: Force Next.js to NEVER cache this route
-          cache: "no-store", 
+          cache: "no-store",
         });
 
         if (!res.ok) {
@@ -31,11 +34,12 @@ export default function LoginPage() {
         }
 
         // Inside your LoginPage try block:
-       // Inside LoginPage try block...
+        // Inside LoginPage try block...
         // Inside your LoginPage try block...
         const resData = await res.json();
-        
-        const token = resData.data?.data?.token || resData.data?.token || resData.token;
+
+        const token =
+          resData.data?.data?.token || resData.data?.token || resData.token;
 
         if (!token) {
           return "Login failed: No token received from server.";
@@ -43,33 +47,41 @@ export default function LoginPage() {
 
         // 1. Keep this for your api-client.ts to use
         localStorage.setItem("admin_token", token);
-        
+
         // 2. NEW: Save it as a cookie so Next.js Middleware can see it!
         // We set both 'admin_token' and 'token' just in case the template middleware is looking for 'token'
         document.cookie = `admin_token=${token}; path=/; max-age=86400; SameSite=Lax`;
         document.cookie = `token=${token}; path=/; max-age=86400; SameSite=Lax`;
 
         // 3. NEW: Force a hard browser navigation instead of a soft router.push
-        window.location.href = "/"; 
-        
+        window.location.href = "/";
+
         return null;
       } catch (err) {
         return "System network error. Check API configuration.";
       }
     },
-    null
+    null,
   );
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-8 rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
         <div className="text-center">
-          <h2 className="text-3xl font-extrabold tracking-tight text-gray-900">IDEAL Console</h2>
-          <p className="mt-2 text-sm text-gray-500">Sign in with your admin privileges</p>
+          <h2 className="text-3xl font-extrabold tracking-tight text-gray-900">
+            IDEAL Console
+          </h2>
+          <p className="mt-2 text-sm text-gray-500">
+            Sign in with your admin privileges
+          </p>
         </div>
 
         {/* Added autoComplete="off" to stop aggressive browser autofills from hijacking */}
-        <form action={submitAction} className="mt-8 space-y-6" autoComplete="off">
+        <form
+          action={submitAction}
+          className="mt-8 space-y-6"
+          autoComplete="off"
+        >
           {errorMessage && (
             <div className="rounded-md bg-red-50 p-3 text-sm text-red-600 border border-red-200">
               {errorMessage}
@@ -78,7 +90,9 @@ export default function LoginPage() {
 
           <div className="space-y-4 rounded-md shadow-sm">
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase">Email address</label>
+              <label className="text-xs font-semibold text-gray-500 uppercase">
+                Email address
+              </label>
               <input
                 name="email"
                 type="email"
@@ -88,7 +102,9 @@ export default function LoginPage() {
               />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase">Password</label>
+              <label className="text-xs font-semibold text-gray-500 uppercase">
+                Password
+              </label>
               <input
                 name="password"
                 type="password"

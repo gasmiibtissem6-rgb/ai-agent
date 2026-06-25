@@ -24,7 +24,10 @@ import { resolve } from 'path';
 @Module({
   imports: [
     ConfigModule.forRoot({
-      envFilePath: resolve(__dirname, '..', '.env'),
+      envFilePath: [
+        resolve(__dirname, '..', '.env'),
+        resolve(__dirname, '..', '..', '..', '.env'),
+      ],
     }),
     AdminModule,
     AuthModule,

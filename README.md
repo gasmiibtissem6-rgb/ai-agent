@@ -48,14 +48,21 @@ NestJS is the planned main backend layer for business logic, authorization, vali
 
 ### Database and Infrastructure
 
-The project is designed to use **Supabase PostgreSQL** as the primary database.
+The project uses **PostgreSQL** through the NestJS API and Prisma.
+
+Developers can point the API at any PostgreSQL-compatible environment by setting `DATABASE_URL`:
+
+- Docker PostgreSQL for local development
+- Native local PostgreSQL
+- Supabase PostgreSQL
+- Another PostgreSQL instance
 
 Supabase may also be used for:
 
-* Authentication
-* PostgreSQL database
-* File storage
-* Realtime updates later if needed
+- Authentication
+- PostgreSQL database
+- File storage
+- Realtime updates later if needed
 
 Core business logic must stay inside the NestJS backend API.
 
@@ -70,7 +77,7 @@ Flutter Mobile App
 NestJS Backend API
         |
         v
-Supabase PostgreSQL / Auth / Storage
+PostgreSQL / Supabase PostgreSQL
 
 Next.js Admin Dashboard
         |
@@ -82,18 +89,18 @@ Frontend apps should not own sensitive business logic.
 
 The backend API is responsible for:
 
-* User management
-* Identity verification flow
-* Deal creation
-* Contract ownership
-* Party permissions
-* Approval control
-* Version locking
-* Trust counters
-* Admin actions
-* Audit logs
-* Notifications
-* Database operations
+- User management
+- Identity verification flow
+- Deal creation
+- Contract ownership
+- Party permissions
+- Approval control
+- Version locking
+- Trust counters
+- Admin actions
+- Audit logs
+- Notifications
+- Database operations
 
 ## Repository Structure
 
@@ -127,16 +134,16 @@ scripts/
 
 Before a deal is approved:
 
-* The deal can be edited during drafting and negotiation.
-* Parties can review and negotiate the terms.
-* No official locked version exists yet.
+- The deal can be edited during drafting and negotiation.
+- Parties can review and negotiate the terms.
+- No official locked version exists yet.
 
 After a deal is approved:
 
-* The approved version becomes official.
-* The approved version is locked.
-* Future changes must create a new version.
-* A new version is not valid until all required parties approve it again.
+- The approved version becomes official.
+- The approved version is locked.
+- Future changes must create a new version.
+- A new version is not valid until all required parties approve it again.
 
 This keeps the system flexible during negotiation and secure after approval.
 
@@ -180,18 +187,24 @@ Environment variables should be stored in a local `.env` file.
 
 Do not commit real secrets.
 
-Use `.env.example` as the safe template.
+Use `.env.example` as the safe root template, or `services/api/.env.example` when you only need to configure the API.
+
+The API loads `services/api/.env` first and then falls back to the root `.env`.
 
 Example:
 
 ```env
-DATABASE_URL=
+DATABASE_URL="postgresql://ideal:ideal_dev_password@localhost:5434/ideal_dev?schema=public"
 SUPABASE_URL=
 SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
-JWT_SECRET=
+JWT_SECRET=replace-with-a-local-development-secret
 API_PORT=3001
 ```
+
+`DATABASE_URL` is the only database selector. Change it to switch between Docker PostgreSQL, native PostgreSQL, Supabase PostgreSQL, or another PostgreSQL database.
+
+See [docs/database.md](docs/database.md) for the full database setup guide.
 
 ## Development Setup
 
@@ -221,6 +234,13 @@ npm install
 npm run start:dev
 ```
 
+For Docker PostgreSQL, run these commands from the repository root before starting the API:
+
+```bash
+npm run db:up
+npm run db:push
+```
+
 Current simple endpoints:
 
 ```txt
@@ -232,7 +252,16 @@ GET /health  Health status
 
 Open separate terminals from the repository root.
 
-### Terminal 1: Backend API
+### Terminal 1: PostgreSQL In Docker
+
+```bash
+npm run db:up
+npm run db:push
+```
+
+This starts PostgreSQL on `localhost:5434` and applies the Prisma schema to the local database.
+
+### Terminal 2: Backend API
 
 ```bash
 npm run dev:api
@@ -254,14 +283,14 @@ curl http://localhost:3001/health
 Expected responses:
 
 ```json
-{"projectName":"IDEAL","status":"ready","serviceName":"api"}
+{ "projectName": "IDEAL", "status": "ready", "serviceName": "api" }
 ```
 
 ```json
-{"status":"ok"}
+{ "status": "ok" }
 ```
 
-### Terminal 2: Admin Dashboard
+### Terminal 3: Admin Dashboard
 
 ```bash
 npm run dev:admin
@@ -272,6 +301,22 @@ Open:
 ```txt
 http://localhost:3000
 ```
+
+For Docker-only local development, the API provides a local admin fallback when
+Supabase Auth is not configured:
+
+```txt
+Email: admin@ideal.local
+Password: ChangeMe123!
+```
+
+The fallback creates or updates a local `profiles` row with `SUPER_ADMIN`
+permissions on first successful login. Override the defaults with
+`LOCAL_ADMIN_EMAIL` and `LOCAL_ADMIN_PASSWORD` in `services/api/.env`.
+
+When Supabase Auth is configured with `SUPABASE_URL` and
+`SUPABASE_ANON_KEY`, the API uses Supabase login instead and requires a matching
+admin profile in the database.
 
 ### Mobile App
 
@@ -294,22 +339,22 @@ cd apps/mobile && flutter test
 
 ## Development Rules
 
-* Keep mobile code inside `apps/mobile`
-* Keep admin dashboard code inside `apps/admin`
-* Keep backend logic inside `services/api`
-* Keep documentation inside `docs`
-* Do not commit `.env`
-* Do not commit generated build folders
-* Do not commit `.next`, `build`, `.dart_tool`, or `node_modules`
-* Do not put approval, contract, trust, or identity logic directly in frontend apps
-* Use the backend API as the main communication layer
+- Keep mobile code inside `apps/mobile`
+- Keep admin dashboard code inside `apps/admin`
+- Keep backend logic inside `services/api`
+- Keep documentation inside `docs`
+- Do not commit `.env`
+- Do not commit generated build folders
+- Do not commit `.next`, `build`, `.dart_tool`, or `node_modules`
+- Do not put approval, contract, trust, or identity logic directly in frontend apps
+- Use the backend API as the main communication layer
 
 ## Project Status
 
 Current setup stage:
 
-* Flutter mobile app created with a clean IDEAL welcome screen
-* Next.js admin dashboard created with a clean IDEAL welcome page
-* NestJS backend API created with simple app info and health endpoints
-* Documentation setup in progress
-* Infrastructure setup pending
+- Flutter mobile app created with a clean IDEAL welcome screen
+- Next.js admin dashboard created with a clean IDEAL welcome page
+- NestJS backend API created with Prisma/PostgreSQL configuration
+- Documentation setup in progress
+- Local Docker PostgreSQL setup available

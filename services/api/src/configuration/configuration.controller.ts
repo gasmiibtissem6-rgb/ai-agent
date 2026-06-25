@@ -39,14 +39,14 @@ export class ConfigurationController {
         status: process.env.DATABASE_URL ? 'configured' : 'pending',
         detail: process.env.DATABASE_URL
           ? 'DATABASE_URL is present.'
-          : 'DATABASE_URL is not set yet. This is expected before Supabase schema setup.',
+          : 'DATABASE_URL is not set yet. Add a PostgreSQL connection string for Docker, native PostgreSQL, or Supabase.',
       },
       {
         name: 'Supabase project',
         status: process.env.SUPABASE_URL ? 'configured' : 'pending',
         detail: process.env.SUPABASE_URL
           ? 'SUPABASE_URL is present.'
-          : 'SUPABASE_URL is not set yet. Add it when the Supabase project is provisioned.',
+          : 'SUPABASE_URL is optional unless the feature being tested needs Supabase Auth, Storage, or Realtime.',
       },
       {
         name: 'Stripe integration',
@@ -71,7 +71,7 @@ export class ConfigurationController {
         : 'operational',
       checkedAt: new Date().toISOString(),
       message:
-        'IDEAL API is reachable. Pending integration credentials are expected until Supabase, Stripe, and KYC environments are provisioned.',
+        'IDEAL API is reachable. DATABASE_URL selects the PostgreSQL target; Supabase and payment credentials are only required for features that use them.',
       checks,
       employeeGuidance: [
         'If this endpoint responds, the admin dashboard can reach the backend API.',
