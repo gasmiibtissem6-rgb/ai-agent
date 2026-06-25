@@ -10,10 +10,6 @@ import type { PropsWithChildren } from "react";
 import { Toaster } from "sonner";
 import { Providers } from "./providers";
 
-// 1. Import the Sidebar and Header components
-import { Sidebar } from "@/components/Layouts/sidebar";
-import { Header } from "@/components/Layouts/header";
-
 export const metadata: Metadata = {
   title: {
     template: "%s | NextAdmin - Next.js Dashboard Kit",
@@ -29,25 +25,7 @@ export default function RootLayout({ children }: PropsWithChildren) {
       <body>
         <Providers>
           <NextTopLoader color="#5750F1" showSpinner={false} />
-
-          {/* 2. Wrap the layout with the appropriate CSS layout structure */}
-          <div className="flex h-screen overflow-hidden">
-            {/* Sidebar */}
-            <Sidebar />
-
-            {/* Main Content Area */}
-            <div className="relative flex flex-1 flex-col overflow-y-auto overflow-x-hidden">
-              {/* Top Bar / Header */}
-              <Header />
-
-              {/* Page Content */}
-              <main>
-                <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
-                  {children}
-                </div>
-              </main>
-            </div>
-          </div>
+          {children}
 
           <Toaster
             position="bottom-right"

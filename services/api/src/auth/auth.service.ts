@@ -1,32 +1,45 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class AuthService {
-  private supabase: SupabaseClient;
+  private supabase: SupabaseClient | null = null;
 
   constructor(
     private prisma: PrismaService,
-    private configService: ConfigService 
+    private configService: ConfigService,
   ) {
     const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
     const supabaseKey = this.configService.get<string>('SUPABASE_ANON_KEY');
 
-    if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Supabase environment variables are missing!');
+    if (supabaseUrl && supabaseKey) {
+      this.supabase = createClient(supabaseUrl, supabaseKey);
     }
-
-    this.supabase = createClient(supabaseUrl, supabaseKey);
   }
 
-  // --- 1. THE LOGIN METHOD ---
+  private getSupabaseClient(): SupabaseClient {
+    if (!this.supabase) {
+      throw new ServiceUnavailableException(
+        'Supabase authentication is not configured yet. Add SUPABASE_URL and SUPABASE_ANON_KEY to enable auth endpoints.',
+      );
+    }
+
+    return this.supabase;
+  }
+
   async login(email: string, pass: string) {
-    const { data: authData, error } = await this.supabase.auth.signInWithPassword({
-      email: email,
-      password: pass,
-    });
+    const supabase = this.getSupabaseClient();
+    const { data: authData, error } =
+      await supabase.auth.signInWithPassword({
+        email,
+        password: pass,
+      });
 
     if (error || !authData.user) {
       throw new UnauthorizedException('Invalid administrative credentials.');
@@ -42,21 +55,19 @@ export class AuthService {
     }
 
     return {
-    token: authData.session.access_token,
-  };
+      token: authData.session.access_token,
+    };
   }
 
-  // --- 2. THE NEW GET PROFILE METHOD ---
   async getProfile(authHeader: string) {
     if (!authHeader) {
       throw new UnauthorizedException('Missing authorization header');
     }
 
-    // Extract the raw token string (remove the "Bearer " part)
+    const supabase = this.getSupabaseClient();
     const token = authHeader.replace('Bearer ', '').trim();
 
-    // Ask Supabase to verify if this token is real and hasn't expired
-    const { data: authData, error } = await this.supabase.auth.getUser(token);
+    const { data: authData, error } = await supabase.auth.getUser(token);
 
     if (error || !authData.user) {
       throw new UnauthorizedException('Invalid or expired token.');
@@ -71,7 +82,6 @@ export class AuthService {
       throw new UnauthorizedException('Profile not found.');
     }
 
-    // Return it in the exact wrapper format your Next.js frontend expects!
     return profile;
   }
 }

@@ -19,10 +19,13 @@ import { TrustModule } from './trust/trust.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
+import { resolve } from 'path';
 
 @Module({
   imports: [
-    ConfigModule.forRoot(),
+    ConfigModule.forRoot({
+      envFilePath: resolve(__dirname, '..', '.env'),
+    }),
     AdminModule,
     AuthModule,
     PrismaModule,
