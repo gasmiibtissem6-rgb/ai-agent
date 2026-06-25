@@ -7,14 +7,16 @@ import '../../../core/router/app_router.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../services/auth_service.dart';
+import '../../../core/security/rate_limiter.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
+  
 }
-
+final _rateLimiter = AuthRateLimiters.login;
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
@@ -29,12 +31,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _login() async {
-    if (!_formKey.currentState!.validate()) return;
-    await ref.read(authProvider.notifier).signIn(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-        );
+  if (!_formKey.currentState!.validate()) return;
+  if (!_rateLimiter.isAllowed) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(_rateLimiter.lockoutMessage ?? 'Too many attempts. Try again later.'),
+        backgroundColor: AppColors.error,
+      ),
+    );
+    return;
   }
+  await ref.read(authProvider.notifier).signIn(
+    email: _emailController.text.trim(),
+    password: _passwordController.text,
+  );
+  final state = ref.read(authProvider).whenOrNull(data: (s) => s);
+  if (state?.status == AuthStatus.error) {
+    _rateLimiter.recordFailure();
+  } else {
+    _rateLimiter.recordSuccess();
+  }
+}
 
   Future<void> _loginWithGoogle() async {
     await ref.read(authProvider.notifier).signInWithGoogle();

@@ -4,8 +4,6 @@ import 'package:dio/io.dart';
 import 'package:flutter/foundation.dart';
 import 'package:logger/logger.dart';
 
-/// IDEAL Security Configuration
-/// Implements OWASP Mobile Top 10 security controls
 class SecurityConfig {
   const SecurityConfig._();
 
@@ -84,7 +82,7 @@ class SecurityConfig {
   static String sanitizeInput(String input) {
     return input
         .trim()
-        .replaceAll(RegExp(r'[<>"\']'), '')
+        .replaceAll(RegExp(r'[<>"' "'" r']'), '')
         .replaceAll(RegExp(r'\s+'), ' ');
   }
 
@@ -94,12 +92,17 @@ class SecurityConfig {
     final name = parts[0];
     final domain = parts[1];
     if (name.length <= 2) return '**@$domain';
-    return '${name[0]}${'*' * (name.length - 2)}${name[name.length - 1]}@$domain';
+    final first = name[0];
+    final last = name[name.length - 1];
+    final stars = '*' * (name.length - 2);
+    return first + stars + last + '@' + domain;
   }
 
   static String maskToken(String token) {
     if (token.length <= 8) return '***';
-    return '${token.substring(0, 4)}...${'*' * 10}...${token.substring(token.length - 4)}';
+    final start = token.substring(0, 4);
+    final end = token.substring(token.length - 4);
+    return start + '...**********...' + end;
   }
 }
 
