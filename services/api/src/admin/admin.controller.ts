@@ -12,15 +12,19 @@ export class AdminController {
 
   // 1. Fetch Users Directory (with basic pagination parameters)
   @Get('users')
-  // @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
-  async getUsersDirectory(
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-  ) {
-    const p = page ? parseInt(page, 10) : 1;
-    const l = limit ? parseInt(limit, 10) : 10;
-    return this.adminService.getUsersDirectory(p, l);
-  }
+async getUsersDirectory(
+  @Query('page') page?: string,
+  @Query('limit') limit?: string,
+) {
+  const p = page ? parseInt(page, 10) : 1;
+  const l = limit ? parseInt(limit, 10) : 10;
+  
+  const result = await this.adminService.getUsersDirectory(p, l);
+  console.log("Backend DB Query Result Data:", result); 
+  
+  // ⚡ Hard bypass serialization by converting the instance object into a raw primitive JSON structure
+  return JSON.parse(JSON.stringify(result));
+}
 
   // 2. Fetch Identity Verification Queue
   @Get('kyc/pending')
@@ -28,6 +32,8 @@ export class AdminController {
   async getKycQueue() {
     return this.adminService.getPendingKycQueue();
   }
+
+  
 
   // 3. Process KYC Approvals / Rejections
   @Patch('kyc/:submissionId/review')

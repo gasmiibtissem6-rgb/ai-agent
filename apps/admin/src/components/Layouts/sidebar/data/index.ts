@@ -9,7 +9,7 @@ export const NAV_DATA = [
         icon: Icons.HomeIcon,
         items: [
           {
-            title: "eCommerce",
+            title: "Overview",
             url: "/",
           },
         ],
@@ -58,6 +58,25 @@ export const NAV_DATA = [
           {
             title: "Settings",
             url: "/pages/settings",
+          },
+        ],
+      },
+    ],
+  },
+  {
+    label: "IDENTITY & SAFETY", // 🛡️ Dedicated Administrative Access Section
+    items: [
+      {
+        title: "User Management",
+        icon: Icons.User, // Reuses user context icon smoothly
+        items: [
+          {
+            title: "Directory Table",
+            url: "/admin/users",
+          },
+          {
+            title: "KYC Review Queue",
+            url: "/admin/kyc",
           },
         ],
       },

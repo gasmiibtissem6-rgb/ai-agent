@@ -17,6 +17,11 @@ async function bootstrap() {
     credentials: true, // Allow cookies / authorization headers if needed
   });
 
+  app.enableCors({
+    origin: '*', // For production, replace with your exact frontend domain URL
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
   // Register your structural response formatting layers globally
   app.useGlobalInterceptors(new TransformInterceptor());
   app.useGlobalFilters(new HttpExceptionFilter());
