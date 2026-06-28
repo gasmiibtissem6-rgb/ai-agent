@@ -8,6 +8,6 @@ export class ChatController {
 
   @Post('message')
   async sendMessage(@Body() dto: ChatMessageDto, @Req() req: any) {
-    return this.chatService.sendMessage(dto, 'test-user');
+    return this.chatService.sendMessage(dto);
   }
 }

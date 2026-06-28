@@ -154,9 +154,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             icon: const Icon(Icons.picture_as_pdf),
             tooltip: 'Download PDF',
             color: Colors.red.shade400,
-            onPressed: () => _downloadPdf(
-              messages.where((m) => m.role != 'user').map((m) => m.content).join('\n\n'),
-            ),
+            onPressed: () {
+              final aiMessages = messages.where((m) => m.role != 'user' && (m.content.contains('CONTRAT') || m.content.contains('ARTICLE') || m.content.contains('contrat'))).toList();
+              if (aiMessages.isNotEmpty) _downloadPdf(aiMessages.last.content);
+            },
           ),
         IconButton(
           icon: const Icon(Icons.delete_outline),

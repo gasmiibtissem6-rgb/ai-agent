@@ -3,7 +3,7 @@ import PDFDocument = require('pdfkit');
 
 @Injectable()
 export class PdfService {
-  generateContractPdf(content: string, title: string = 'Contract'): Promise<Buffer> {
+  generateContractPdf(content: string, title: string = 'Contrat'): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const doc = new PDFDocument({ margin: 50 });
       const chunks: Buffer[] = [];
