@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'dart:html' as html;
 import '../domain/chat_provider.dart';
 import '../../../shared/ideal_ui.dart';
+import 'scan_contract_button.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
@@ -257,7 +258,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, -2))],
                 ),
                 child: Row(children: [
-                  GestureDetector(
+                  ScanContractButton(
+                  onTextExtracted: (text) {
+                    _controller.text = 'Voici le contrat scanné, analyse-le et aide-moi à le comprendre :\n\n$text';
+                  },
+                ),
+                const SizedBox(width: 4),
+                GestureDetector(
                     onLongPress: _cycleLocale,
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
