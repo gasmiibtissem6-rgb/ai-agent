@@ -20,6 +20,7 @@ import '../../features/kyc/presentation/kyc_status_screen.dart';
 import '../../features/kyc/presentation/kyc_upload_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
+import '../../features/chat/presentation/chat_screen.dart';
 
 class AppRoutes {
   const AppRoutes._();
@@ -39,6 +40,7 @@ class AppRoutes {
   static const contracts = '/contracts';
   static const notifications = '/notifications';
   static const settings = '/settings';
+  static const chat = '/chat';
 }
 
 final _authListenableProvider = Provider<ValueNotifier<AppAuthState?>>((ref) {
@@ -181,6 +183,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.settings,
         pageBuilder: (context, state) =>
             _sectionPage(state, const SettingsScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.chat,
+        pageBuilder: (context, state) =>
+            _flowPage(state, const ChatScreen()),
       ),
     ],
   );
