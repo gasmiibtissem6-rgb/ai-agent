@@ -179,6 +179,7 @@ const _navItems = <_NavItem>[
     Icons.notifications_outlined,
     AppRoutes.notifications,
   ),
+  _NavItem('chat', 'AI Assistant', Icons.smart_toy_outlined, AppRoutes.chat),
   _NavItem('settings', 'Settings', Icons.settings_outlined, AppRoutes.settings),
 ];
 
