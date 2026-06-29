@@ -3,7 +3,7 @@ import PDFDocument = require('pdfkit');
 
 @Injectable()
 export class PdfService {
-  generateContractPdf(content: string, title: string = 'Contrat'): Promise<Buffer> {
+  generateContractPdf(content: string, title: string = 'Contrat', signatureImage?: string): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const doc = new PDFDocument({ margin: 50 });
       const chunks: Buffer[] = [];
@@ -28,6 +28,22 @@ export class PdfService {
         .trim();
 
       doc.fontSize(12).font('Helvetica').text(clean, { lineGap: 4 });
+
+      if (signatureImage) {
+        try {
+          const base64Data = signatureImage.replace(/^data:image\/\w+;base64,/, '');
+          const buffer = Buffer.from(base64Data, 'base64');
+
+          if (doc.y > 650) doc.addPage();
+          doc.moveDown(2);
+          doc.fontSize(11).font('Helvetica-Bold').text('Signature :', { continued: false });
+          doc.moveDown(0.5);
+          doc.image(buffer, { width: 200, height: 100, fit: [200, 100] });
+        } catch (err) {
+          doc.fontSize(10).fillColor('red').text('(Erreur: signature non lisible)');
+        }
+      }
+
       doc.end();
     });
   }
