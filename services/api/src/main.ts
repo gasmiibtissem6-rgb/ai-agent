@@ -1,67 +1,93 @@
+// main.ts
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
+function validateEnv(): void {
+  const required = [
+    //'JWT_SECRET',
+    'DATABASE_URL',
+    //'SUPABASE_URL',
+    //'SUPABASE_SERVICE_KEY',
+  ];
+
+  const missing = required.filter((key) => !process.env[key]);
+
+  if (missing.length > 0) {
+    console.error(
+      ` Variables d'environnement manquantes : ${missing.join(', ')}`,
+    );
+    process.exit(1); // Le serveur ne démarre pas
+  }
+}
+
 async function bootstrap() {
+  // Vérification en tout premier
+  validateEnv();
+
   const app = await NestFactory.create(AppModule);
-  const apiPrefix = 'api/v1';
 
-  app.setGlobalPrefix(apiPrefix);
-  app.useGlobalPipes(new (require('@nestjs/common').ValidationPipe)());
-  app.use(require('express').json({ limit: '50mb' }));
-  app.use(require('express').urlencoded({ limit: '50mb', extended: true }));
+  // Préfixe global — une seule fois, au bon endroit
+  app.setGlobalPrefix('api/v1');
+
+  //  Body parsers — une seule fois
+  app.use(json({ limit: '50mb' }));
+  app.use(urlencoded({ limit: '50mb', extended: true }));
+
+  //  CORS — une seule fois, domaines depuis .env
+  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') ?? [];
   app.enableCors({
-    origin: true,
+    origin: (origin, callback) => {
+      // Autoriser les appels sans origin (mobile, Postman, curl)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`Origin non autorisée : ${origin}`), false);
+    },
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
   });
 
-  // Enable global validations (very useful for incoming post data)
-  app.useGlobalPipes(new ValidationPipe({ transform: true }));
+  //  ValidationPipe — une seule fois, bien configuré
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,           // Convertit les types automatiquement
+      whitelist: true,           // Supprime les champs non déclarés dans le DTO
+      forbidNonWhitelisted: true, // Retourne une erreur si champ inconnu
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+    }),
+  );
 
-  app.useGlobalPipes(new (require('@nestjs/common').ValidationPipe)());
-  app.use(require('express').json({ limit: '50mb' }));
-  app.use(require('express').urlencoded({ limit: '50mb', extended: true }));
-  app.enableCors({
-    origin: 'http://localhost:3000', // Allow your Next.js admin frontend
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    credentials: true, // Allow cookies / authorization headers if needed
-  });
-
-  app.useGlobalPipes(new (require('@nestjs/common').ValidationPipe)());
-  app.use(require('express').json({ limit: '50mb' }));
-  app.use(require('express').urlencoded({ limit: '50mb', extended: true }));
-  app.enableCors({
-    origin: '*', // For production, replace with your exact frontend domain URL
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    credentials: true,
-  });
-  // Register your structural response formatting layers globally
+  //  Intercepteurs et filtres globaux
   app.useGlobalInterceptors(new TransformInterceptor());
   app.useGlobalFilters(new HttpExceptionFilter());
-  app.setGlobalPrefix('api');
 
-  const port = process.env.API_PORT || 3001;
+  const port = process.env.API_PORT ?? '3001';
+
   try {
     await app.listen(port);
-    console.log(
-      `🚀 IDEAL API Foundation is live on: http://localhost:${port}/${apiPrefix}`,
-    );
+    console.log(` API live → http://localhost:${port}/api/v1`);
   } catch (error: unknown) {
     if (
       typeof error === 'object' &&
       error !== null &&
       'code' in error &&
-      error.code === 'EADDRINUSE'
+      (error as NodeJS.ErrnoException).code === 'EADDRINUSE'
     ) {
-      console.error(
-        `Port ${port} is already in use. Stop the existing API process or run with API_PORT=<port> npm run dev:api.`,
-      );
+      console.error(` Port ${port} déjà utilisé.`);
       process.exit(1);
     }
-
     throw error;
   }
 }
+
 bootstrap();
