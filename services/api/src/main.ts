@@ -9,6 +9,9 @@ async function bootstrap() {
   const apiPrefix = 'api/v1';
 
   app.setGlobalPrefix(apiPrefix);
+  app.useGlobalPipes(new (require('@nestjs/common').ValidationPipe)());
+  app.use(require('express').json({ limit: '50mb' }));
+  app.use(require('express').urlencoded({ limit: '50mb', extended: true }));
   app.enableCors({
     origin: true,
     credentials: true,
@@ -17,12 +20,18 @@ async function bootstrap() {
   // Enable global validations (very useful for incoming post data)
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
 
+  app.useGlobalPipes(new (require('@nestjs/common').ValidationPipe)());
+  app.use(require('express').json({ limit: '50mb' }));
+  app.use(require('express').urlencoded({ limit: '50mb', extended: true }));
   app.enableCors({
     origin: 'http://localhost:3000', // Allow your Next.js admin frontend
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true, // Allow cookies / authorization headers if needed
   });
 
+  app.useGlobalPipes(new (require('@nestjs/common').ValidationPipe)());
+  app.use(require('express').json({ limit: '50mb' }));
+  app.use(require('express').urlencoded({ limit: '50mb', extended: true }));
   app.enableCors({
     origin: '*', // For production, replace with your exact frontend domain URL
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
