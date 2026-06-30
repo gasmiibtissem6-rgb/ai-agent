@@ -1,8 +1,9 @@
-import { Controller, Get, Req, UseGuards } from '@nestjs/common';
-import type { Request } from 'express';
+import { Controller, Get, UseGuards } from '@nestjs/common';
 import type { AppInfo } from './app.service';
 import { AppService } from './app.service';
-import { AuthGuard } from './common/guards/auth.guard';
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { CurrentUser } from './auth/decorators/current-user.decorator';
+import type { AuthenticatedUser } from './auth/types/authenticated-user';
 
 @Controller()
 export class AppController {
@@ -14,11 +15,11 @@ export class AppController {
   }
 
   @Get('secure')
-  @UseGuards(AuthGuard)
-  getSecureData(@Req() req: any) {
+  @UseGuards(JwtAuthGuard)
+  getSecureData(@CurrentUser() user: AuthenticatedUser) {
     return {
-      message: 'If you see this, your AuthGuard successfully verified the token!',
-      userPayload: (req as Request & { user?: unknown }).user,
+      message: 'If you see this, your JwtAuthGuard successfully verified the token!',
+      userPayload: user,
     };
   }
 }

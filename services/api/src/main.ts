@@ -1,6 +1,7 @@
 // main.ts
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -40,7 +41,10 @@ async function bootstrap() {
   //  CORS — une seule fois, domaines depuis .env
   const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') ?? [];
   app.enableCors({
-    origin: (origin, callback) => {
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => {
       // Autoriser les appels sans origin (mobile, Postman, curl)
       if (!origin) return callback(null, true);
 
@@ -70,6 +74,16 @@ async function bootstrap() {
   //  Intercepteurs et filtres globaux
   app.useGlobalInterceptors(new TransformInterceptor());
   app.useGlobalFilters(new HttpExceptionFilter());
+
+  //  Swagger / OpenAPI — exposé sous le préfixe global
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('IDEAL API')
+    .setDescription('Authentication & authorization-protected API surface.')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api/v1/docs', app, swaggerDocument);
 
   const port = process.env.API_PORT ?? '3001';
 
