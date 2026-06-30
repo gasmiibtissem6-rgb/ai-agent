@@ -9,7 +9,7 @@ export class OcrController {
       const base64Data = body.image.replace(/^data:image\/\w+;base64,/, '');
       const buffer = Buffer.from(base64Data, 'base64');
 
-      const worker = await createWorker('fra+eng');
+      const worker = await createWorker(body.lang ?? 'fra+eng');
       const { data } = await worker.recognize(buffer);
       await worker.terminate();
 

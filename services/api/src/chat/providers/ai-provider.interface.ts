@@ -6,6 +6,7 @@ export interface AiChatRequest {
   message: string;
   history?: AiChatHistoryItem[];
   systemPrompt: string;
+  image?: string; // base64 data URL (image/png;base64,...)
 }
 export interface AiChatResponse {
   reply: string;

@@ -1,4 +1,4 @@
-export type ChatMode = 'faq' | 'contract';
+export type ChatMode = 'faq' | 'contract' | 'analyze';
 
 export const FAQ_SYSTEM_PROMPT = `Tu es l'assistant officiel de la plateforme IDEAL — une plateforme sécurisée de gestion de deals et de contrats (KYC, signatures, suivi, conformité).
 
@@ -54,6 +54,29 @@ LANGUE : Réponds et rédige le contrat dans la langue utilisée par le client (
 
 AVERTISSEMENT : Rappelle systématiquement à la fin du contrat généré que ce document est un modèle généré automatiquement et qu'une relecture par un professionnel du droit est recommandée avant signature.`;
 
+export const ANALYZE_SYSTEM_PROMPT = `Tu es l'assistant juridique d'analyse de documents de la plateforme IDEAL. Le client t'envoie un texte extrait d'un document scanné (contrat, accord, ou autre document professionnel) et veut le comprendre.
+
+TON RÔLE :
+- Lis attentivement l'intégralité du texte fourni, même s'il contient des erreurs de scan (OCR), des caractères mal reconnus ou des sauts de ligne désordonnés. Fais de ton mieux pour reconstituer le sens malgré les imperfections.
+- Si le texte est trop corrompu ou incompréhensible pour être analysé sérieusement, dis-le clairement au client et demande-lui de rescanner le document avec un meilleur éclairage/cadrage, plutôt que d'inventer un contenu.
+- Si le texte n'est manifestement PAS un contrat ou document juridique (ex : article, notes, autre type de contenu), dis-le clairement au client au lieu de faire semblant d'analyser un contrat.
+
+QUAND LE DOCUMENT EST UN VRAI CONTRAT/ACCORD :
+Structure ta réponse ainsi :
+1. **Résumé général** : type de contrat, parties impliquées, objet
+2. **Points clés** : durée, montant, obligations principales de chaque partie
+3. **Clauses importantes à noter** : pénalités, conditions de résiliation, clauses qui pourraient être défavorables au client
+4. **Questions ou clarifications suggérées** si des informations semblent incomplètes ou ambiguës
+5. Termine en demandant si le client veut que tu modifies ce contrat, en rédiges une nouvelle version, ou si tu peux l'aider à le signer numériquement via l'application IDEAL.
+
+STYLE :
+- Ton professionnel, clair, pédagogue — comme un conseiller qui explique sans jargon inutile.
+- Réponds TOUJOURS dans la langue utilisée par le client (français, arabe, ou anglais).
+
+RÈGLE ABSOLUE :
+- Ne donne jamais de conseil juridique définitif — précise que pour les questions légales complexes, un avocat doit être consulté.
+- N'invente jamais de clauses ou de montants qui ne figurent pas dans le texte fourni.`;
+
 const CONTRACT_KEYWORDS = [
   'contrat', 'contract', 'عقد',
   'accord', 'agreement', 'اتفاقية',
@@ -62,13 +85,25 @@ const CONTRACT_KEYWORDS = [
   'nda', 'partenariat', 'partnership', 'employment', 'emploi', 'travail',
 ];
 
+const ANALYZE_TRIGGERS = [
+  'contrat scanné', 'document scanné', 'scanned contract', 'scanned document',
+  'analyse-le', 'analyse ce', 'analyze this', 'analyser ce document',
+  'وثيقة ممسوحة', 'عقد ممسوح',
+];
+
 export function detectChatMode(message: string, history?: { role: string; content: string }[]): ChatMode {
   const lower = message.toLowerCase();
+
+  // Priorité 1 : un texte scanné/importé envoyé pour analyse
+  if (ANALYZE_TRIGGERS.some(k => lower.includes(k))) return 'analyze';
+
+  // Priorité 2 : demande de rédaction d'un nouveau contrat
   if (CONTRACT_KEYWORDS.some(k => lower.includes(k))) return 'contract';
 
   // Si le mode contrat a déjà été activé dans cette conversation, on y reste
   if (history && history.length > 0) {
     const fullHistory = history.map(h => h.content.toLowerCase()).join(' ');
+    if (ANALYZE_TRIGGERS.some(k => fullHistory.includes(k))) return 'faq';
     if (CONTRACT_KEYWORDS.some(k => fullHistory.includes(k))) return 'contract';
   }
 

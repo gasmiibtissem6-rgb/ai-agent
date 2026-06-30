@@ -27,7 +27,7 @@ class ChatNotifier extends Notifier<ChatState> {
   @override
   ChatState build() => const ChatState();
 
-  Future<void> sendMessage(String message) async {
+  Future<void> sendMessage(String message, {String? image}) async {
     final newMessages = [...state.messages, ChatMessage(role: 'user', content: message)];
     state = state.copyWith(messages: newMessages, isLoading: true);
     try {
@@ -35,7 +35,11 @@ class ChatNotifier extends Notifier<ChatState> {
       final dio = Dio();
       final response = await dio.post(
         'http://localhost:3001/api/chat/message',
-        data: {'message': message, 'history': newMessages.map((m) => m.toJson()).toList()},
+        data: {
+          'message': message,
+          'history': newMessages.map((m) => m.toJson()).toList(),
+          if (image != null) 'image': image,
+        },
         options: Options(headers: {
           'Content-Type': 'application/json',
           if (token != null) 'Authorization': 'Bearer $token',

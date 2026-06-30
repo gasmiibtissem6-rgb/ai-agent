@@ -20,7 +20,18 @@ export class ClaudeAiProvider implements AiProvider {
                   role: m.role === 'assistant' ? 'model' : 'user',
                   parts: [{ text: m.content }],
                 })),
-                { role: 'user', parts: [{ text: request.message }] },
+                {
+                  role: 'user',
+                  parts: [
+                    { text: request.message },
+                    ...(request.image ? [{
+                      inline_data: {
+                        mime_type: (request.image.match(/^data:(image\/\w+);base64,/) || [, 'image/png'])[1],
+                        data: request.image.replace(/^data:image\/\w+;base64,/, ''),
+                      },
+                    }] : []),
+                  ],
+                },
               ],
             }),
           }

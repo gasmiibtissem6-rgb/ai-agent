@@ -27,9 +27,12 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     super.dispose();
   }
 
-  void _pickFile({bool imageOnly = false}) {
+  void _pickFile({bool imageOnly = false, bool useCamera = false}) {
     final input = html.FileUploadInputElement();
     input.accept = imageOnly ? 'image/*' : 'image/*,application/pdf';
+    if (useCamera) {
+      input.setAttribute('capture', 'environment');
+    }
     input.click();
     input.onChange.listen((e) async {
       final file = input.files?.first;
@@ -72,6 +75,66 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     });
   }
 
+  void _openCameraForImport() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('Prendre une photo du document', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 12),
+            _CameraCapture(
+              onCaptured: (base64) async {
+                if (base64.isEmpty) return;
+                Navigator.pop(context);
+                await _processScannedImage(base64);
+              },
+              capturedImage: null,
+            ),
+            const SizedBox(height: 8),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler')),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _processScannedImage(String base64) async {
+    setState(() => _isScanning = true);
+    try {
+      final dio = Dio();
+      final response = await dio.post(
+        'http://localhost:3001/api/chat/scan-contract',
+        data: {'image': base64, 'lang': 'fra+eng+ara'},
+      );
+      final raw = response.data;
+      final data = raw is Map ? (raw['data'] ?? raw) : raw;
+      final success = data['success'] == true;
+      final text = (data['text'] ?? '') as String;
+      if (success && text.isNotEmpty) {
+        setState(() {
+          _scannedText = text;
+          _editController.text = text;
+        });
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Document scanné !'), backgroundColor: Colors.green),
+        );
+      } else {
+        final msg = (data['message'] ?? 'Aucun texte détecté') as String;
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Aucun texte détecté: $msg'), backgroundColor: Colors.orange),
+        );
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('❌ Erreur de scan'), backgroundColor: Colors.red),
+      );
+    }
+    setState(() => _isScanning = false);
+  }
+
   void _showSignatureDialog() {
     showDialog(
       context: context,
@@ -81,7 +144,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           setState(() {
             _showSignature = true;
             _signatureImageBase64 = signatureDataUrl.isNotEmpty ? signatureDataUrl : null;
-            _editController.text = _editController.text +
+            final marker = RegExp(r"\n\n--- Document signé électroniquement le .*? ---");
+            _editController.text = _editController.text.replaceAll(marker, '').trimRight() +
                 "\n\n--- Document signé électroniquement le ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year} ---";
           });
           ScaffoldMessenger.of(context).showSnackBar(
@@ -146,7 +210,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             if (_isScanning)
               const CircularProgressIndicator()
             else ...[
-              _buildCard(colorScheme, Icons.camera_alt, 'Prendre une photo', 'Appareil photo', Colors.blue, () => _pickFile(imageOnly: true)),
+              _buildCard(colorScheme, Icons.camera_alt, 'Prendre une photo', 'Appareil photo', Colors.blue, () => _openCameraForImport()),
               const SizedBox(height: 16),
               _buildCard(colorScheme, Icons.upload_file, 'Importer un fichier', 'PDF ou image depuis votre appareil', Colors.green, () => _pickFile()),
             ],
@@ -263,6 +327,7 @@ class _SignatureDialogState extends State<_SignatureDialog> {
   int _tab = 0; // 0=draw, 1=camera
   List<Offset?> _points = [];
   bool _hasSignature = false;
+  String? _cameraSignatureDataUrl;
   String? _cameraImageBase64;
   bool _isProcessing = false;
   final GlobalKey _repaintKey = GlobalKey();
@@ -462,90 +527,74 @@ class _CameraCaptureState extends State<_CameraCapture> {
       final w = img.naturalWidth;
       final h = img.naturalHeight;
 
-      // Étape 1: lire tous les pixels
-      final canvas = html.CanvasElement(width: w, height: h);
-      final ctx = canvas.context2D;
-      ctx.drawImage(img, 0, 0);
-      final imageData = ctx.getImageData(0, 0, w, h);
+      // Étape 1 : isoler la zone du cadre-guide (80% largeur, 50% hauteur, centré)
+      final cropW = (w * 0.8).round();
+      final cropH = (h * 0.5).round();
+      final offsetX = ((w - cropW) / 2).round();
+      final offsetY = ((h - cropH) / 2).round();
+
+      final cropCanvas = html.CanvasElement(width: cropW, height: cropH);
+      final cropCtx = cropCanvas.context2D;
+      cropCtx.drawImageScaledFromSource(
+        img, offsetX, offsetY, cropW, cropH, 0, 0, cropW, cropH,
+      );
+      final imageData = cropCtx.getImageData(0, 0, cropW, cropH);
       final data = imageData.data;
 
-      // Étape 2: trouver la bounding box des pixels sombres (signature)
-      int minX = w, minY = h, maxX = 0, maxY = 0;
-      for (int y = 0; y < h; y++) {
-        for (int x = 0; x < w; x++) {
-          final i = (y * w + x) * 4;
-          final r = data[i];
-          final g = data[i + 1];
-          final b = data[i + 2];
-          // Détecter encre sombre OU encre bleue
-          final isInk = (r < 160 && g < 160 && b < 160) ||
-                        (b > 80 && b > r + 30 && b > g + 10 && r < 180);
-          if (isInk) {
-            if (x < minX) minX = x;
-            if (x > maxX) maxX = x;
-            if (y < minY) minY = y;
-            if (y > maxY) maxY = y;
-          }
-        }
+      // Étape 2 : ne garder que les pixels foncés (encre), tout le reste devient blanc
+      // Seuil adaptatif : on calcule la luminosité moyenne pour s'adapter à l'éclairage
+      int total = 0;
+      for (int i = 0; i < data.length; i += 4) {
+        total += ((data[i] + data[i + 1] + data[i + 2]) / 3).round();
       }
+      final avgLum = total / (data.length / 4);
+      final threshold = (avgLum * 0.65).clamp(60, 180);
 
-      if (maxX <= minX || maxY <= minY) return dataUrl;
-
-      final pad = 30;
-      minX = (minX - pad).clamp(0, w);
-      minY = (minY - pad).clamp(0, h);
-      maxX = (maxX + pad).clamp(0, w);
-      maxY = (maxY + pad).clamp(0, h);
-      final cropW = maxX - minX;
-      final cropH = maxY - minY;
-
-      // Étape 3: créer une image blanche et y dessiner SEULEMENT les pixels sombres
       final outCanvas = html.CanvasElement(width: cropW, height: cropH);
       final outCtx = outCanvas.context2D;
       outCtx.fillStyle = 'white';
       outCtx.fillRect(0, 0, cropW, cropH);
-
       final outData = outCtx.getImageData(0, 0, cropW, cropH);
       final outPixels = outData.data;
 
-      for (int y = 0; y < cropH; y++) {
-        for (int x = 0; x < cropW; x++) {
-          final srcI = ((y + minY) * w + (x + minX)) * 4;
-          final dstI = (y * cropW + x) * 4;
-          final r = data[srcI];
-          final g = data[srcI + 1];
-          final b = data[srcI + 2];
-          final isInk2 = (r < 160 && g < 160 && b < 160) ||
-                         (b > 80 && b > r + 30 && b > g + 10 && r < 180);
-          if (isInk2) {
-            outPixels[dstI] = r;
-            outPixels[dstI + 1] = g;
-            outPixels[dstI + 2] = b;
-            outPixels[dstI + 3] = 255;
-          } else {
-            outPixels[dstI] = 255;
-            outPixels[dstI + 1] = 255;
-            outPixels[dstI + 2] = 255;
-            outPixels[dstI + 3] = 255;
-          }
+      for (int i = 0; i < data.length; i += 4) {
+        final r = data[i];
+        final g = data[i + 1];
+        final b = data[i + 2];
+        final lum = (r + g + b) / 3;
+        if (lum < threshold) {
+          outPixels[i] = r;
+          outPixels[i + 1] = g;
+          outPixels[i + 2] = b;
+          outPixels[i + 3] = 255;
+        } else {
+          outPixels[i] = 255;
+          outPixels[i + 1] = 255;
+          outPixels[i + 2] = 255;
+          outPixels[i + 3] = 255;
         }
       }
-
       outCtx.putImageData(outData, 0, 0);
+
       return outCanvas.toDataUrl('image/png');
     } catch (e) {
       return dataUrl;
     }
   }
 
-  void _capture() {
+  bool _isCropping = false;
+
+  Future<void> _capture() async {
     if (_video == null) return;
     final canvas = html.CanvasElement(width: _video!.videoWidth, height: _video!.videoHeight);
     final ctx = canvas.context2D;
     ctx.drawImage(_video!, 0, 0);
-    final dataUrl = canvas.toDataUrl('image/png');
+    final rawDataUrl = canvas.toDataUrl('image/png');
+    setState(() => _isCropping = true);
+    final croppedDataUrl = await _cropSignature(rawDataUrl);
+    setState(() => _isCropping = false);
     _stopCamera();
-    widget.onCaptured(dataUrl);
+    widget.onCaptured(croppedDataUrl);
   }
 
   void _retake() {
@@ -605,19 +654,39 @@ class _CameraCaptureState extends State<_CameraCapture> {
     }
 
     return Column(children: [
-      Container(
-        height: 200, width: double.infinity,
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), color: Colors.black),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: HtmlElementView(viewType: _viewId),
+      Stack(children: [
+        Container(
+          height: 200, width: double.infinity,
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(8), color: Colors.black),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: HtmlElementView(viewType: _viewId),
+          ),
         ),
-      ),
+        Positioned.fill(
+          child: Center(
+            child: FractionallySizedBox(
+              widthFactor: 0.8,
+              heightFactor: 0.5,
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.yellow, width: 2),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ]),
+      const SizedBox(height: 6),
+      const Text('Placez votre signature dans le cadre jaune', style: TextStyle(fontSize: 12, color: Colors.grey)),
       const SizedBox(height: 8),
       ElevatedButton.icon(
-        onPressed: _capture,
-        icon: const Icon(Icons.camera_alt),
-        label: const Text('Prendre la photo'),
+        onPressed: _isCropping ? null : _capture,
+        icon: _isCropping
+            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+            : const Icon(Icons.camera_alt),
+        label: Text(_isCropping ? 'Recadrage en cours...' : 'Prendre la photo'),
         style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, foregroundColor: Colors.white),
       ),
     ]);

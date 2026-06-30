@@ -100,11 +100,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     super.dispose();
   }
 
+  String? _pendingImage;
+
   void _send() {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
     _controller.clear();
-    ref.read(chatProvider.notifier).sendMessage(text);
+    final image = _pendingImage;
+    _pendingImage = null;
+    ref.read(chatProvider.notifier).sendMessage(text, image: image);
     Future.delayed(const Duration(milliseconds: 300), () {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -259,8 +263,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ),
                 child: Row(children: [
                   ScanContractButton(
-                  onTextExtracted: (text) {
-                    _controller.text = 'Voici le contrat scanné, analyse-le et aide-moi à le comprendre :\n\n$text';
+                  onTextExtracted: (text, imageBase64) {
+                    setState(() => _pendingImage = imageBase64);
+                    _controller.text = text.isNotEmpty
+                        ? 'Voici le contrat scanné, analyse-le et aide-moi à le comprendre :\n\n$text'
+                        : 'Voici une photo de mon document, analyse-le et aide-moi à le comprendre.';
                   },
                 ),
                 const SizedBox(width: 4),

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 
 class ScanContractButton extends StatefulWidget {
-  final Function(String text) onTextExtracted;
+  final Function(String text, String imageBase64) onTextExtracted;
   const ScanContractButton({super.key, required this.onTextExtracted});
 
   @override
@@ -31,14 +31,21 @@ class _ScanContractButtonState extends State<ScanContractButton> {
           'http://localhost:3001/api/chat/scan-contract',
           data: {'image': base64, 'lang': 'fra+eng+ara'},
         );
-        if (response.data['success'] == true) {
-          widget.onTextExtracted(response.data['text'] as String);
+        final raw = response.data;
+        final data = raw is Map ? (raw['data'] ?? raw) : raw;
+        final success = data['success'] == true;
+        final text = (data['text'] ?? '') as String;
+        if (success && text.isNotEmpty) {
+          widget.onTextExtracted(text, base64);
+        } else if (data['message'] == null && text.isEmpty) {
+          widget.onTextExtracted('', base64);
           if (mounted) ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('✅ Contrat scanné !'), backgroundColor: Colors.green),
           );
         } else {
+          final msg = (data['message'] ?? 'Aucun texte détecté') as String;
           if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('❌ ${response.data['message']}'), backgroundColor: Colors.red),
+            SnackBar(content: Text('❌ $msg'), backgroundColor: Colors.red),
           );
         }
       } catch (e) {
