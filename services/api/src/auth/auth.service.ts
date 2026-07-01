@@ -9,6 +9,10 @@ import { AdminRole, KycStatus, Profile } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  AuthenticatedUser,
+  TokenType,
+} from './types/authenticated-user';
 
 @Injectable()
 export class AuthService {
@@ -96,6 +100,144 @@ export class AuthService {
     }
 
     return profile;
+  }
+
+  /**
+   * Unified token verification used by {@link JwtAuthGuard}. Accepts BOTH:
+   *  - NestJS-signed JWTs (local admin dev fallback, signed with JWT_SECRET), and
+   *  - Supabase JWTs (Flutter mobile users and admins authenticated via Supabase).
+   *
+   * Returns a normalized {@link AuthenticatedUser} backed by the Prisma Profile,
+   * so every downstream guard/controller reads identity the same way regardless
+   * of token origin.
+   */
+  async verifyToken(token: string): Promise<AuthenticatedUser> {
+    if (!token) {
+      throw new UnauthorizedException('Authentication token is missing.');
+    }
+
+    // 1. NestJS-signed JWT (offline, no network).
+    const nestUser = await this.tryVerifyNestJwt(token);
+    if (nestUser) {
+      return nestUser;
+    }
+
+    // 2. Supabase JWT (offline if SUPABASE_JWT_SECRET is set, else network).
+    const supabaseUser = await this.tryVerifySupabaseToken(token);
+    if (supabaseUser) {
+      return supabaseUser;
+    }
+
+    throw new UnauthorizedException(
+      'Invalid or expired authentication token.',
+    );
+  }
+
+  /**
+   * Resolves the full Profile for an already-authenticated user (GET /auth/me).
+   */
+  async getMe(user: AuthenticatedUser): Promise<Profile> {
+    const profile = await this.prisma.profile.findUnique({
+      where: { id: user.profileId },
+    });
+
+    if (!profile) {
+      throw new UnauthorizedException('Profile not found.');
+    }
+
+    return profile;
+  }
+
+  private async tryVerifyNestJwt(
+    token: string,
+  ): Promise<AuthenticatedUser | null> {
+    const jwtSecret = this.configService.get<string>('JWT_SECRET');
+    if (!jwtSecret) {
+      return null;
+    }
+
+    try {
+      const payload = await this.jwtService.verifyAsync<{
+        sub: string;
+        exp?: number;
+      }>(token, { secret: jwtSecret });
+
+      const profile = await this.prisma.profile.findUnique({
+        where: { authUserId: payload.sub },
+      });
+
+      if (!profile) {
+        return null;
+      }
+
+      return this.toAuthenticatedUser(profile, 'nestjs', payload.exp);
+    } catch {
+      return null;
+    }
+  }
+
+  private async tryVerifySupabaseToken(
+    token: string,
+  ): Promise<AuthenticatedUser | null> {
+    let authUserId: string | undefined;
+    let exp: number | undefined;
+
+    const supabaseJwtSecret =
+      this.configService.get<string>('SUPABASE_JWT_SECRET');
+
+    if (supabaseJwtSecret) {
+      // Offline HS256 verification — no network round-trip per request.
+      try {
+        const payload = await this.jwtService.verifyAsync<{
+          sub: string;
+          exp?: number;
+        }>(token, { secret: supabaseJwtSecret });
+        authUserId = payload.sub;
+        exp = payload.exp;
+      } catch {
+        return null;
+      }
+    } else if (this.supabase) {
+      // Network verification via Supabase Auth (default).
+      const { data, error } = await this.supabase.auth.getUser(token);
+      if (error || !data.user) {
+        return null;
+      }
+      authUserId = data.user.id;
+    } else {
+      return null;
+    }
+
+    const profile = await this.prisma.profile.findUnique({
+      where: { authUserId },
+    });
+
+    if (!profile) {
+      return null;
+    }
+
+    return this.toAuthenticatedUser(profile, 'supabase', exp);
+  }
+
+  private toAuthenticatedUser(
+    profile: Profile,
+    tokenType: TokenType,
+    exp?: number,
+  ): AuthenticatedUser {
+    if (profile.archivedAt) {
+      throw new UnauthorizedException('This account has been deactivated.');
+    }
+
+    return {
+      sub: profile.authUserId,
+      profileId: profile.id,
+      email: profile.email,
+      isAdmin: profile.isAdmin,
+      adminRole: profile.adminRole,
+      kycStatus: profile.kycStatus,
+      tokenType,
+      exp,
+    };
   }
 
   private async loginLocalAdmin(email: string, pass: string) {

@@ -1,6 +1,7 @@
 // services/api/src/profiles/profiles.service.ts
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthenticatedUser } from '../auth/types/authenticated-user';
 
 @Injectable()
 export class ProfilesService {
@@ -18,16 +19,21 @@ export class ProfilesService {
     return profile;
   }
 
-  async getSessionMetadata(userPayload: any) {
+  async getSessionMetadata(user: AuthenticatedUser) {
     return {
       authenticated: true,
       user: {
-        id: userPayload.sub,
-        email: userPayload.email,
-        role: userPayload.role,
+        id: user.sub,
+        profileId: user.profileId,
+        email: user.email,
+        isAdmin: user.isAdmin,
+        adminRole: user.adminRole,
+        kycStatus: user.kycStatus,
       },
       // Safely check if token expiry timestamp exists
-      sessionExpiresAt: userPayload.exp ? new Date(userPayload.exp * 1000).toISOString() : null,
+      sessionExpiresAt: user.exp
+        ? new Date(user.exp * 1000).toISOString()
+        : null,
     };
   }
 }
