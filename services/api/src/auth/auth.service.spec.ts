@@ -1,4 +1,7 @@
-import { UnauthorizedException } from '@nestjs/common';
+import {
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { AdminRole, KycStatus, Profile } from '@prisma/client';
@@ -23,8 +26,14 @@ const buildProfile = (overrides: Partial<Profile> = {}): Profile =>
 
 describe('AuthService.verifyToken', () => {
   let service: AuthService;
-  let prisma: { profile: { findUnique: jest.Mock } };
-  let jwtService: { verifyAsync: jest.Mock };
+  let prisma: {
+    profile: {
+      findUnique: jest.Mock;
+      update: jest.Mock;
+      create: jest.Mock;
+    };
+  };
+  let jwtService: { verifyAsync: jest.Mock; signAsync: jest.Mock };
   let config: Record<string, string | undefined>;
 
   const configService = {
@@ -34,8 +43,14 @@ describe('AuthService.verifyToken', () => {
   beforeEach(() => {
     // Keep supabase client null by leaving SUPABASE_URL/ANON unset by default.
     config = { JWT_SECRET: 'nest-secret' };
-    prisma = { profile: { findUnique: jest.fn() } };
-    jwtService = { verifyAsync: jest.fn() };
+    prisma = {
+      profile: {
+        findUnique: jest.fn(),
+        update: jest.fn(),
+        create: jest.fn(),
+      },
+    };
+    jwtService = { verifyAsync: jest.fn(), signAsync: jest.fn() };
     service = new AuthService(
       prisma as unknown as PrismaService,
       configService,
@@ -133,6 +148,44 @@ describe('AuthService.verifyToken', () => {
         where: { id: 'profile-1' },
       });
       expect(result).toBe(profile);
+    });
+  });
+
+  describe('login', () => {
+    it('uses documented default local admin credentials in development', async () => {
+      config = { JWT_SECRET: 'nest-secret', NODE_ENV: 'development' };
+      service = new AuthService(
+        prisma as unknown as PrismaService,
+        configService,
+        jwtService as unknown as JwtService,
+      );
+
+      const adminProfile = buildProfile({
+        email: 'admin@ideal.local',
+        isAdmin: true,
+        adminRole: AdminRole.SUPER_ADMIN,
+      });
+      prisma.profile.findUnique.mockResolvedValue(null);
+      prisma.profile.create.mockResolvedValue(adminProfile);
+      jwtService.signAsync.mockResolvedValue('signed.local.admin.jwt');
+
+      const result = await service.login('admin@ideal.local', 'ChangeMe123!');
+
+      expect(prisma.profile.create).toHaveBeenCalled();
+      expect(result).toEqual({ token: 'signed.local.admin.jwt' });
+    });
+
+    it('requires explicit local admin credentials outside local development', async () => {
+      config = { JWT_SECRET: 'nest-secret', NODE_ENV: 'test' };
+      service = new AuthService(
+        prisma as unknown as PrismaService,
+        configService,
+        jwtService as unknown as JwtService,
+      );
+
+      await expect(
+        service.login('admin@ideal.local', 'ChangeMe123!'),
+      ).rejects.toBeInstanceOf(ServiceUnavailableException);
     });
   });
 });

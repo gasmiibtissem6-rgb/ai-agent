@@ -14,6 +14,9 @@ import {
   TokenType,
 } from './types/authenticated-user';
 
+const defaultLocalAdminEmail = 'admin@ideal.local';
+const defaultLocalAdminPassword = 'ChangeMe123!';
+
 @Injectable()
 export class AuthService {
   private supabase: SupabaseClient | null = null;
@@ -241,17 +244,28 @@ export class AuthService {
   }
 
   private async loginLocalAdmin(email: string, pass: string) {
-    if (this.configService.get<string>('NODE_ENV') === 'production') {
+    const nodeEnv = this.configService.get<string>('NODE_ENV');
+
+    if (nodeEnv === 'production') {
       throw new ServiceUnavailableException(
         'Supabase authentication must be configured in production.',
       );
     }
 
-    // No hardcoded credential fallbacks: local admin login is only available
-    // when both variables are explicitly configured in the environment.
-    const localAdminEmail = this.configService.get<string>('LOCAL_ADMIN_EMAIL');
-    const localAdminPassword =
+    const configuredLocalAdminEmail =
+      this.configService.get<string>('LOCAL_ADMIN_EMAIL');
+    const configuredLocalAdminPassword =
       this.configService.get<string>('LOCAL_ADMIN_PASSWORD');
+    const useDefaultLocalAdmin =
+      !configuredLocalAdminEmail &&
+      !configuredLocalAdminPassword &&
+      (!nodeEnv || nodeEnv === 'development');
+    const localAdminEmail = useDefaultLocalAdmin
+      ? defaultLocalAdminEmail
+      : configuredLocalAdminEmail;
+    const localAdminPassword = useDefaultLocalAdmin
+      ? defaultLocalAdminPassword
+      : configuredLocalAdminPassword;
 
     if (!localAdminEmail || !localAdminPassword) {
       throw new ServiceUnavailableException(

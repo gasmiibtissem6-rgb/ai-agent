@@ -7,17 +7,14 @@ import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
+const defaultDevOrigins = ['http://localhost:3000', 'http://localhost:3001'];
+const isLocalDevelopment = () =>
+  !process.env.NODE_ENV || process.env.NODE_ENV === 'development';
+
 function validateEnv(): void {
   // Variables strictement requises — le serveur refuse de démarrer sans elles.
-  const required = [
-    'JWT_SECRET',
-    'DATABASE_URL',
-    'SUPABASE_URL',
-    'SUPABASE_ANON_KEY',
-    'SUPABASE_SERVICE_ROLE_KEY',
-    'ALLOWED_ORIGINS',
-  ];
-  // Optionnel : SUPABASE_JWT_SECRET (active la vérification hors-ligne des tokens).
+  const required = ['JWT_SECRET', 'DATABASE_URL'];
+  // Optionnel : SUPABASE_* et SUPABASE_JWT_SECRET.
 
   const missing = required.filter((key) => !process.env[key]);
 
@@ -27,6 +24,53 @@ function validateEnv(): void {
     );
     process.exit(1); // Le serveur ne démarre pas
   }
+
+  if (!process.env.ALLOWED_ORIGINS && !isLocalDevelopment()) {
+    console.error(
+      "Variables d'environnement requises manquantes : ALLOWED_ORIGINS",
+    );
+    process.exit(1);
+  }
+
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const hasAnySupabaseEnv = Boolean(
+    supabaseUrl || supabaseAnonKey || supabaseServiceRoleKey,
+  );
+  const hasAllSupabaseEnv = Boolean(
+    supabaseUrl && supabaseAnonKey && supabaseServiceRoleKey,
+  );
+
+  if (hasAnySupabaseEnv && !hasAllSupabaseEnv) {
+    const missingSupabase = [
+      !supabaseUrl ? 'SUPABASE_URL' : null,
+      !supabaseAnonKey ? 'SUPABASE_ANON_KEY' : null,
+      !supabaseServiceRoleKey ? 'SUPABASE_SERVICE_ROLE_KEY' : null,
+    ].filter((key): key is string => key !== null);
+
+    console.error(
+      `Configuration Supabase incomplète : ${missingSupabase.join(', ')}`,
+    );
+    process.exit(1);
+  }
+}
+
+function getAllowedOrigins(): string[] {
+  const configuredOrigins = (process.env.ALLOWED_ORIGINS ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+
+  if (configuredOrigins.length > 0) {
+    return configuredOrigins;
+  }
+
+  if (isLocalDevelopment()) {
+    return defaultDevOrigins;
+  }
+
+  return [];
 }
 
 async function bootstrap() {
@@ -43,12 +87,8 @@ async function bootstrap() {
   app.use(urlencoded({ limit: '50mb', extended: true }));
 
   //  CORS — une seule fois, allowlist stricte depuis ALLOWED_ORIGINS.
-  //  Jamais de wildcard : seules les origines listées sont autorisées, en dev
-  //  comme en prod. La présence de ALLOWED_ORIGINS est garantie par validateEnv().
-  const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? '')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter((origin) => origin.length > 0);
+  //  En local, une fallback explicite autorise seulement les origines connues.
+  const allowedOrigins = getAllowedOrigins();
   app.enableCors({
     origin: (
       origin: string | undefined,
