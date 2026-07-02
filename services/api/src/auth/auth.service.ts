@@ -247,11 +247,17 @@ export class AuthService {
       );
     }
 
-    const localAdminEmail =
-      this.configService.get<string>('LOCAL_ADMIN_EMAIL') ??
-      'admin@ideal.local';
+    // No hardcoded credential fallbacks: local admin login is only available
+    // when both variables are explicitly configured in the environment.
+    const localAdminEmail = this.configService.get<string>('LOCAL_ADMIN_EMAIL');
     const localAdminPassword =
-      this.configService.get<string>('LOCAL_ADMIN_PASSWORD') ?? 'ChangeMe123!';
+      this.configService.get<string>('LOCAL_ADMIN_PASSWORD');
+
+    if (!localAdminEmail || !localAdminPassword) {
+      throw new ServiceUnavailableException(
+        'Local admin login is not configured. Set LOCAL_ADMIN_EMAIL and LOCAL_ADMIN_PASSWORD.',
+      );
+    }
 
     if (email !== localAdminEmail || pass !== localAdminPassword) {
       throw new UnauthorizedException('Invalid administrative credentials.');

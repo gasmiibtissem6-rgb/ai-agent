@@ -10,7 +10,8 @@ import { RolesGuard } from './guards/roles.guard';
   imports: [
     ConfigModule,
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'default_secret', // Use a secure secret in production
+      // No fallback: JWT_SECRET is enforced at startup by validateEnv() in main.ts.
+      secret: process.env.JWT_SECRET,
       signOptions: { expiresIn: '1h' },
     }),
   ],

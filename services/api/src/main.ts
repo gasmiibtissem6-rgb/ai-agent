@@ -8,18 +8,22 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
 function validateEnv(): void {
+  // Variables strictement requises — le serveur refuse de démarrer sans elles.
   const required = [
-    //'JWT_SECRET',
+    'JWT_SECRET',
     'DATABASE_URL',
-    //'SUPABASE_URL',
-    //'SUPABASE_SERVICE_KEY',
+    'SUPABASE_URL',
+    'SUPABASE_ANON_KEY',
+    'SUPABASE_SERVICE_ROLE_KEY',
+    'ALLOWED_ORIGINS',
   ];
+  // Optionnel : SUPABASE_JWT_SECRET (active la vérification hors-ligne des tokens).
 
   const missing = required.filter((key) => !process.env[key]);
 
   if (missing.length > 0) {
     console.error(
-      ` Variables d'environnement manquantes : ${missing.join(', ')}`,
+      `Variables d'environnement requises manquantes : ${missing.join(', ')}`,
     );
     process.exit(1); // Le serveur ne démarre pas
   }
@@ -38,8 +42,13 @@ async function bootstrap() {
   app.use(json({ limit: '50mb' }));
   app.use(urlencoded({ limit: '50mb', extended: true }));
 
-  //  CORS — une seule fois, domaines depuis .env
-  const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') ?? [];
+  //  CORS — une seule fois, allowlist stricte depuis ALLOWED_ORIGINS.
+  //  Jamais de wildcard : seules les origines listées sont autorisées, en dev
+  //  comme en prod. La présence de ALLOWED_ORIGINS est garantie par validateEnv().
+  const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
   app.enableCors({
     origin: (
       origin: string | undefined,
