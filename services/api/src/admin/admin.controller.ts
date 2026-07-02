@@ -3,7 +3,6 @@ import {
   Controller,
   Get,
   Post,
-  Patch,
   Body,
   Param,
   Query,
@@ -13,7 +12,6 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AdminRole } from '@prisma/client';
 import { AdminService } from './admin.service';
 import { OverrideTrustDto } from './dto/override-trust.dto';
-import { ReviewKycDto } from './dto/review-kyc.dto';
 import { PaginationQueryDto } from './dto/pagination-query.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -24,6 +22,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 @ApiBearerAuth()
 @Controller('admin')
 // 🔒 Every admin route requires a valid token AND administrator privileges.
+// KYC review routes now live in AdminKycController (@Controller('admin/kyc')).
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
@@ -36,32 +35,7 @@ export class AdminController {
     return this.adminService.getUsersDirectory(query.page, query.limit);
   }
 
-  // 2. Fetch Identity Verification Queue
-  @Get('kyc/pending')
-  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.SUPPORT_REVIEWER)
-  @ApiOperation({ summary: 'List pending KYC submissions for review.' })
-  async getKycQueue() {
-    return this.adminService.getPendingKycQueue();
-  }
-
-  // 3. Process KYC Approvals / Rejections
-  @Patch('kyc/:submissionId/review')
-  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN, AdminRole.SUPPORT_REVIEWER)
-  @ApiOperation({ summary: 'Approve or reject a KYC submission.' })
-  async reviewKyc(
-    @Param('submissionId') submissionId: string,
-    @Body() body: ReviewKycDto,
-    @CurrentUser('profileId') adminId: string,
-  ) {
-    return this.adminService.reviewKycSubmission(
-      submissionId,
-      adminId,
-      body.status,
-      body.reason,
-    );
-  }
-
-  // 4. Override trust metrics (high-privilege action)
+  // 2. Override trust metrics (high-privilege action)
   @Post('users/:profileId/trust-override')
   @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
   @ApiOperation({ summary: 'Override a user trust counter (audited).' })
