@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/config/api_config.dart';
 
 class ChatMessage {
   final String role;
@@ -13,8 +14,16 @@ class ChatState {
   final List<ChatMessage> messages;
   final bool isLoading;
   final String? error;
-  const ChatState({this.messages = const [], this.isLoading = false, this.error});
-  ChatState copyWith({List<ChatMessage>? messages, bool? isLoading, String? error}) {
+  const ChatState({
+    this.messages = const [],
+    this.isLoading = false,
+    this.error,
+  });
+  ChatState copyWith({
+    List<ChatMessage>? messages,
+    bool? isLoading,
+    String? error,
+  }) {
     return ChatState(
       messages: messages ?? this.messages,
       isLoading: isLoading ?? this.isLoading,
@@ -28,25 +37,33 @@ class ChatNotifier extends Notifier<ChatState> {
   ChatState build() => const ChatState();
 
   Future<void> sendMessage(String message, {String? image}) async {
-    final newMessages = [...state.messages, ChatMessage(role: 'user', content: message)];
+    final newMessages = [
+      ...state.messages,
+      ChatMessage(role: 'user', content: message),
+    ];
     state = state.copyWith(messages: newMessages, isLoading: true);
     try {
       final token = Supabase.instance.client.auth.currentSession?.accessToken;
       final dio = Dio();
       final response = await dio.post(
-        'http://localhost:3001/api/chat/message',
+        '${ApiConfig.baseUrl}/chat/message',
         data: {
           'message': message,
           'history': newMessages.map((m) => m.toJson()).toList(),
           if (image != null) 'image': image,
         },
-        options: Options(headers: {
-          'Content-Type': 'application/json',
-          if (token != null) 'Authorization': 'Bearer $token',
-        }),
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+            if (token != null) 'Authorization': 'Bearer $token',
+          },
+        ),
       );
       final reply = response.data['data']['reply'] as String;
-      final updated = [...newMessages, ChatMessage(role: 'assistant', content: reply)];
+      final updated = [
+        ...newMessages,
+        ChatMessage(role: 'assistant', content: reply),
+      ];
       state = state.copyWith(messages: updated, isLoading: false);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: 'Connection error.');
@@ -56,4 +73,6 @@ class ChatNotifier extends Notifier<ChatState> {
   void clearChat() => state = const ChatState();
 }
 
-final chatProvider = NotifierProvider<ChatNotifier, ChatState>(ChatNotifier.new);
+final chatProvider = NotifierProvider<ChatNotifier, ChatState>(
+  ChatNotifier.new,
+);
