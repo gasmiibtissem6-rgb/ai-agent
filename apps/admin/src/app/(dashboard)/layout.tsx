@@ -22,31 +22,40 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     async function verifyAdminSession() {
       try {
         const token = localStorage.getItem("admin_token");
-        if (!token) {
+        if (!token || token === "undefined" || token === "null") {
           router.replace("/login");
           return;
         }
 
-        // Fetch profile details from NestJS to check role clearance
-const profileResponse = await apiRequest<any>("/auth/profile");
+        const profileResponse = await apiRequest<{ data?: AdminUser }>(
+          "/auth/profile",
+        );
+        const profile = profileResponse?.data;
+        const validRoles = [
+          "super_admin",
+          "admin",
+          "support_reviewer",
+          "finance_reviewer",
+          "SUPER_ADMIN",
+          "ADMIN",
+          "SUPPORT_REVIEWER",
+          "FINANCE_REVIEWER",
+        ];
 
-// Grab the nested data object
-const profile = profileResponse?.data; 
+        if (
+          !profile ||
+          !profile.adminRole ||
+          !validRoles.includes(profile.adminRole)
+        ) {
+          localStorage.removeItem("admin_token");
+          router.replace("/login");
+          return;
+        }
 
-const validRoles = ["super_admin", "admin", "support_reviewer", "finance_reviewer", "SUPER_ADMIN", "ADMIN", "SUPPORT_REVIEWER", "FINANCE_REVIEWER"];
-
-// 2. Use profile.adminRole instead of profile.role
-if (!profile || !profile.adminRole || !validRoles.includes(profile.adminRole)) {
-  console.log("Role validation failed for:", profile); 
-  localStorage.removeItem("admin_token");
-  router.replace("/login");
-  return;
-}
-
-// 3. Set your state using the nested profile data
-setAdmin(profile);
+        setAdmin(profile);
       } catch (err) {
         console.error("Session verification failed:", err);
+        localStorage.removeItem("admin_token");
         router.replace("/login");
       } finally {
         setLoading(false);

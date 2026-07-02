@@ -7,4 +7,8 @@ export class ChatMessageDto {
   @IsArray()
   @IsOptional()
   history?: { role: string; content: string }[];
+
+  @IsString()
+  @IsOptional()
+  image?: string;
 }

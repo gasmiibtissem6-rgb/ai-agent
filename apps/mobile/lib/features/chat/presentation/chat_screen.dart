@@ -1,11 +1,15 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:dio/dio.dart';
-import 'dart:html' as html;
 import '../domain/chat_provider.dart';
+import '../../../core/config/api_config.dart';
+import '../../../shared/file_saver.dart';
 import '../../../shared/ideal_ui.dart';
+import 'scan_contract_button.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   const ChatScreen({super.key});
@@ -55,7 +59,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _toggleListening() async {
     if (!_speechAvailable) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Voice input not available on this browser/device.')),
+        const SnackBar(
+          content: Text('Voice input not available on this browser/device.'),
+        ),
       );
       return;
     }
@@ -86,7 +92,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         duration: const Duration(milliseconds: 800),
-        content: Text('Voice language: ${_locales.firstWhere((l) => l['code'] == _currentLocale)['label']}'),
+        content: Text(
+          'Voice language: ${_locales.firstWhere((l) => l['code'] == _currentLocale)['label']}',
+        ),
       ),
     );
   }
@@ -99,11 +107,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     super.dispose();
   }
 
+  String? _pendingImage;
+
   void _send() {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
     _controller.clear();
-    ref.read(chatProvider.notifier).sendMessage(text);
+    final image = _pendingImage;
+    _pendingImage = null;
+    ref.read(chatProvider.notifier).sendMessage(text, image: image);
     Future.delayed(const Duration(milliseconds: 300), () {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -119,21 +131,19 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     try {
       final dio = Dio();
       final response = await dio.post(
-        'http://localhost:3001/api/chat/generate-pdf',
+        '${ApiConfig.baseUrl}/chat/generate-pdf',
         data: {'content': content, 'title': 'Contract'},
         options: Options(responseType: ResponseType.bytes),
       );
-      final blob = html.Blob([response.data], 'application/pdf');
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      final anchor = html.AnchorElement(href: url)
-        ..setAttribute('download', 'contract.pdf')
-        ..click();
-      html.Url.revokeObjectUrl(url);
+      final bytes = response.data is Uint8List
+          ? response.data as Uint8List
+          : Uint8List.fromList(List<int>.from(response.data as List));
+      await savePdfBytes(bytes, 'contract.pdf');
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to generate PDF')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Failed to generate PDF')));
       }
     }
   }
@@ -154,9 +164,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             icon: const Icon(Icons.picture_as_pdf),
             tooltip: 'Download PDF',
             color: Colors.red.shade400,
-            onPressed: () => _downloadPdf(
-              messages.where((m) => m.role != 'user').map((m) => m.content).join('\n\n'),
-            ),
+            onPressed: () {
+              final aiMessages = messages
+                  .where(
+                    (m) =>
+                        m.role != 'user' &&
+                        (m.content.contains('CONTRAT') ||
+                            m.content.contains('ARTICLE') ||
+                            m.content.contains('contrat')),
+                  )
+                  .toList();
+              if (aiMessages.isNotEmpty) _downloadPdf(aiMessages.last.content);
+            },
           ),
         IconButton(
           icon: const Icon(Icons.delete_outline),
@@ -171,8 +190,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               Container(
                 width: double.infinity,
                 color: Colors.red.shade900.withOpacity(0.3),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Text(state.error!, style: const TextStyle(color: Colors.redAccent)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                child: Text(
+                  state.error!,
+                  style: const TextStyle(color: Colors.redAccent),
+                ),
               ),
             Expanded(
               child: messages.isEmpty && !isLoading
@@ -180,13 +205,28 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.smart_toy_outlined, size: 64, color: colorScheme.primary.withOpacity(0.5)),
+                          Icon(
+                            Icons.smart_toy_outlined,
+                            size: 64,
+                            color: colorScheme.primary.withOpacity(0.5),
+                          ),
                           const SizedBox(height: 16),
-                          Text('AI Assistant', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: colorScheme.onSurface)),
+                          Text(
+                            'AI Assistant',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: colorScheme.onSurface,
+                            ),
+                          ),
                           const SizedBox(height: 8),
-                          Text('Ask me about contracts or app features\nin English, French or Arabic',
+                          Text(
+                            'Ask me about contracts or app features\nin English, French or Arabic',
                             textAlign: TextAlign.center,
-                            style: TextStyle(color: colorScheme.onSurface.withOpacity(0.6))),
+                            style: TextStyle(
+                              color: colorScheme.onSurface.withOpacity(0.6),
+                            ),
+                          ),
                         ],
                       ),
                     )
@@ -200,33 +240,62 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             alignment: Alignment.centerLeft,
                             child: Container(
                               margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
                               decoration: BoxDecoration(
                                 color: colorScheme.surfaceContainerHighest,
                                 borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(16), topRight: Radius.circular(16),
-                                  bottomRight: Radius.circular(16), bottomLeft: Radius.circular(4),
+                                  topLeft: Radius.circular(16),
+                                  topRight: Radius.circular(16),
+                                  bottomRight: Radius.circular(16),
+                                  bottomLeft: Radius.circular(4),
                                 ),
                               ),
-                              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                                SizedBox(width: 16, height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: colorScheme.primary)),
-                                const SizedBox(width: 8),
-                                Text('Thinking...', style: TextStyle(color: colorScheme.onSurface)),
-                              ]),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: colorScheme.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Thinking...',
+                                    style: TextStyle(
+                                      color: colorScheme.onSurface,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           );
                         }
                         final msg = messages[index];
                         final isUser = msg.role == 'user';
                         return Align(
-                          alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                          alignment: isUser
+                              ? Alignment.centerRight
+                              : Alignment.centerLeft,
                           child: Container(
                             margin: const EdgeInsets.only(bottom: 8),
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 10,
+                            ),
+                            constraints: BoxConstraints(
+                              maxWidth:
+                                  MediaQuery.of(context).size.width * 0.75,
+                            ),
                             decoration: BoxDecoration(
-                              color: isUser ? colorScheme.primary : colorScheme.surfaceContainerHighest,
+                              color: isUser
+                                  ? colorScheme.primary
+                                  : colorScheme.surfaceContainerHighest,
                               borderRadius: BorderRadius.only(
                                 topLeft: const Radius.circular(16),
                                 topRight: const Radius.circular(16),
@@ -235,12 +304,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                               ),
                             ),
                             child: isUser
-                                ? Text(msg.content, style: TextStyle(color: colorScheme.onPrimary, fontSize: 15))
+                                ? Text(
+                                    msg.content,
+                                    style: TextStyle(
+                                      color: colorScheme.onPrimary,
+                                      fontSize: 15,
+                                    ),
+                                  )
                                 : MarkdownBody(
                                     data: msg.content,
                                     styleSheet: MarkdownStyleSheet(
-                                      p: TextStyle(color: colorScheme.onSurface, fontSize: 15),
-                                      strong: TextStyle(color: colorScheme.onSurface, fontWeight: FontWeight.bold, fontSize: 15),
+                                      p: TextStyle(
+                                        color: colorScheme.onSurface,
+                                        fontSize: 15,
+                                      ),
+                                      strong: TextStyle(
+                                        color: colorScheme.onSurface,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 15,
+                                      ),
                                     ),
                                   ),
                           ),
@@ -253,48 +335,78 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                 decoration: BoxDecoration(
                   color: colorScheme.surface,
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, -2))],
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, -2),
+                    ),
+                  ],
                 ),
-                child: Row(children: [
-                  GestureDetector(
-                    onLongPress: _cycleLocale,
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      decoration: BoxDecoration(
-                        color: _isListening ? Colors.red.withOpacity(0.15) : Colors.transparent,
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        icon: Icon(_isListening ? Icons.mic : Icons.mic_none),
-                        color: _isListening ? Colors.red : colorScheme.primary,
-                        tooltip: 'Tap to speak (${_locales.firstWhere((l) => l['code'] == _currentLocale)['label']}) — long-press to change language',
-                        onPressed: _toggleListening,
+                child: Row(
+                  children: [
+                    ScanContractButton(
+                      onTextExtracted: (text, imageBase64) {
+                        setState(() => _pendingImage = imageBase64);
+                        _controller.text = text.isNotEmpty
+                            ? 'Voici le contrat scanné, analyse-le et aide-moi à le comprendre :\n\n$text'
+                            : 'Voici une photo de mon document, analyse-le et aide-moi à le comprendre.';
+                      },
+                    ),
+                    const SizedBox(width: 4),
+                    GestureDetector(
+                      onLongPress: _cycleLocale,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        decoration: BoxDecoration(
+                          color: _isListening
+                              ? Colors.red.withOpacity(0.15)
+                              : Colors.transparent,
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          icon: Icon(_isListening ? Icons.mic : Icons.mic_none),
+                          color: _isListening
+                              ? Colors.red
+                              : colorScheme.primary,
+                          tooltip:
+                              'Tap to speak (${_locales.firstWhere((l) => l['code'] == _currentLocale)['label']}) — long-press to change language',
+                          onPressed: _toggleListening,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      minLines: 1,
-                      maxLines: 4,
-                      decoration: InputDecoration(
-                        hintText: _isListening ? 'Listening...' : 'Ask a question or describe a contract...',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
-                        filled: true,
-                        fillColor: colorScheme.surfaceContainerHighest,
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        minLines: 1,
+                        maxLines: 4,
+                        decoration: InputDecoration(
+                          hintText: _isListening
+                              ? 'Listening...'
+                              : 'Ask a question or describe a contract...',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(24),
+                            borderSide: BorderSide.none,
+                          ),
+                          filled: true,
+                          fillColor: colorScheme.surfaceContainerHighest,
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
+                        ),
+                        onSubmitted: (_) => _send(),
                       ),
-                      onSubmitted: (_) => _send(),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  IconButton(
-                    icon: const Icon(Icons.send),
-                    color: colorScheme.primary,
-                    onPressed: _send,
-                  ),
-                ]),
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: const Icon(Icons.send),
+                      color: colorScheme.primary,
+                      onPressed: _send,
+                    ),
+                  ],
+                ),
               ),
             ),
           ],

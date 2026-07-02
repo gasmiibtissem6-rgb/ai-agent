@@ -1,38 +1,65 @@
 // kyc.controller.ts
-import { Controller, Post, Body, Req, UseGuards, Headers, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  Headers,
+  ValidationPipe,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { KycService } from './kyc.service';
-// Import your custom JwtAuthGuard or strategy here
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { InitiateKycDto } from './dto/initiate-kyc.dto';
+import { ProviderWebhookDto } from './dto/provider-webhook.dto';
 
+@ApiTags('kyc')
 @Controller('kyc')
 export class KycController {
   constructor(private readonly kycService: KycService) {}
 
   // Route for regular users starting their KYC verification loop
   @Post('initiate')
-  // @UseGuards(JwtAuthGuard) <- Protect this route so only authenticated users can trigger it
+  @UseGuards(JwtAuthGuard) //  Only an authenticated user may start their own KYC
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Start a KYC verification submission for the caller.' })
   async startVerification(
-    @Req() req: any, 
-    @Body() body: { providerReference?: string }
+    @CurrentUser('profileId') profileId: string,
+    @Body() body: InitiateKycDto,
   ) {
-    const profileId = req.user.id; // Adjust based on your passport setup
     return this.kycService.initiateSubmission(profileId, body.providerReference);
   }
 
-  // Public webhook handling incoming programmatic data payloads from external vendor APIs
+  // Public webhook handling incoming programmatic data payloads from external vendor APIs.
+  // Intentionally NOT behind JwtAuthGuard — authenticated instead via the provider signature.
   @Post('webhooks/provider')
+  @ApiOperation({
+    summary: 'Receive KYC status updates from the external provider.',
+    description:
+      'Public endpoint secured by the x-provider-signature header (verify before processing).',
+  })
   async handleProviderWebhook(
     @Headers('x-provider-signature') signature: string, // Secure your endpoint! Verify tokens here
-    @Body() payload: any
+    // Strip (don't reject) unknown provider fields, unlike the global pipe.
+    @Body(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: false,
+        transform: true,
+      }),
+    )
+    payload: ProviderWebhookDto,
   ) {
-    if (!payload || !payload.reference) {
-      throw new BadRequestException('Malformed webhook data packet payload.');
-    }
-
-    // Process provider responses (assuming standard webhook format: reference, status, and failures)
+    // Process provider responses (reference, status, and optional failure reason).
     return this.kycService.handleWebhookStatusUpdate(
       payload.reference,
       payload.status,
-      payload.reason
+      payload.reason,
     );
   }
 }

@@ -32,7 +32,7 @@ dependencies:
 
   # File & image picking (KYC upload)
   file_picker: ^8.1.2
-  image_picker: ^1.1.2
+  image_picker: ^1.2.2
 
   # Image display
   cached_network_image: ^3.4.1
