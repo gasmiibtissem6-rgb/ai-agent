@@ -18,9 +18,13 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('login/admin')
-  @ApiOperation({ summary: 'Authenticate an administrator and return a token.' })
+  @ApiOperation({
+    summary: 'Authenticate an administrator and return a token.',
+  })
   @ApiOkResponse({ description: 'Returns a bearer token for the admin.' })
-  @ApiUnauthorizedResponse({ description: 'Invalid administrative credentials.' })
+  @ApiUnauthorizedResponse({
+    description: 'Invalid administrative credentials.',
+  })
   async login(@Body() body: AdminLoginDto) {
     return this.authService.login(body.email, body.password);
   }
@@ -35,7 +39,9 @@ export class AuthController {
       'validates either and resolves the Prisma profile.',
   })
   @ApiOkResponse({ description: 'The authenticated profile.' })
-  @ApiUnauthorizedResponse({ description: 'Missing, invalid or expired token.' })
+  @ApiUnauthorizedResponse({
+    description: 'Missing, invalid or expired token.',
+  })
   async getMe(@CurrentUser() user: AuthenticatedUser) {
     return this.authService.getMe(user);
   }
@@ -44,7 +50,8 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Return the authenticated user profile (legacy alias of /auth/me).',
+    summary:
+      'Return the authenticated user profile (legacy alias of /auth/me).',
     deprecated: true,
   })
   async getProfile(@CurrentUser() user: AuthenticatedUser) {

@@ -18,7 +18,8 @@ export class AppController {
   @UseGuards(JwtAuthGuard)
   getSecureData(@CurrentUser() user: AuthenticatedUser) {
     return {
-      message: 'If you see this, your JwtAuthGuard successfully verified the token!',
+      message:
+        'If you see this, your JwtAuthGuard successfully verified the token!',
       userPayload: user,
     };
   }

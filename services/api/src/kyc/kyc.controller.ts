@@ -7,11 +7,7 @@ import {
   Headers,
   ValidationPipe,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiTags,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { KycService } from './kyc.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -27,12 +23,17 @@ export class KycController {
   @Post('initiate')
   @UseGuards(JwtAuthGuard) //  Only an authenticated user may start their own KYC
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Start a KYC verification submission for the caller.' })
+  @ApiOperation({
+    summary: 'Start a KYC verification submission for the caller.',
+  })
   async startVerification(
     @CurrentUser('profileId') profileId: string,
     @Body() body: InitiateKycDto,
   ) {
-    return this.kycService.initiateSubmission(profileId, body.providerReference);
+    return this.kycService.initiateSubmission(
+      profileId,
+      body.providerReference,
+    );
   }
 
   // Public webhook handling incoming programmatic data payloads from external vendor APIs.

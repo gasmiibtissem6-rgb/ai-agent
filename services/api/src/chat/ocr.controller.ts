@@ -14,7 +14,8 @@ export class OcrController {
       await worker.terminate();
 
       const text = data.text.trim();
-      if (!text) return { success: false, text: '', message: 'Aucun texte détecté' };
+      if (!text)
+        return { success: false, text: '', message: 'Aucun texte détecté' };
 
       return { success: true, text, confidence: data.confidence };
     } catch (err: any) {

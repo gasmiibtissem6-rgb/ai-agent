@@ -10,6 +10,12 @@ import { OcrController } from './ocr.controller';
 
 @Module({
   controllers: [ChatController, PdfController, OcrController],
-  providers: [ChatService, MockAiProvider, ClaudeAiProvider, GeminiAiProvider, PdfService],
+  providers: [
+    ChatService,
+    MockAiProvider,
+    ClaudeAiProvider,
+    GeminiAiProvider,
+    PdfService,
+  ],
 })
 export class ChatModule {}

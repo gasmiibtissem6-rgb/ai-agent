@@ -78,33 +78,64 @@ RÈGLE ABSOLUE :
 - N'invente jamais de clauses ou de montants qui ne figurent pas dans le texte fourni.`;
 
 const CONTRACT_KEYWORDS = [
-  'contrat', 'contract', 'عقد',
-  'accord', 'agreement', 'اتفاقية',
-  'rédige', 'rédiger', 'génère', 'générer', 'draft', 'create a contract',
-  'location', 'vente', 'bail', 'service', 'lease', 'rental', 'sale',
-  'nda', 'partenariat', 'partnership', 'employment', 'emploi', 'travail',
+  'contrat',
+  'contract',
+  'عقد',
+  'accord',
+  'agreement',
+  'اتفاقية',
+  'rédige',
+  'rédiger',
+  'génère',
+  'générer',
+  'draft',
+  'create a contract',
+  'location',
+  'vente',
+  'bail',
+  'service',
+  'lease',
+  'rental',
+  'sale',
+  'nda',
+  'partenariat',
+  'partnership',
+  'employment',
+  'emploi',
+  'travail',
 ];
 
 const ANALYZE_TRIGGERS = [
-  'contrat scanné', 'document scanné', 'scanned contract', 'scanned document',
-  'analyse-le', 'analyse ce', 'analyze this', 'analyser ce document',
-  'وثيقة ممسوحة', 'عقد ممسوح',
+  'contrat scanné',
+  'document scanné',
+  'scanned contract',
+  'scanned document',
+  'analyse-le',
+  'analyse ce',
+  'analyze this',
+  'analyser ce document',
+  'وثيقة ممسوحة',
+  'عقد ممسوح',
 ];
 
-export function detectChatMode(message: string, history?: { role: string; content: string }[]): ChatMode {
+export function detectChatMode(
+  message: string,
+  history?: { role: string; content: string }[],
+): ChatMode {
   const lower = message.toLowerCase();
 
   // Priorité 1 : un texte scanné/importé envoyé pour analyse
-  if (ANALYZE_TRIGGERS.some(k => lower.includes(k))) return 'analyze';
+  if (ANALYZE_TRIGGERS.some((k) => lower.includes(k))) return 'analyze';
 
   // Priorité 2 : demande de rédaction d'un nouveau contrat
-  if (CONTRACT_KEYWORDS.some(k => lower.includes(k))) return 'contract';
+  if (CONTRACT_KEYWORDS.some((k) => lower.includes(k))) return 'contract';
 
   // Si le mode contrat a déjà été activé dans cette conversation, on y reste
   if (history && history.length > 0) {
-    const fullHistory = history.map(h => h.content.toLowerCase()).join(' ');
-    if (ANALYZE_TRIGGERS.some(k => fullHistory.includes(k))) return 'faq';
-    if (CONTRACT_KEYWORDS.some(k => fullHistory.includes(k))) return 'contract';
+    const fullHistory = history.map((h) => h.content.toLowerCase()).join(' ');
+    if (ANALYZE_TRIGGERS.some((k) => fullHistory.includes(k))) return 'faq';
+    if (CONTRACT_KEYWORDS.some((k) => fullHistory.includes(k)))
+      return 'contract';
   }
 
   return 'faq';

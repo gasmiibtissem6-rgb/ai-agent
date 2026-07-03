@@ -19,7 +19,10 @@ const buildUser = (
 
 const buildContext = (
   authorization?: string,
-): { ctx: ExecutionContext; request: { headers: Record<string, string>; user?: AuthenticatedUser } } => {
+): {
+  ctx: ExecutionContext;
+  request: { headers: Record<string, string>; user?: AuthenticatedUser };
+} => {
   const request: { headers: Record<string, string>; user?: AuthenticatedUser } =
     { headers: authorization ? { authorization } : {} };
   const ctx = {
@@ -39,10 +42,7 @@ describe('JwtAuthGuard', () => {
   beforeEach(() => {
     authService = { verifyToken: jest.fn() };
     reflector = new Reflector();
-    guard = new JwtAuthGuard(
-      authService as unknown as AuthService,
-      reflector,
-    );
+    guard = new JwtAuthGuard(authService as unknown as AuthService, reflector);
   });
 
   it('allows a request with a valid token and attaches the user', async () => {

@@ -10,11 +10,13 @@ export class ProfilesService {
   async getProfileByUserId(userId: string) {
     // 💡 We use 'this.prisma.profile' and look up by 'authUserId'
     const profile = await this.prisma.profile.findUnique({
-      where: { authUserId: userId }, 
+      where: { authUserId: userId },
     });
-    
+
     if (!profile) {
-      throw new NotFoundException('Profile configuration not found for this account.');
+      throw new NotFoundException(
+        'Profile configuration not found for this account.',
+      );
     }
     return profile;
   }

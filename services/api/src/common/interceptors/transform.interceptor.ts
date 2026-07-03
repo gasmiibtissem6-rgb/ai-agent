@@ -33,9 +33,10 @@ function isMessagedPayload<T>(value: unknown): value is MessagedPayload<T> {
 }
 
 @Injectable()
-export class TransformInterceptor<T>
-  implements NestInterceptor<T, StandardResponse<T>>
-{
+export class TransformInterceptor<T> implements NestInterceptor<
+  T,
+  StandardResponse<T>
+> {
   intercept(
     context: ExecutionContext,
     next: CallHandler,

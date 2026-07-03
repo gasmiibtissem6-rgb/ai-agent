@@ -1,5 +1,9 @@
 // kyc.service.ts
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service'; // Adjust relative path
 import { KycStatus } from '@prisma/client';
 
@@ -17,7 +21,9 @@ export class KycService {
     });
 
     if (existingActive) {
-      throw new ConflictException('You already have an active verification submission pending review.');
+      throw new ConflictException(
+        'You already have an active verification submission pending review.',
+      );
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -40,19 +46,27 @@ export class KycService {
   }
 
   // 2. Automated processing engine for 3rd-party Webhook updates
-  async handleWebhookStatusUpdate(providerReference: string, externalStatus: string, rejectionReason?: string) {
+  async handleWebhookStatusUpdate(
+    providerReference: string,
+    externalStatus: string,
+    rejectionReason?: string,
+  ) {
     const submission = await this.prisma.kycSubmission.findFirst({
       where: { providerReference },
     });
 
     if (!submission) {
-      throw new NotFoundException(`KYC submission tracing reference ${providerReference} not found.`);
+      throw new NotFoundException(
+        `KYC submission tracing reference ${providerReference} not found.`,
+      );
     }
 
     // Map external vendor string payloads cleanly to your database Prisma Enums
     let targetStatus: KycStatus = KycStatus.UNDER_REVIEW;
-    if (externalStatus === 'verified' || externalStatus === 'approved') targetStatus = KycStatus.APPROVED;
-    if (externalStatus === 'requires_input' || externalStatus === 'rejected') targetStatus = KycStatus.REJECTED;
+    if (externalStatus === 'verified' || externalStatus === 'approved')
+      targetStatus = KycStatus.APPROVED;
+    if (externalStatus === 'requires_input' || externalStatus === 'rejected')
+      targetStatus = KycStatus.REJECTED;
 
     return this.prisma.$transaction(async (tx) => {
       const updatedSubmission = await tx.kycSubmission.update({

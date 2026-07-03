@@ -8,21 +8,20 @@ import { AdminRole, KycStatus, Profile } from '@prisma/client';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 
-const buildProfile = (overrides: Partial<Profile> = {}): Profile =>
-  ({
-    id: 'profile-1',
-    authUserId: 'auth-user-1',
-    email: 'user@example.com',
-    displayName: 'User',
-    avatarUrl: null,
-    kycStatus: KycStatus.APPROVED,
-    isAdmin: false,
-    adminRole: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    archivedAt: null,
-    ...overrides,
-  }) as Profile;
+const buildProfile = (overrides: Partial<Profile> = {}): Profile => ({
+  id: 'profile-1',
+  authUserId: 'auth-user-1',
+  email: 'user@example.com',
+  displayName: 'User',
+  avatarUrl: null,
+  kycStatus: KycStatus.APPROVED,
+  isAdmin: false,
+  adminRole: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  archivedAt: null,
+  ...overrides,
+});
 
 describe('AuthService.verifyToken', () => {
   let service: AuthService;
@@ -97,9 +96,11 @@ describe('AuthService.verifyToken', () => {
     // NestJS verification fails so the Supabase branch runs.
     jwtService.verifyAsync.mockRejectedValue(new Error('bad signature'));
     // Inject a stub Supabase client (no SUPABASE_JWT_SECRET → network path).
-    (service as unknown as {
-      supabase: { auth: { getUser: jest.Mock } };
-    }).supabase = {
+    (
+      service as unknown as {
+        supabase: { auth: { getUser: jest.Mock } };
+      }
+    ).supabase = {
       auth: {
         getUser: jest.fn().mockResolvedValue({
           data: { user: { id: 'auth-user-1' } },
@@ -124,9 +125,9 @@ describe('AuthService.verifyToken', () => {
       buildProfile({ archivedAt: new Date() }),
     );
 
-    await expect(service.verifyToken('valid.nest.token')).rejects.toBeInstanceOf(
-      UnauthorizedException,
-    );
+    await expect(
+      service.verifyToken('valid.nest.token'),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   describe('getMe', () => {

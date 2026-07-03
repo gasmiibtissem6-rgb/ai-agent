@@ -59,7 +59,8 @@ export class DealsController {
         {
           method: 'POST',
           path: '/api/v1/deals',
-          purpose: 'Create a draft deal. Requires full KYC validation confirmation.',
+          purpose:
+            'Create a draft deal. Requires full KYC validation confirmation.',
           authenticated: true,
           auditRequired: true,
         },
