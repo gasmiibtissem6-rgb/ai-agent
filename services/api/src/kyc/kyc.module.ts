@@ -1,14 +1,15 @@
-// kyc.module.ts
 import { Module } from '@nestjs/common';
-import { KycController } from './kyc.controller';
+import { KycController } from './kyc.controller'; // Adjust filename to match your controller file
 import { KycService } from './kyc.service';
-import { PrismaModule } from '../prisma/prisma.module'; // Adjust relative path
-import { AuthModule } from '../auth/auth.module'; // Provides JwtAuthGuard
+import { PrismaModule } from '../prisma/prisma.module';
+import { AuthModule } from '../auth/auth.module'; // 1. Import your AuthModule (adjust the path if needed)
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [
+    PrismaModule, 
+    AuthModule // 2. Add AuthModule here to provide AuthService to your JwtAuthGuard
+  ],
   controllers: [KycController],
   providers: [KycService],
-  exports: [KycService], // Exporting allows AdminModule to access shared verification steps
 })
 export class KycModule {}
