@@ -10,7 +10,7 @@ export class DealsService {
     // 1. Find the internal profile associated with the Supabase auth UUID
     const profile = await this.prisma.profile.findUnique({
       where: { authUserId: authUserId }, // Maps the 'sub' from your JWT
-    });
+    })
 
     if (!profile) {
       throw new NotFoundException('Profile not found for this account.');
