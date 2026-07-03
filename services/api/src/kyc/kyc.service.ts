@@ -1,15 +1,5 @@
-<<<<<<< HEAD
-// kyc.service.ts
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-} from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service'; // Adjust relative path
-=======
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
->>>>>>> 8f5ce2b850dbacc959ab0a4bdd5aebbb96355f60
 import { KycStatus } from '@prisma/client';
 
 @Injectable()
@@ -32,13 +22,6 @@ export class KycService {
       orderBy: { createdAt: 'asc' },
     });
 
-<<<<<<< HEAD
-    if (existingActive) {
-      throw new ConflictException(
-        'You already have an active verification submission pending review.',
-      );
-    }
-=======
     // 2. Map submissions safely by casting to 'any' to stop compiler errors 
     // while you verify your exact property names
     return submissions.map((sub: any) => {
@@ -50,7 +33,6 @@ export class KycService {
       const secureViewUrl = fileIdentifier
         ? `https://your-project-id.supabase.co/storage/v1/object/public/your-bucket-name/${fileIdentifier}`
         : '#';
->>>>>>> 8f5ce2b850dbacc959ab0a4bdd5aebbb96355f60
 
       // Dynamic fallback logic for applicant names
       const fullName = sub.profile?.name || 
@@ -69,30 +51,6 @@ export class KycService {
     });
   }
 
-<<<<<<< HEAD
-  // 2. Automated processing engine for 3rd-party Webhook updates
-  async handleWebhookStatusUpdate(
-    providerReference: string,
-    externalStatus: string,
-    rejectionReason?: string,
-  ) {
-    const submission = await this.prisma.kycSubmission.findFirst({
-      where: { providerReference },
-    });
-
-    if (!submission) {
-      throw new NotFoundException(
-        `KYC submission tracing reference ${providerReference} not found.`,
-      );
-    }
-
-    // Map external vendor string payloads cleanly to your database Prisma Enums
-    let targetStatus: KycStatus = KycStatus.UNDER_REVIEW;
-    if (externalStatus === 'verified' || externalStatus === 'approved')
-      targetStatus = KycStatus.APPROVED;
-    if (externalStatus === 'requires_input' || externalStatus === 'rejected')
-      targetStatus = KycStatus.REJECTED;
-=======
   /**
    * Commits state changes matching your schema constraints
    */
@@ -113,7 +71,6 @@ export class KycService {
     if (submission.status !== KycStatus.SUBMITTED) {
       throw new BadRequestException('This submission has already been processed.');
     }
->>>>>>> 8f5ce2b850dbacc959ab0a4bdd5aebbb96355f60
 
     return this.prisma.$transaction(async (tx) => {
       return tx.kycSubmission.update({
