@@ -2,6 +2,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service'; // Adjust path to your PrismaService
 import { KycStatus } from '@prisma/client';
+import { KycReviewDecision } from './dto/review-kyc.dto';
 
 @Injectable()
 export class AdminService {
@@ -70,7 +71,7 @@ export class AdminService {
   async reviewKycSubmission(
     submissionId: string,
     adminId: string,
-    status: 'APPROVED' | 'REJECTED',
+    status: KycReviewDecision,
     reason?: string,
   ) {
     const submission = await this.prisma.kycSubmission.findUnique({
@@ -81,12 +82,17 @@ export class AdminService {
       throw new NotFoundException('KYC submission record not found.');
     }
 
+    const targetStatus =
+      status === KycReviewDecision.APPROVED
+        ? KycStatus.APPROVED
+        : KycStatus.REJECTED;
+
     return this.prisma.$transaction(async (tx) => {
       // Update submission record
       const updatedSubmission = await tx.kycSubmission.update({
         where: { id: submissionId },
         data: {
-          status: status as KycStatus,
+          status: targetStatus,
           rejectionReason: reason || null,
           reviewedAt: new Date(),
           reviewedByProfileId: adminId,
@@ -96,14 +102,17 @@ export class AdminService {
       // Update global profile validation state
       await tx.profile.update({
         where: { id: submission.profileId },
-        data: { kycStatus: status as KycStatus },
+        data: { kycStatus: targetStatus },
       });
 
       // Log action to operational ledger
       await tx.adminAction.create({
         data: {
           adminProfileId: adminId,
-          actionType: status === 'APPROVED' ? 'KYC_APPROVED' : 'KYC_REJECTED',
+          actionType:
+            status === KycReviewDecision.APPROVED
+              ? 'KYC_APPROVED'
+              : 'KYC_REJECTED',
           targetResourceType: 'KycSubmission',
           targetResourceId: submissionId,
           reason,

@@ -1,6 +1,17 @@
 // src/lib/api-client.ts
 const BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001/api";
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001/api/v1";
+
+function clearAdminSession() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  localStorage.removeItem("admin_token");
+  document.cookie =
+    "admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  document.cookie = "token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+}
 
 export async function apiRequest<T>(
   endpoint: string,
@@ -23,31 +34,45 @@ export async function apiRequest<T>(
     cache: "no-store",
   };
 
-  const response = await fetch(`${BASE_URL}${endpoint}`, fetchOptions);
+  let response: Response;
+
+  try {
+    response = await fetch(`${BASE_URL}${endpoint}`, fetchOptions);
+  } catch {
+    return Promise.reject({
+      message:
+        "API unreachable. Check that the backend is running and ALLOWED_ORIGINS includes the admin origin.",
+      status: 0,
+      requestId: null,
+    });
+  }
 
   if (response.status === 401) {
-    // 💡 ONLY nuke the session if the user explicitly has no token or an invalid structural token.
-    // If a valid token is present, let the specific page or layout handle the restriction inline instead of crashing out.
     const currentToken =
       typeof window !== "undefined"
         ? localStorage.getItem("admin_token")
         : null;
+    const isSessionVerification =
+      endpoint === "/auth/profile" || endpoint === "/auth/me";
 
-    if (!currentToken || currentToken === "undefined") {
+    if (
+      !currentToken ||
+      currentToken === "undefined" ||
+      currentToken === "null" ||
+      isSessionVerification
+    ) {
       if (
         typeof window !== "undefined" &&
         window.location.pathname !== "/login" &&
         !endpoint.includes("login")
       ) {
-        localStorage.removeItem("admin_token");
-        document.cookie =
-          "admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+        clearAdminSession();
         window.location.href = "/login";
         return new Promise(() => {}) as Promise<T>;
       }
     }
 
-    // If there IS a token but the backend still sent back 401, treat it like a 403 (Forbidden Route/Role issue)
+    clearAdminSession();
     return Promise.reject(new Error("FORBIDDEN_ROLE"));
   }
 

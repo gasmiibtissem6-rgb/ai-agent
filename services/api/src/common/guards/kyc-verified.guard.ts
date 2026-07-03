@@ -10,10 +10,10 @@ export class KycVerifiedGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    const user = request.user; // Appended previously by your AuthGuard
+    const user = request.user; // Appended previously by JwtAuthGuard
 
     if (!user || !user.sub) {
-      throw new UnauthorizedException('Authentication context missing. Ensure AuthGuard is applied first.');
+      throw new UnauthorizedException('Authentication context missing. Ensure JwtAuthGuard is applied first.');
     }
 
     // Query the structural database state using the Supabase authUserId mapping index

@@ -1,11 +1,14 @@
 // services/api/src/deals/deals.controller.ts
-import { Controller, Get, Post, Body, UseGuards, Req } from '@nestjs/common';
-import { AuthGuard } from '../common/guards/auth.guard';
+import { Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { KycVerifiedGuard } from '../common/guards/kyc-verified.guard'; // 👈 Import the KYC guard
 import { DealsService } from './deals.service';
 import type { FoundationModuleSummary } from '../common/foundation.types';
 import { lifecycleStatuses } from '../common/foundation.types';
 
+@ApiTags('deals')
 @Controller('deals')
 export class DealsController {
   constructor(private readonly dealsService: DealsService) {}
@@ -16,9 +19,10 @@ export class DealsController {
    * Permissive: Accessible by any logged-in user so they can track historical info or incoming invites.
    */
   @Get()
-  @UseGuards(AuthGuard) 
-  async getMyDeals(@Req() req: any) {
-    return this.dealsService.getDealsByUserId(req.user.sub);
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  async getMyDeals(@CurrentUser('sub') sub: string) {
+    return this.dealsService.getDealsByUserId(sub);
   }
 
   /**
@@ -27,9 +31,11 @@ export class DealsController {
    * Restrictive: Enforces sequential gates: Is logged in? -> Is identity approved?
    */
   @Post()
-  @UseGuards(AuthGuard, KycVerifiedGuard) // 🔒 Stacking gates blocks unauthorized creation natively
-  async createDraftDeal(@Req() req: any, @Body() body: any) {
-    // return this.dealsService.createDeal(req.user.sub, body);
+  @UseGuards(JwtAuthGuard, KycVerifiedGuard) // 🔒 Stacking gates blocks unauthorized creation natively
+  @ApiBearerAuth()
+  async createDraftDeal() {
+    // Business logic intentionally left as-is (planned endpoint).
+    // return this.dealsService.createDeal(user.sub, body);
   }
 
   /**

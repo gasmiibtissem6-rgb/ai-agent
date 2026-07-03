@@ -1,6 +1,7 @@
-import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
+import '../../../core/config/api_config.dart';
+import '../../../shared/platform_file_picker.dart';
 
 class ScanContractButton extends StatefulWidget {
   final Function(String text, String imageBase64) onTextExtracted;
@@ -13,54 +14,64 @@ class ScanContractButton extends StatefulWidget {
 class _ScanContractButtonState extends State<ScanContractButton> {
   bool _isScanning = false;
 
-  void _pickAndScan() {
-    final input = html.FileUploadInputElement();
-    input.accept = 'image/*';
-    input.click();
-    input.onChange.listen((e) async {
-      final file = input.files?.first;
-      if (file == null) return;
-      setState(() => _isScanning = true);
-      final reader = html.FileReader();
-      reader.readAsDataUrl(file);
-      await reader.onLoad.first;
-      final base64 = reader.result as String;
-      try {
-        final dio = Dio();
-        final response = await dio.post(
-          'http://localhost:3001/api/chat/scan-contract',
-          data: {'image': base64, 'lang': 'fra+eng+ara'},
-        );
-        final raw = response.data;
-        final data = raw is Map ? (raw['data'] ?? raw) : raw;
-        final success = data['success'] == true;
-        final text = (data['text'] ?? '') as String;
-        if (success && text.isNotEmpty) {
-          widget.onTextExtracted(text, base64);
-        } else if (data['message'] == null && text.isEmpty) {
-          widget.onTextExtracted('', base64);
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('✅ Contrat scanné !'), backgroundColor: Colors.green),
+  Future<void> _pickAndScan() async {
+    final file = await pickSingleFile(
+      allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
+    );
+    if (file == null) return;
+
+    setState(() => _isScanning = true);
+    try {
+      final dio = Dio();
+      final response = await dio.post(
+        '${ApiConfig.baseUrl}/chat/scan-contract',
+        data: {'image': file.dataUrl, 'lang': 'fra+eng+ara'},
+      );
+      final raw = response.data;
+      final data = raw is Map ? (raw['data'] ?? raw) : raw;
+      final success = data['success'] == true;
+      final text = (data['text'] ?? '') as String;
+      if (success && text.isNotEmpty) {
+        widget.onTextExtracted(text, file.dataUrl);
+      } else if (data['message'] == null && text.isEmpty) {
+        widget.onTextExtracted('', file.dataUrl);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('✅ Contrat scanné !'),
+              backgroundColor: Colors.green,
+            ),
           );
-        } else {
-          final msg = (data['message'] ?? 'Aucun texte détecté') as String;
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        }
+      } else {
+        final msg = (data['message'] ?? 'Aucun texte détecté') as String;
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('❌ $msg'), backgroundColor: Colors.red),
           );
         }
-      } catch (e) {
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('❌ Erreur de scan'), backgroundColor: Colors.red),
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ Erreur de scan'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
-      setState(() => _isScanning = false);
-    });
+    }
+    setState(() => _isScanning = false);
   }
 
   @override
   Widget build(BuildContext context) {
     return _isScanning
-        ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+        ? const SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          )
         : IconButton(
             icon: const Icon(Icons.document_scanner),
             tooltip: 'Scanner un contrat papier',
