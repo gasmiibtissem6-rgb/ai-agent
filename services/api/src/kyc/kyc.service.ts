@@ -10,7 +10,7 @@ export class KycService {
    * Fetches the queue data tailored precisely for your Next.js Table view
    */
   async getPendingSubmissions() {
-    // 1. Fetch using a clean include block to bypass strict select compilation issues
+    // 1. Fetch using clear relation include blocks matching your exact schema models
     const submissions = await this.prisma.kycSubmission.findMany({
       where: {
         status: KycStatus.SUBMITTED,
@@ -22,28 +22,26 @@ export class KycService {
       orderBy: { createdAt: 'asc' },
     });
 
-    // 2. Map submissions safely by casting to 'any' to stop compiler errors 
-    // while you verify your exact property names
-    return submissions.map((sub: any) => {
+    // 2. Map submissions cleanly utilizing exact schema properties
+    return submissions.map((sub) => {
       const primaryFile = sub.files?.[0];
       
-      // Dynamic fallback logic for file properties
-      const fileIdentifier = primaryFile?.fileKey || primaryFile?.url || primaryFile?.path || '';
+      // Map to your precise schema keys: storagePath and storageBucket
+      const path = primaryFile?.storagePath || '';
+      const bucket = primaryFile?.storageBucket || 'kyc-documents';
       
-      const secureViewUrl = fileIdentifier
-        ? `https://your-project-id.supabase.co/storage/v1/object/public/your-bucket-name/${fileIdentifier}`
+      const secureViewUrl = path
+        ? `https://your-project-id.supabase.co/storage/v1/object/public/${bucket}/${path}`
         : '#';
 
-      // Dynamic fallback logic for applicant names
-      const fullName = sub.profile?.name || 
-                        `${sub.profile?.firstName || ''} ${sub.profile?.lastName || ''}`.trim() || 
-                        'Anonymous User';
+      // Map to your precise schema key: displayName (with email fallback)
+      const applicantName = sub.profile?.displayName || sub.profile?.email || 'Anonymous User';
 
       return {
         id: sub.id,
-        applicant: fullName,
+        applicant: applicantName,
         email: sub.profile?.email || 'admin@ideal.com',
-        docType: primaryFile?.name || 'Identity Document',
+        docType: primaryFile?.originalFileName || 'Identity Document', // Maps to your schema's originalFileName
         idNumber: sub.providerReference || 'N/A', 
         fileLink: secureViewUrl,
         submittedAt: sub.submittedAt,
@@ -73,7 +71,8 @@ export class KycService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      return tx.kycSubmission.update({
+      // 1. Update the KYC Submission state record
+      const updatedSubmission = await tx.kycSubmission.update({
         where: { id: submissionId },
         data: {
           status,
@@ -82,6 +81,16 @@ export class KycService {
           reviewedByProfileId: adminProfileId,
         },
       });
+
+      // 2. Cascade update the corresponding status enum directly on the User Profile table
+      await tx.profile.update({
+        where: { id: submission.profileId },
+        data: {
+          kycStatus: status, // Syncs 'APPROVED' or 'REJECTED' to profile.kyc_status
+        },
+      });
+
+      return updatedSubmission;
     });
   }
 }
