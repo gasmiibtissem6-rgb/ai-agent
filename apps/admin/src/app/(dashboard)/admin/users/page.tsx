@@ -32,12 +32,10 @@ export default function UsersDirectoryPage() {
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const mockSupabaseToken = "Owtu4FJDWQWVwEyJsc70Mep9nzdAK9aCy4fGudGNV/QPY10QDsFuezCsFBmanxEexKibNR6W1WwsFvYsihAx+w==" ; 
-
   const loadDirectoryData = async () => {
   try {
     setLoading(true);
-    const responsePayload = await adminService.getUsersDirectory(mockSupabaseToken, 1, 10);
+    const responsePayload = await adminService.getUsersDirectory(1, 10);
     
     // 🔍 Trace logs to verify structure parsing visually
     console.log("Raw Payload Checked:", responsePayload);
@@ -83,7 +81,7 @@ export default function UsersDirectoryPage() {
 
     try {
       setSubmitting(true);
-      await adminService.overrideTrustMetrics(mockSupabaseToken, selectedUser.id, {
+      await adminService.overrideTrustMetrics(selectedUser.id, {
         successfulDeals: successCount,
         ongoingDeals: ongoingCount,
         breachedDeals: breachCount,

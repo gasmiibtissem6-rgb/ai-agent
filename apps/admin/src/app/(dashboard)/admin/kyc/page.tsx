@@ -24,13 +24,11 @@ export default function KycQueuePage() {
   const [reviewingId, setReviewingId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState<string>("");
 
-  const mockSupabaseToken = "Owtu4FJDWQWVwEyJsc70Mep9nzdAK9aCy4fGudGNV/QPY10QDsFuezCsFBmanxEexKibNR6W1WwsFvYsihAx+w==" ; 
-
   const loadQueue = async () => {
     try {
       setLoading(true);
       setError(null);
-      const responsePayload = await adminService.getPendingKycQueue(mockSupabaseToken);
+      const responsePayload = await adminService.getPendingKycQueue();
       
       // Handle the global data response envelope structure exactly like the directory
       const targetData = responsePayload?.data ? responsePayload.data : responsePayload;
@@ -61,7 +59,7 @@ export default function KycQueuePage() {
 
     try {
       setReviewingId(id);
-      await adminService.reviewKycSubmission(mockSupabaseToken, id, status, rejectionReason);
+      await adminService.reviewKycSubmission(id, status, rejectionReason);
       setRejectionReason("");
       // Refresh the list automatically after updating status
       await loadQueue();
