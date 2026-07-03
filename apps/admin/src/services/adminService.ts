@@ -1,9 +1,9 @@
 // apps/admin/src/services/adminService.ts
+import { getApiBaseUrl } from '../lib/api-base';
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  'http://localhost:3001/api/v1';
+const API_BASE_URL = getApiBaseUrl(
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL,
+);
 
 async function getAdminHeaders(supabaseToken: string) {
   return {

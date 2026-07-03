@@ -1,6 +1,7 @@
 // src/lib/api-client.ts
-const BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001/api/v1";
+import { getApiBaseUrl } from "./api-base";
+
+const BASE_URL = getApiBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL);
 
 function clearAdminSession() {
   if (typeof window === "undefined") {

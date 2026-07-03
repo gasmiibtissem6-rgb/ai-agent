@@ -2,9 +2,9 @@
 
 import { useActionState } from "react";
 import { useRouter } from "next/navigation";
+import { getApiBaseUrl } from "@/lib/api-base";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:3001/api/v1";
+const API_BASE_URL = getApiBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL);
 
 export default function LoginPage() {
   const router = useRouter();
@@ -57,7 +57,7 @@ export default function LoginPage() {
         window.location.href = "/";
 
         return null;
-      } catch (err) {
+      } catch {
         return "System network error. Check API configuration.";
       }
     },
