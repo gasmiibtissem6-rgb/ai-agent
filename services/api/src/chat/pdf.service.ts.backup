@@ -36,26 +36,9 @@ export class PdfService {
       doc.fillColor('#000000').moveDown();
 
       // ── Police arabe (une seule fois, si pas deja enregistree) ──
-      const arabicFontPath = path.join(
-        process.cwd(),
-        'src',
-        'chat',
-        'fonts',
-        'NotoNaskhArabic-Regular.ttf',
-      );
-
-      let arabicAvailable = false;
-
-      try {
-        if (fs.existsSync(arabicFontPath)) {
-          doc.registerFont('Arabic', arabicFontPath);
-          arabicAvailable = true;
-          console.log('✅ Police arabe chargée');
-        } else {
-          console.log('❌ Police introuvable :', arabicFontPath);
-        }
-      } catch (e) {
-        console.error(e);
+      const arabicFontPath = path.join(__dirname, 'fonts', 'NotoNaskhArabic-Regular.ttf');
+      if (fs.existsSync(arabicFontPath)) {
+        doc.registerFont('Arabic', arabicFontPath);
       }
       const isArabicLine = (t: string) => /[\u0600-\u06FF]/.test(t);
 

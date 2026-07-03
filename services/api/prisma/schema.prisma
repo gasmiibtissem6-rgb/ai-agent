@@ -3,10 +3,10 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
-
 model Profile {
   id                  String          @id @default(uuid()) @db.Uuid
   authUserId          String          @unique @map("auth_user_id") @db.Uuid
@@ -485,4 +485,56 @@ enum MessageStatus {
   HIDDEN
 
   @@map("message_status")
+}
+model Contract {
+  id              String            @id @default(uuid()) @db.Uuid
+  title           String
+  description     String?
+  contractType    String?           @map("contract_type")
+  content         String?
+  status          ContractStatus    @default(DRAFT)
+  createdByProfileId String?        @map("created_by_profile_id") @db.Uuid
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  parties         ContractParty[]
+  sendLogs        ContractSendLog[]
+
+  @@map("contracts")
+}
+
+model ContractParty {
+  id           String   @id @default(uuid()) @db.Uuid
+  contractId   String   @map("contract_id") @db.Uuid
+  role         String   // ex: "CLIENT", "PRESTATAIRE"
+  fullName     String   @map("full_name")
+  functionRole String?  @map("function_role") // ex: "Cliente", "Prestataire"
+  address      String?
+  email        String?
+  signedAt     DateTime? @map("signed_at")
+  signatureImage String? @map("signature_image")
+  createdAt    DateTime @default(now()) @map("created_at")
+  contract     Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId])
+  @@map("contract_parties")
+}
+
+model ContractSendLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  contractId  String   @map("contract_id") @db.Uuid
+  sentToEmail String   @map("sent_to_email")
+  sentAt      DateTime @default(now()) @map("sent_at")
+  contract    Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId])
+  @@map("contract_send_logs")
+}
+
+enum ContractStatus {
+  DRAFT
+  SENT
+  SIGNED
+  CANCELLED
+
+  @@map("contract_status")
 }
