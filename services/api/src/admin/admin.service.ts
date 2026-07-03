@@ -1,6 +1,8 @@
 // admin.service.ts
-import { Injectable, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service'; // Adjust path to your PrismaService
+import { KycStatus } from '@prisma/client';
+import { KycReviewDecision } from './dto/review-kyc.dto';
 
 @Injectable()
 export class AdminService {
@@ -44,7 +46,85 @@ export class AdminService {
     };
   }
 
-  // 2. Trust Metrics Override
+  // 2. Identity Verification Queue
+  async getPendingKycQueue() {
+    return this.prisma.kycSubmission.findMany({
+      where: {
+        status: { in: [KycStatus.SUBMITTED, KycStatus.UNDER_REVIEW] },
+      },
+      include: {
+        profile: {
+          select: {
+            id: true,
+            displayName: true,
+            email: true,
+          },
+        },
+        files: {
+          where: { fileType: 'KYC_DOCUMENT' },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async reviewKycSubmission(
+    submissionId: string,
+    adminId: string,
+    status: KycReviewDecision,
+    reason?: string,
+  ) {
+    const submission = await this.prisma.kycSubmission.findUnique({
+      where: { id: submissionId },
+    });
+
+    if (!submission) {
+      throw new NotFoundException('KYC submission record not found.');
+    }
+
+    const targetStatus =
+      status === KycReviewDecision.APPROVED
+        ? KycStatus.APPROVED
+        : KycStatus.REJECTED;
+
+    return this.prisma.$transaction(async (tx) => {
+      // Update submission record
+      const updatedSubmission = await tx.kycSubmission.update({
+        where: { id: submissionId },
+        data: {
+          status: targetStatus,
+          rejectionReason: reason || null,
+          reviewedAt: new Date(),
+          reviewedByProfileId: adminId,
+        },
+      });
+
+      // Update global profile validation state
+      await tx.profile.update({
+        where: { id: submission.profileId },
+        data: { kycStatus: targetStatus },
+      });
+
+      // Log action to operational ledger
+      await tx.adminAction.create({
+        data: {
+          adminProfileId: adminId,
+          actionType:
+            status === KycReviewDecision.APPROVED
+              ? 'KYC_APPROVED'
+              : 'KYC_REJECTED',
+          targetResourceType: 'KycSubmission',
+          targetResourceId: submissionId,
+          reason,
+          metadataJson: { processedAt: new Date() },
+        },
+      });
+
+      return updatedSubmission;
+    });
+  }
+
+  // 3. Trust Metrics Override
   async overrideTrustCounters(
     targetProfileId: string,
     adminId: string,
