@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/constants/app_colors.dart';
 import '../core/router/app_router.dart';
+import '../core/locale/app_strings.dart';
+import '../core/locale/locale_provider.dart';
 
 class IdealLogo extends StatelessWidget {
   final double size;
@@ -179,7 +182,7 @@ const _navItems = <_NavItem>[
     Icons.notifications_outlined,
     AppRoutes.notifications,
   ),
-  _NavItem('documents', 'Documents', Icons.document_scanner, '/documents'),
+  _NavItem('documents', 'Documents', Icons.document_scanner, '/documents'),_NavItem('mycontracts', 'Mes Contrats', Icons.assignment_turned_in, AppRoutes.myContracts),
     _NavItem('chat', 'AI Assistant', Icons.smart_toy_outlined, AppRoutes.chat),
   _NavItem('settings', 'Settings', Icons.settings_outlined, AppRoutes.settings),
 ];

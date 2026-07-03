@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/theme/theme_provider.dart';
+import '../../../core/locale/locale_provider.dart';
 import '../../../features/auth/domain/auth_provider.dart';
 import '../../../shared/ideal_ui.dart';
 
@@ -18,7 +19,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _emailUpdates = true;
   bool _twoFactor = true;
   bool _publicProfile = false;
-  String _language = 'English';
 
   @override
   Widget build(BuildContext context) {
@@ -57,15 +57,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               children: [
                 const _FieldLabel('Language'),
                 DropdownButtonFormField<String>(
-                  initialValue: _language,
-                  items: const ['English', 'French', 'Arabic', 'Spanish']
-                      .map(
-                        (value) =>
-                            DropdownMenuItem(value: value, child: Text(value)),
-                      )
-                      .toList(),
+                  initialValue: ref.watch(localeProvider).languageCode,
+                  items: const [
+                    DropdownMenuItem(value: 'fr', child: Text('Français')),
+                    DropdownMenuItem(value: 'en', child: Text('English')),
+                  ],
                   onChanged: (value) {
-                    if (value != null) setState(() => _language = value);
+                    if (value != null) {
+                      ref.read(localeProvider.notifier).setLocale(value);
+                    }
                   },
                 ),
                 const SizedBox(height: 20),

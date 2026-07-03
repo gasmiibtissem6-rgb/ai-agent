@@ -1,3 +1,4 @@
+import '../../features/documents/presentation/my_contracts_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -42,6 +43,7 @@ class AppRoutes {
   static const notifications = '/notifications';
   static const settings = '/settings';
   static const chat = '/chat';
+  static const myContracts = '/my-contracts';
 }
 
 final _authListenableProvider = Provider<ValueNotifier<AppAuthState?>>((ref) {
@@ -193,6 +195,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/documents',
         builder: (context, state) => const DocumentsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.myContracts,
+        pageBuilder: (context, state) =>
+            _sectionPage(state, const MyContractsScreen()),
       ),
     ],
   );
