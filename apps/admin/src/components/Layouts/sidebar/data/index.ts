@@ -83,6 +83,21 @@ export const NAV_DATA = [
     ],
   },
   {
+    label: "BUSINESS OPERATIONS",
+    items: [
+      {
+        title: "Deal Management",
+        icon: Icons.Table, // Reuses grid table context icon
+        items: [
+          {
+            title: "Global Deals Ledger",
+            url: "/admin/deals", // Direct path matching directory structure
+          },
+        ],
+      },
+    ],
+  },
+  {
     label: "OTHERS",
     items: [
       {
