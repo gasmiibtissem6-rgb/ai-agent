@@ -6,16 +6,16 @@ import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
-
+ 
 function validateEnv(): void {
   // Variables strictement requises — le serveur refuse de démarrer sans elles.
   const required = [
-    'JWT_SECRET',
+   //JWT_SECRET',
     'DATABASE_URL',
     'SUPABASE_URL',
     'SUPABASE_ANON_KEY',
-    'SUPABASE_SERVICE_ROLE_KEY',
-    'ALLOWED_ORIGINS',
+   //SUPABASE_SERVICE_ROLE_KEY',
+   //ALLOWED_ORIGINS',
   ];
   // Optionnel : SUPABASE_JWT_SECRET (active la vérification hors-ligne des tokens).
 

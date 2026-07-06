@@ -1,159 +1,67 @@
-// admin-kyc.controller.ts
-import {
-  Body,
-  Controller,
-  Get,
-  Headers,
-  Ip,
-  Param,
-  ParseUUIDPipe,
-  Patch,
-  Post,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOperation,
-  ApiResponse,
-  ApiTags,
-} from '@nestjs/swagger';
-import { AdminRole } from '@prisma/client';
-import { AdminKycService, AuditContext } from './admin-kyc.service';
-import { KycQueueQueryDto } from './dto/kyc-queue-query.dto';
-import { KycReasonDto } from './dto/kyc-reason.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
+/*
+ * TODO FOR OUSSEMA
+ *
+ * This file needs to be implemented by the admin dashboard owner.
+ *
+ * It was created during the KYC backend session and has been removed because the
+ * admin backend (src/admin/) is your responsibility. The basic KYC review routes
+ * still live in admin.controller.ts (restored to their pre-KYC form). This file is
+ * the intended home for the *enhanced* admin KYC review surface if you want it.
+ *
+ * Expected responsibility:
+ * A dedicated @Controller('admin/kyc') exposing the full reviewer workflow
+ * (paginated queue with status filter, detail view with signed document URLs and
+ * audit history, and the individual decision actions).
+ *
+ * API contracts to implement (NestJS side, inside src/admin/):
+ *   Base path: /api/v1/admin/kyc   (global prefix api/v1 is applied in main.ts)
+ *   Guards:  @UseGuards(JwtAuthGuard, RolesGuard)   +   @ApiBearerAuth()
+ *
+ *   GET    /admin/kyc
+ *            Roles: SUPER_ADMIN, ADMIN, SUPPORT_REVIEWER
+ *            Query: KycQueueQueryDto { page, limit, status? }  (see kyc-queue-query.dto.ts placeholder)
+ *            Returns: { items[], total, page, limit, totalPages }
+ *
+ *   GET    /admin/kyc/:id
+ *            Roles: SUPER_ADMIN, ADMIN, SUPPORT_REVIEWER
+ *            Returns: submission detail + applicant + TEMPORARY signed document URLs
+ *                     (front/back/selfie) + audit history. Never public URLs.
+ *
+ *   PATCH  /admin/kyc/:id/approve
+ *            Roles: SUPER_ADMIN, ADMIN, SUPPORT_REVIEWER
+ *
+ *   PATCH  /admin/kyc/:id/reject
+ *            Roles: SUPER_ADMIN, ADMIN, SUPPORT_REVIEWER
+ *            Body: KycReasonDto { reason }  (required)
+ *
+ *   PATCH  /admin/kyc/:id/request-resubmission
+ *            Roles: SUPER_ADMIN, ADMIN, SUPPORT_REVIEWER
+ *            Body: KycReasonDto { reason }  (required)
+ *
+ *   PATCH  /admin/kyc/:id/revoke
+ *            Roles: SUPER_ADMIN, ADMIN, SUPPORT_REVIEWER
+ *            Body: KycReasonDto { reason }  (required)
+ *            Only an APPROVED submission may be revoked (else 400).
+ *
+ *   POST   /admin/kyc/:id/recheck
+ *            Roles: SUPER_ADMIN, ADMIN   (SUPPORT_REVIEWER intentionally excluded — elevated action)
+ *            Body: KycReasonDto { reason }  (required)
+ *            Moves the submission back to UNDER_REVIEW.
+ *
+ * Context:
+ * - Guards to use: JwtAuthGuard + RolesGuard
+ * - Roles for KYC review: SUPER_ADMIN, ADMIN, SUPPORT_REVIEWER
+ * - Role for recheck only: SUPER_ADMIN, ADMIN
+ * - FINANCE_REVIEWER and normal users must be rejected by RolesGuard
+ * - Capture @Ip() + @Headers('user-agent') and thread them into the audit context
+ * - Read the reviewer id via @CurrentUser('profileId')
+ * - Use @ApiTags / @ApiOperation / @ApiResponse for Swagger
+ * - Response envelope { success, message, data, requestId } is applied globally
+ * - Every state change must write to audit_logs via Prisma
+ * - KYC documents must never be returned as public URLs — use the signed URL
+ *   mechanism in KycStorageService (src/kyc/storage/kyc-storage.service.ts),
+ *   which is exported from KycModule for AdminModule to import.
+ * - Implement the logic in admin-kyc.service.ts (see its placeholder).
+ */
 
-/** Reviewer roles allowed to read and decide on KYC submissions. */
-const REVIEW_ROLES = [
-  AdminRole.SUPER_ADMIN,
-  AdminRole.ADMIN,
-  AdminRole.SUPPORT_REVIEWER,
-] as const;
-
-@ApiTags('admin-kyc')
-@ApiBearerAuth()
-@Controller('admin/kyc')
-// Every route requires a valid token AND an administrator role. Normal users and
-// FINANCE_REVIEWER are rejected by RolesGuard.
-@UseGuards(JwtAuthGuard, RolesGuard)
-export class AdminKycController {
-  constructor(private readonly adminKycService: AdminKycService) {}
-
-  @Get()
-  @Roles(...REVIEW_ROLES)
-  @ApiOperation({ summary: 'List KYC submissions (paginated, optional status filter).' })
-  @ApiResponse({ status: 200, description: 'Paginated KYC queue.' })
-  async getQueue(@Query() query: KycQueueQueryDto) {
-    return this.adminKycService.getQueue(query);
-  }
-
-  @Get(':id')
-  @Roles(...REVIEW_ROLES)
-  @ApiOperation({
-    summary: 'Get full submission detail with temporary signed document URLs and audit history.',
-  })
-  @ApiResponse({ status: 200, description: 'Submission detail.' })
-  @ApiResponse({ status: 404, description: 'Submission not found.' })
-  async getById(@Param('id', ParseUUIDPipe) id: string) {
-    return this.adminKycService.getById(id);
-  }
-
-  @Patch(':id/approve')
-  @Roles(...REVIEW_ROLES)
-  @ApiOperation({ summary: 'Approve a KYC submission.' })
-  @ApiResponse({ status: 200, description: 'Submission approved.' })
-  async approve(
-    @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser('profileId') reviewerId: string,
-    @Ip() ipAddress: string,
-    @Headers('user-agent') userAgent: string,
-  ) {
-    return this.adminKycService.approve(id, reviewerId, this.audit(ipAddress, userAgent));
-  }
-
-  @Patch(':id/reject')
-  @Roles(...REVIEW_ROLES)
-  @ApiOperation({ summary: 'Reject a KYC submission (reason required).' })
-  @ApiResponse({ status: 200, description: 'Submission rejected.' })
-  async reject(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: KycReasonDto,
-    @CurrentUser('profileId') reviewerId: string,
-    @Ip() ipAddress: string,
-    @Headers('user-agent') userAgent: string,
-  ) {
-    return this.adminKycService.reject(
-      id,
-      reviewerId,
-      body.reason,
-      this.audit(ipAddress, userAgent),
-    );
-  }
-
-  @Patch(':id/request-resubmission')
-  @Roles(...REVIEW_ROLES)
-  @ApiOperation({ summary: 'Request that the applicant resubmit (reason required).' })
-  @ApiResponse({ status: 200, description: 'Resubmission requested.' })
-  async requestResubmission(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: KycReasonDto,
-    @CurrentUser('profileId') reviewerId: string,
-    @Ip() ipAddress: string,
-    @Headers('user-agent') userAgent: string,
-  ) {
-    return this.adminKycService.requestResubmission(
-      id,
-      reviewerId,
-      body.reason,
-      this.audit(ipAddress, userAgent),
-    );
-  }
-
-  @Patch(':id/revoke')
-  @Roles(...REVIEW_ROLES)
-  @ApiOperation({ summary: 'Revoke an approved KYC verification (reason required).' })
-  @ApiResponse({ status: 200, description: 'Verification revoked.' })
-  @ApiResponse({ status: 400, description: 'Submission is not currently approved.' })
-  async revoke(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: KycReasonDto,
-    @CurrentUser('profileId') reviewerId: string,
-    @Ip() ipAddress: string,
-    @Headers('user-agent') userAgent: string,
-  ) {
-    return this.adminKycService.revoke(
-      id,
-      reviewerId,
-      body.reason,
-      this.audit(ipAddress, userAgent),
-    );
-  }
-
-  @Post(':id/recheck')
-  // Elevated action: SUPPORT_REVIEWER is intentionally excluded.
-  @Roles(AdminRole.SUPER_ADMIN, AdminRole.ADMIN)
-  @ApiOperation({ summary: 'Send a submission back under review (reason required).' })
-  @ApiResponse({ status: 201, description: 'Submission moved to UNDER_REVIEW.' })
-  async recheck(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: KycReasonDto,
-    @CurrentUser('profileId') reviewerId: string,
-    @Ip() ipAddress: string,
-    @Headers('user-agent') userAgent: string,
-  ) {
-    return this.adminKycService.recheck(
-      id,
-      reviewerId,
-      body.reason,
-      this.audit(ipAddress, userAgent),
-    );
-  }
-
-  private audit(ipAddress?: string, userAgent?: string): AuditContext {
-    return { ipAddress, userAgent };
-  }
-}
+export {};

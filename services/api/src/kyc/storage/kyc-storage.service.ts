@@ -16,12 +16,12 @@ export interface KycDocumentRow {
 /**
  * Single integration seam for KYC document storage. It NEVER handles binary data — it only:
  *  (a) asks the EXISTING Supabase signed-URL SQL function for temporary URLs, and
- *  (b) reads/writes the KYC document columns that exist in the database but are not mapped
- *      by schema.prisma (Ranine-owned): `document_type`, `front`, `back`, `selfie`.
+ *  (b) reads/writes the KYC document columns `document_type`, `front`, `back`, `selfie`.
  *
- * Every Supabase / DB-function coupling is centralised here so it can be corrected in ONE
- * place once the exact function name/signature is confirmed with Ranine. schema.prisma is
- * never modified and no SQL function/policy is created here — only reused.
+ * The document columns are now mapped in schema.prisma (KycSubmission.documentType/front/
+ * back/selfie), so reads/writes go through the type-safe Prisma client — no raw SQL. The
+ * ONLY remaining Supabase coupling is the signed-URL SQL function, isolated below so it can
+ * be corrected in one place once its exact name/signature is confirmed with Ranine.
  */
 @Injectable()
 export class KycStorageService {
@@ -70,8 +70,8 @@ export class KycStorageService {
   }
 
   /**
-   * Persists document references onto the EXISTING (Ranine-owned) columns that Prisma does
-   * not map. Runs inside the caller's transaction. schema.prisma is untouched.
+   * Persists document references onto the mapped KycSubmission columns. Runs inside the
+   * caller's transaction so it commits atomically with the submission state change.
    */
   async persistDocuments(
     tx: Prisma.TransactionClient,
@@ -83,23 +83,32 @@ export class KycStorageService {
       selfie: string;
     },
   ): Promise<void> {
-    await tx.$executeRaw`
-      UPDATE kyc_submissions
-      SET document_type = ${docs.documentType},
-          front = ${docs.front},
-          back = ${docs.back},
-          selfie = ${docs.selfie}
-      WHERE id = ${submissionId}::uuid`;
+    await tx.kycSubmission.update({
+      where: { id: submissionId },
+      data: {
+        documentType: docs.documentType,
+        front: docs.front,
+        back: docs.back,
+        selfie: docs.selfie,
+      },
+    });
   }
 
-  /** Reads the raw document references for a single submission (admin detail view). */
+  /** Reads the document references for a single submission (admin detail view). */
   async getDocuments(submissionId: string): Promise<KycDocumentRow | null> {
-    const rows = await this.prisma.$queryRaw<KycDocumentRow[]>`
-      SELECT document_type, front, back, selfie
-      FROM kyc_submissions
-      WHERE id = ${submissionId}::uuid
-      LIMIT 1`;
-    return rows[0] ?? null;
+    const row = await this.prisma.kycSubmission.findUnique({
+      where: { id: submissionId },
+      select: { documentType: true, front: true, back: true, selfie: true },
+    });
+    if (!row) {
+      return null;
+    }
+    return {
+      document_type: row.documentType,
+      front: row.front,
+      back: row.back,
+      selfie: row.selfie,
+    };
   }
 
   /** Batch-reads document_type for a page of submissions (admin queue view). */
@@ -107,12 +116,10 @@ export class KycStorageService {
     if (ids.length === 0) {
       return new Map();
     }
-    const rows = await this.prisma.$queryRaw<
-      Array<{ id: string; document_type: string | null }>
-    >`
-      SELECT id::text AS id, document_type
-      FROM kyc_submissions
-      WHERE id IN (${Prisma.join(ids.map((id) => Prisma.sql`${id}::uuid`))})`;
-    return new Map(rows.map((row) => [row.id, row.document_type]));
+    const rows = await this.prisma.kycSubmission.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, documentType: true },
+    });
+    return new Map(rows.map((row) => [row.id, row.documentType]));
   }
 }

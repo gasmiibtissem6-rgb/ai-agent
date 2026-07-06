@@ -107,6 +107,7 @@ export class KycService {
           profileId,
           status: KycStatus.SUBMITTED,
           submittedAt: new Date(),
+          personalInfo: this.toPersonalInfoJson(dto),
         },
       });
 
@@ -116,8 +117,6 @@ export class KycService {
         back: dto.storagePathBack ?? null,
         selfie: dto.storagePathSelfie,
       });
-
-      // TODO(ranine): dto.personalInfo has no confirmed column/table yet — not persisted.
 
       await tx.profile.update({
         where: { id: profileId },
@@ -201,6 +200,7 @@ export class KycService {
           submittedAt: new Date(),
           reviewedAt: null,
           reviewedByProfileId: null,
+          personalInfo: this.toPersonalInfoJson(dto),
         },
       });
 
@@ -321,6 +321,20 @@ export class KycService {
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
+
+  /**
+   * Normalizes the optional applicant identity block into a JSON value for storage.
+   * Returns `undefined` (leave column untouched) when no personal info was supplied.
+   * Contains no document paths or secrets — only self-declared identity fields.
+   */
+  private toPersonalInfoJson(
+    dto: SubmitKycDto,
+  ): Prisma.InputJsonValue | undefined {
+    if (!dto.personalInfo) {
+      return undefined;
+    }
+    return { ...dto.personalInfo };
+  }
 
   private assertAuthorizedPaths(profileId: string, dto: SubmitKycDto): void {
     this.assertAuthorized(profileId, dto.storagePathFront);

@@ -1,4 +1,16 @@
 // admin.service.ts
+/*
+ * TODO FOR OUSSEMA
+ * Restored to its pre-KYC-session state. It keeps the KYC review helpers you owned
+ * (getPendingKycQueue, reviewKycSubmission) plus the user directory and trust
+ * override. The KYC session had moved these into a dedicated admin-kyc.service.ts
+ * with a fuller decision set (approve / reject / request-resubmission / revoke /
+ * recheck) and signed-URL document access. That fuller service is NOT wired anymore.
+ * If you want it, implement admin-kyc.service.ts (see the placeholder there) — it
+ * should use KycStorageService for temporary signed document URLs and write to
+ * audit_logs on every decision. Note reviewKycSubmission here writes to admin_actions;
+ * decide whether new decisions should log to admin_actions, audit_logs, or both.
+ */
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service'; // Adjust path to your PrismaService
 import { KycStatus } from '@prisma/client';

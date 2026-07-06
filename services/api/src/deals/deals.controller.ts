@@ -1,48 +1,85 @@
 // services/api/src/deals/deals.controller.ts
-import { Controller, Get, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  Ip,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { KycVerifiedGuard } from '../common/guards/kyc-verified.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { KycVerifiedGuard } from '../common/guards/kyc-verified.guard'; // 👈 Import the KYC guard
-import { DealsService } from './deals.service';
+import { Public } from '../auth/decorators/public.decorator';
 import type { FoundationModuleSummary } from '../common/foundation.types';
 import { lifecycleStatuses } from '../common/foundation.types';
+import { AuditContext, DealsService } from './deals.service';
+import { CreateDealDto } from './dto/create-deal.dto';
+import { UpdateDealDto } from './dto/update-deal.dto';
+import { ListDealsQueryDto } from './dto/list-deals-query.dto';
+import { CreateDealVersionDto } from './dto/create-deal-version.dto';
+import { ShareDealDto } from './dto/share-deal.dto';
 
 @ApiTags('deals')
 @Controller('deals')
 export class DealsController {
   constructor(private readonly dealsService: DealsService) {}
 
-  /**
-   * Production Endpoint: Fetch authenticated user's deals
-   * Route: GET /deals
-   * Permissive: Accessible by any logged-in user so they can track historical info or incoming invites.
-   */
+  // --- Deal CRUD -------------------------------------------------------------
+
+  @Post()
+  @UseGuards(JwtAuthGuard, KycVerifiedGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Create a draft deal with its initial version (KYC approved only).',
+  })
+  @ApiResponse({ status: 201, description: 'Deal and first version created.' })
+  @ApiResponse({
+    status: 403,
+    description: 'KYC not approved, or deal quota reached.',
+  })
+  async createDeal(
+    @CurrentUser('profileId') profileId: string,
+    @Body() body: CreateDealDto,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    return this.dealsService.createDeal(
+      profileId,
+      body,
+      this.audit(ipAddress, userAgent),
+    );
+  }
+
   @Get()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  async getMyDeals(@CurrentUser('sub') sub: string) {
-    return this.dealsService.getDealsByUserId(sub);
+  @ApiOperation({
+    summary: 'List deals where the caller is creator or participant.',
+  })
+  @ApiResponse({ status: 200, description: 'Paginated deals returned.' })
+  async listDeals(
+    @CurrentUser('profileId') profileId: string,
+    @Query() query: ListDealsQueryDto,
+  ) {
+    return this.dealsService.listDeals(profileId, query);
   }
 
-  /**
-   * Planned Production Endpoint Example: Create a draft deal
-   * Route: POST /deals
-   * Restrictive: Enforces sequential gates: Is logged in? -> Is identity approved?
-   */
-  @Post()
-  @UseGuards(JwtAuthGuard, KycVerifiedGuard) // 🔒 Stacking gates blocks unauthorized creation natively
-  @ApiBearerAuth()
-  async createDraftDeal() {
-    // Business logic intentionally left as-is (planned endpoint).
-    // return this.dealsService.createDeal(user.sub, body);
-  }
-
-  /**
-   * Boilerplate Foundation Info Route
-   * Route: GET /deals/foundation
-   */
   @Get('foundation')
+  @ApiOperation({ summary: 'Deals module capability summary (boilerplate).' })
   getFoundation(): FoundationModuleSummary & {
     lifecycleStatuses: readonly string[];
   } {
@@ -55,30 +92,212 @@ export class DealsController {
         'Ensure locked approved versions are immutable.',
         'Coordinate versions, approvals, files, notifications, trust, and audit events.',
       ],
-      plannedEndpoints: [
-        {
-          method: 'POST',
-          path: '/api/v1/deals',
-          purpose: 'Create a draft deal. Requires full KYC validation confirmation.',
-          authenticated: true,
-          auditRequired: true,
-        },
-        {
-          method: 'GET',
-          path: '/api/v1/deals',
-          purpose: 'List deals where the user is creator or participant.',
-          authenticated: true,
-          auditRequired: false,
-        },
-        {
-          method: 'GET',
-          path: '/api/v1/deals/:dealId',
-          purpose: 'Read one authorized deal with current version and parties.',
-          authenticated: true,
-          auditRequired: false,
-        },
-      ],
+      plannedEndpoints: [],
       lifecycleStatuses,
     };
+  }
+
+  // --- Invitation links (public view + authenticated accept) -----------------
+
+  @Get('invite/:token')
+  @Public()
+  @ApiOperation({
+    summary: 'View public metadata for an invitation link (no auth).',
+  })
+  @ApiResponse({ status: 200, description: 'Invitation metadata returned.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Link expired, revoked, or exhausted.',
+  })
+  async getInvite(@Param('token') token: string) {
+    return this.dealsService.getInviteByToken(token);
+  }
+
+  @Post('invite/:token/accept')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Accept an invitation and join the deal as a participant.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Caller added as participant; deal returned.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Link expired, revoked, or exhausted.',
+  })
+  async acceptInvite(
+    @CurrentUser('profileId') profileId: string,
+    @CurrentUser('email') email: string,
+    @Param('token') token: string,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    return this.dealsService.acceptInvite(
+      profileId,
+      email,
+      token,
+      this.audit(ipAddress, userAgent),
+    );
+  }
+
+  // --- Sharing management (creator only) -------------------------------------
+
+  @Post(':id/share')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Generate a secure invitation link / QR payload (creator only).',
+  })
+  @ApiResponse({ status: 201, description: 'Invitation link created.' })
+  async shareDeal(
+    @CurrentUser('profileId') profileId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: ShareDealDto,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    return this.dealsService.createShareLink(
+      profileId,
+      id,
+      body,
+      this.audit(ipAddress, userAgent),
+    );
+  }
+
+  @Get(':id/shares')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List invitation links for a deal (creator only).' })
+  @ApiResponse({
+    status: 200,
+    description: 'Invitation links returned (tokens masked).',
+  })
+  async listShares(
+    @CurrentUser('profileId') profileId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.dealsService.listShareLinks(profileId, id);
+  }
+
+  @Delete(':id/share/:token')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Revoke an invitation link (creator only).' })
+  @ApiResponse({ status: 200, description: 'Invitation link revoked.' })
+  async revokeShare(
+    @CurrentUser('profileId') profileId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('token') token: string,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    return this.dealsService.revokeShareLink(
+      profileId,
+      id,
+      token,
+      this.audit(ipAddress, userAgent),
+    );
+  }
+
+  // --- Versions --------------------------------------------------------------
+
+  @Post(':id/versions')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Create a new deal version (creator only, not approved/locked).',
+  })
+  @ApiResponse({ status: 201, description: 'New version created.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Not the creator, or deal is approved/locked.',
+  })
+  async createVersion(
+    @CurrentUser('profileId') profileId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: CreateDealVersionDto,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    return this.dealsService.createVersion(
+      profileId,
+      id,
+      body,
+      this.audit(ipAddress, userAgent),
+    );
+  }
+
+  // --- Single deal read/update/delete ----------------------------------------
+
+  @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Get full deal detail (creator or participant only).',
+  })
+  @ApiResponse({ status: 200, description: 'Deal detail returned.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Caller has no relation to this deal.',
+  })
+  async getDeal(
+    @CurrentUser('profileId') profileId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.dealsService.getDealById(profileId, id);
+  }
+
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update a DRAFT deal (creator only).' })
+  @ApiResponse({ status: 200, description: 'Deal updated.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Not the creator, or deal is not DRAFT.',
+  })
+  async updateDeal(
+    @CurrentUser('profileId') profileId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: UpdateDealDto,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    return this.dealsService.updateDeal(
+      profileId,
+      id,
+      body,
+      this.audit(ipAddress, userAgent),
+    );
+  }
+
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Delete a DRAFT deal with no confirmed parties (creator only).',
+  })
+  @ApiResponse({ status: 200, description: 'Deal deleted.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Not the creator, not DRAFT, or has confirmed parties.',
+  })
+  async deleteDeal(
+    @CurrentUser('profileId') profileId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    return this.dealsService.deleteDeal(
+      profileId,
+      id,
+      this.audit(ipAddress, userAgent),
+    );
+  }
+
+  private audit(ipAddress?: string, userAgent?: string): AuditContext {
+    return { ipAddress, userAgent };
   }
 }
