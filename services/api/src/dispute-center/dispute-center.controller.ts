@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -21,7 +30,7 @@ export class DisputeCenterController {
     @Query('resourceType') resourceType?: string,
     @Query('search') search?: string,
     @Query('page') page: string = '1',
-    @Query('limit') limit: string = '10'
+    @Query('limit') limit: string = '10',
   ) {
     return this.disputeCenterService.getDisputeTickets({
       status,
@@ -48,11 +57,14 @@ export class DisputeCenterController {
     @Param('id') id: string,
     @CurrentUser('profileId') adminProfileId: string,
     @Body('status') status: ReportStatus,
-    @Body('resolution') resolution?: string
+    @Body('resolution') resolution?: string,
   ) {
     if (!status) throw new Error('Status is required');
-    
-    return this.disputeCenterService.updateDisputeTicket(id, adminProfileId, { status, resolution });
+
+    return this.disputeCenterService.updateDisputeTicket(id, adminProfileId, {
+      status,
+      resolution,
+    });
   }
 
   /**
@@ -62,11 +74,15 @@ export class DisputeCenterController {
   async pauseDealForDispute(
     @Param('dealId') dealId: string,
     @CurrentUser('profileId') adminProfileId: string,
-    @Body('reason') reason: string
+    @Body('reason') reason: string,
   ) {
     if (!reason?.trim()) throw new Error('Reason is required');
-    
-    return this.disputeCenterService.pauseDealForDispute(dealId, adminProfileId, reason);
+
+    return this.disputeCenterService.pauseDealForDispute(
+      dealId,
+      adminProfileId,
+      reason,
+    );
   }
 
   /**
@@ -76,11 +92,15 @@ export class DisputeCenterController {
   async suspendProfileForFraud(
     @Param('profileId') profileId: string,
     @CurrentUser('profileId') adminProfileId: string,
-    @Body('reason') reason: string
+    @Body('reason') reason: string,
   ) {
     if (!reason?.trim()) throw new Error('Reason is required');
-    
-    return this.disputeCenterService.suspendProfileForFraud(profileId, adminProfileId, reason);
+
+    return this.disputeCenterService.suspendProfileForFraud(
+      profileId,
+      adminProfileId,
+      reason,
+    );
   }
 }
 
@@ -95,12 +115,12 @@ export class DisputeCenterUserController {
   @Post()
   async createDisputeTicket(
     @CurrentUser('profileId') reporterProfileId: string,
-    @Body() data: { resourceType: string; resourceId: string; reason: string }
+    @Body() data: { resourceType: string; resourceId: string; reason: string },
   ) {
     if (!data.resourceType || !data.resourceId || !data.reason?.trim()) {
       throw new Error('resourceType, resourceId, and reason are required');
     }
-    
+
     return this.disputeCenterService.createDisputeTicket({
       reporterProfileId,
       resourceType: data.resourceType,

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReportStatus } from '@prisma/client';
 
@@ -32,7 +36,9 @@ export class DisputeCenterService {
     if (search) {
       whereCondition.OR = [
         { reason: { contains: search, mode: 'insensitive' } },
-        { reporter: { displayName: { contains: search, mode: 'insensitive' } } },
+        {
+          reporter: { displayName: { contains: search, mode: 'insensitive' } },
+        },
         { reporter: { email: { contains: search, mode: 'insensitive' } } },
         { resolution: { contains: search, mode: 'insensitive' } },
       ];
@@ -60,7 +66,8 @@ export class DisputeCenterService {
       reason: ticket.reason,
       resolution: ticket.resolution,
       reporter: ticket.reporter.displayName || ticket.reporter.email,
-      reviewedBy: ticket.reviewedBy?.displayName || ticket.reviewedBy?.email || null,
+      reviewedBy:
+        ticket.reviewedBy?.displayName || ticket.reviewedBy?.email || null,
       createdAt: ticket.createdAt,
       reviewedAt: ticket.reviewedAt,
     }));
@@ -101,7 +108,7 @@ export class DisputeCenterService {
     data: {
       status: ReportStatus;
       resolution?: string;
-    }
+    },
   ) {
     const ticket = await this.prisma.report.findUnique({ where: { id } });
     if (!ticket) throw new NotFoundException('Dispute ticket not found.');
@@ -141,7 +148,11 @@ export class DisputeCenterService {
   /**
    * Pauses deal progression for disputed contracts
    */
-  async pauseDealForDispute(dealId: string, adminProfileId: string, reason: string) {
+  async pauseDealForDispute(
+    dealId: string,
+    adminProfileId: string,
+    reason: string,
+  ) {
     const deal = await this.prisma.deal.findUnique({ where: { id: dealId } });
     if (!deal) throw new NotFoundException('Deal not found.');
 
@@ -176,8 +187,14 @@ export class DisputeCenterService {
   /**
    * Suspends user account due to fraud reports
    */
-  async suspendProfileForFraud(profileId: string, adminProfileId: string, reason: string) {
-    const profile = await this.prisma.profile.findUnique({ where: { id: profileId } });
+  async suspendProfileForFraud(
+    profileId: string,
+    adminProfileId: string,
+    reason: string,
+  ) {
+    const profile = await this.prisma.profile.findUnique({
+      where: { id: profileId },
+    });
     if (!profile) throw new NotFoundException('Profile not found.');
 
     return this.prisma.$transaction(async (tx) => {

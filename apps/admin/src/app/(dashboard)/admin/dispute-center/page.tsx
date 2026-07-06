@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { getApiBaseUrl } from '@/lib/api-base';
+import { Button } from '@/components/ui-elements/button';
+import { EyeIcon } from '@/assets/icons';
 
 interface DisputeTicket {
   id: string;
@@ -237,27 +239,28 @@ export default function DisputeCenterPage() {
                   </td>
                   <td className="py-5 px-4">
                     <div className="flex gap-2">
-                      <button
+                      <Button
+                        label="Review"
+                        variant="outlinePrimary"
+                        size="small"
+                        icon={<EyeIcon />}
                         onClick={() => setSelectedTicket(ticket)}
-                        className="text-primary hover:text-opacity-80 text-sm font-medium"
-                      >
-                        Review
-                      </button>
+                      />
                       {ticket.resourceType === 'DEAL' && (
-                        <button
+                        <Button
+                          label="Pause Deal"
+                          variant="outlinePrimary"
+                          size="small"
                           onClick={() => pauseDeal(ticket.resourceId, 'Dispute review')}
-                          className="text-amber-600 hover:text-opacity-80 text-sm font-medium"
-                        >
-                          Pause Deal
-                        </button>
+                        />
                       )}
                       {ticket.resourceType === 'PROFILE' && (
-                        <button
+                        <Button
+                          label="Suspend"
+                          variant="outlinePrimary"
+                          size="small"
                           onClick={() => suspendUser(ticket.resourceId, ticket.reason)}
-                          className="text-red-600 hover:text-opacity-80 text-sm font-medium"
-                        >
-                          Suspend
-                        </button>
+                        />
                       )}
                     </div>
                   </td>
@@ -307,21 +310,21 @@ export default function DisputeCenterPage() {
               />
             </div>
             <div className="flex gap-3">
-              <button
+              <Button
+                label="Update Ticket"
+                variant="primary"
+                size="small"
                 onClick={updateTicket}
-                className="rounded-lg bg-primary px-4 py-2 text-white font-medium hover:bg-opacity-90"
-              >
-                Update Ticket
-              </button>
-              <button
+              />
+              <Button
+                label="Cancel"
+                variant="outlinePrimary"
+                size="small"
                 onClick={() => {
                   setSelectedTicket(null);
                   setResolution('');
                 }}
-                className="rounded-lg border border-stroke px-4 py-2 text-gray-700 dark:text-gray-300 font-medium"
-              >
-                Cancel
-              </button>
+              />
             </div>
           </div>
         </div>

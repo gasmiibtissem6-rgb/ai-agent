@@ -6,8 +6,8 @@ import { AuthModule } from '../auth/auth.module'; // 1. Import your AuthModule (
 
 @Module({
   imports: [
-    PrismaModule, 
-    AuthModule // 2. Add AuthModule here to provide AuthService to your JwtAuthGuard
+    PrismaModule,
+    AuthModule, // 2. Add AuthModule here to provide AuthService to your JwtAuthGuard
   ],
   controllers: [KycController],
   providers: [KycService],

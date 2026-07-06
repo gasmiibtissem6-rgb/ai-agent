@@ -1,7 +1,16 @@
-import { Controller, Get, Patch, Body, Param, UseGuards, Req, BadRequestException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Patch,
+  Body,
+  Param,
+  UseGuards,
+  Req,
+  BadRequestException,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard'; // Adjust path to match your file structure
-import { RolesGuard } from '../auth/guards/roles.guard';       // Adjust path to match your file structure
-import { Roles } from '../auth/decorators/roles.decorator';       // Adjust to match your existing decorator file
+import { RolesGuard } from '../auth/guards/roles.guard'; // Adjust path to match your file structure
+import { Roles } from '../auth/decorators/roles.decorator'; // Adjust to match your existing decorator file
 import { KycService } from './kyc.service';
 import { KycStatus } from '@prisma/client';
 
@@ -22,18 +31,28 @@ export class KycController {
   async reviewSubmission(
     @Param('id') id: string,
     @Req() req: any, // Extract active admin context
-    @Body() dto: { status: KycStatus; rejectionReason?: string }
+    @Body() dto: { status: KycStatus; rejectionReason?: string },
   ) {
     const adminProfileId = req.user.profileId; // Target the active admin's profile ID
 
     if (dto.status === KycStatus.REJECTED && !dto.rejectionReason?.trim()) {
-      throw new BadRequestException('A clear rejection reason must be provided.');
+      throw new BadRequestException(
+        'A clear rejection reason must be provided.',
+      );
     }
 
-    if (dto.status !== KycStatus.APPROVED && dto.status !== KycStatus.REJECTED) {
+    if (
+      dto.status !== KycStatus.APPROVED &&
+      dto.status !== KycStatus.REJECTED
+    ) {
       throw new BadRequestException('Invalid target review status.');
     }
 
-    return this.kycService.processReview(id, adminProfileId, dto.status, dto.rejectionReason);
+    return this.kycService.processReview(
+      id,
+      adminProfileId,
+      dto.status,
+      dto.rejectionReason,
+    );
   }
 }

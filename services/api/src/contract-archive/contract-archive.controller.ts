@@ -9,7 +9,9 @@ import { DealStatus } from '@prisma/client';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('SUPER_ADMIN', 'ADMIN')
 export class ContractArchiveController {
-  constructor(private readonly contractArchiveService: ContractArchiveService) {}
+  constructor(
+    private readonly contractArchiveService: ContractArchiveService,
+  ) {}
 
   /**
    * Fetch all archived/locked contracts with pagination and filtering
@@ -19,7 +21,7 @@ export class ContractArchiveController {
     @Query('status') status?: DealStatus,
     @Query('search') search?: string,
     @Query('page') page: string = '1',
-    @Query('limit') limit: string = '10'
+    @Query('limit') limit: string = '10',
   ) {
     return this.contractArchiveService.getArchivedContracts({
       status,

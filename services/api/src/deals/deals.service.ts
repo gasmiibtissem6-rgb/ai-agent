@@ -91,7 +91,10 @@ export class DealsService {
       },
     });
 
-    if (!deal) throw new NotFoundException('Requested deal reference record could not be found.');
+    if (!deal)
+      throw new NotFoundException(
+        'Requested deal reference record could not be found.',
+      );
     return deal;
   }
 
@@ -100,7 +103,8 @@ export class DealsService {
    */
   async overrideDealStatus(id: string, status: DealStatus, reason: string) {
     const deal = await this.prisma.deal.findUnique({ where: { id } });
-    if (!deal) throw new NotFoundException('Target contract system reference missing.');
+    if (!deal)
+      throw new NotFoundException('Target contract system reference missing.');
 
     return this.prisma.$transaction(async (tx) => {
       // 1. Force adjust status flag

@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { DisputeCenterService } from './dispute-center.service';
-import { DisputeCenterController, DisputeCenterUserController } from './dispute-center.controller';
+import {
+  DisputeCenterController,
+  DisputeCenterUserController,
+} from './dispute-center.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 

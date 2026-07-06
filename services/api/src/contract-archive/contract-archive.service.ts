@@ -44,9 +44,14 @@ export class ContractArchiveService {
           creator: { select: { displayName: true, email: true } },
           company: { select: { legalName: true } },
           parties: { select: { id: true, partyStatus: true } },
-          versions: { 
-            select: { id: true, versionNumber: true, status: true, lockedAt: true },
-            orderBy: { versionNumber: 'desc' }
+          versions: {
+            select: {
+              id: true,
+              versionNumber: true,
+              status: true,
+              lockedAt: true,
+            },
+            orderBy: { versionNumber: 'desc' },
           },
         },
         orderBy: { updatedAt: 'desc' },
@@ -60,11 +65,17 @@ export class ContractArchiveService {
       id: contract.id,
       title: contract.title,
       company: (contract as any).company?.legalName || 'Individual',
-      creator: (contract as any).creator.displayName || (contract as any).creator.email,
+      creator:
+        (contract as any).creator.displayName ||
+        (contract as any).creator.email,
       status: contract.status,
       participantsCount: (contract as any).parties.length,
       versionsCount: (contract as any).versions.length,
-      lockedAt: contract.lockedVersionId ? (contract as any).versions.find((v: any) => v.id === contract.lockedVersionId)?.lockedAt : null,
+      lockedAt: contract.lockedVersionId
+        ? (contract as any).versions.find(
+            (v: any) => v.id === contract.lockedVersionId,
+          )?.lockedAt
+        : null,
       createdAt: contract.createdAt,
     }));
 
@@ -97,14 +108,17 @@ export class ContractArchiveService {
               },
               orderBy: { decidedAt: 'desc' },
             },
-            files: { select: { id: true, originalFileName: true, storagePath: true } },
+            files: {
+              select: { id: true, originalFileName: true, storagePath: true },
+            },
           },
           orderBy: { versionNumber: 'asc' },
         },
       },
     });
 
-    if (!deal) throw new NotFoundException('Contract record not found in archive.');
+    if (!deal)
+      throw new NotFoundException('Contract record not found in archive.');
 
     // Build version history tree structure
     const versionTree = (deal as any).versions.map((version: any) => ({
@@ -167,7 +181,8 @@ export class ContractArchiveService {
       },
     });
 
-    if (!version) throw new NotFoundException('Version record not found in archive.');
+    if (!version)
+      throw new NotFoundException('Version record not found in archive.');
 
     return version as any;
   }
