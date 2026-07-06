@@ -111,8 +111,8 @@ async function bootstrap() {
   //  ValidationPipe — une seule fois, bien configuré
   app.useGlobalPipes(
     new ValidationPipe({
-      transform: true,           // Convertit les types automatiquement
-      whitelist: true,           // Supprime les champs non déclarés dans le DTO
+      transform: true, // Convertit les types automatiquement
+      whitelist: true, // Supprime les champs non déclarés dans le DTO
       forbidNonWhitelisted: true, // Retourne une erreur si champ inconnu
       transformOptions: {
         enableImplicitConversion: true,

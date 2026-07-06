@@ -22,17 +22,16 @@ export default function KycQueuePage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
-  const [rejectionReason, setRejectionReason] = useState<string>("");
-
-  const mockSupabaseToken = "Owtu4FJDWQWVwEyJsc70Mep9nzdAK9aCy4fGudGNV/QPY10QDsFuezCsFBmanxEexKibNR6W1WwsFvYsihAx+w==" ; 
+  
+  // 🚀 FIXED: Store typing state independently for each row via submission ID
+  const [rejectionReasons, setRejectionReasons] = useState<Record<string, string>>({});
 
   const loadQueue = async () => {
     try {
       setLoading(true);
       setError(null);
-      const responsePayload = await adminService.getPendingKycQueue(mockSupabaseToken);
+      const responsePayload = await adminService.getPendingKycQueue();
       
-      // Handle the global data response envelope structure exactly like the directory
       const targetData = responsePayload?.data ? responsePayload.data : responsePayload;
       
       if (Array.isArray(targetData)) {
@@ -54,16 +53,25 @@ export default function KycQueuePage() {
   }, []);
 
   const handleReview = async (id: string, status: "APPROVED" | "REJECTED") => {
-    if (status === "REJECTED" && !rejectionReason.trim()) {
+    // 🚀 FIXED: Retrieve the reason explicitly from our dictionary mapping state
+    const currentReason = rejectionReasons[id] || "";
+
+    if (status === "REJECTED" && !currentReason.trim()) {
       alert("Please provide an administrative reason for rejecting this document verification.");
       return;
     }
 
     try {
       setReviewingId(id);
-      await adminService.reviewKycSubmission(mockSupabaseToken, id, status, rejectionReason);
-      setRejectionReason("");
-      // Refresh the list automatically after updating status
+      await adminService.reviewKycSubmission(id, status, currentReason);
+      
+      // Clear out the reason string for this row upon completion
+      setRejectionReasons(prev => {
+        const copy = { ...prev };
+        delete copy[id];
+        return copy;
+      });
+      
       await loadQueue();
     } catch (err: any) {
       alert(err.message || "Failed to submit verification action.");
@@ -81,7 +89,7 @@ export default function KycQueuePage() {
   }
 
   return (
-    <div className="rounded-[10px] bg-white p-4 shadow-1 dark:bg-gray-dark dark:shadow-card sm:p-7.5">
+    <div className="rounded-[10px] bg-gray-1 p-4 shadow-1 dark:bg-gray-dark dark:shadow-card sm:p-7.5">
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h4 className="text-xl font-bold text-black dark:text-white">
@@ -161,11 +169,17 @@ export default function KycQueuePage() {
                         </button>
                       </div>
                       
+                      {/* 🚀 FIXED: Value maps to individual key dictionary dynamically */}
                       <input
                         type="text"
                         placeholder="Reason if rejecting..."
-                        value={reviewingId === sub.id ? rejectionReason : ""}
-                        onChange={(e) => setRejectionReason(e.target.value)}
+                        value={rejectionReasons[sub.id] || ""}
+                        onChange={(e) => 
+                          setRejectionReasons((prev) => ({
+                            ...prev,
+                            [sub.id]: e.target.value,
+                          }))
+                        }
                         className="w-full max-w-[180px] rounded border-[1.5px] border-stroke bg-transparent px-2 py-1 text-xs outline-none transition focus:border-primary active:border-primary dark:border-form-strokedark dark:bg-form-input dark:focus:border-primary"
                       />
                     </div>

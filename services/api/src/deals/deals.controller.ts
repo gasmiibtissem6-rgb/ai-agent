@@ -1,84 +1,48 @@
-// services/api/src/deals/deals.controller.ts
-import { Controller, Get, Post, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Patch, Body, Param, Query, UseGuards, BadRequestException } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
-import { KycVerifiedGuard } from '../common/guards/kyc-verified.guard'; // 👈 Import the KYC guard
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { DealsService } from './deals.service';
-import type { FoundationModuleSummary } from '../common/foundation.types';
-import { lifecycleStatuses } from '../common/foundation.types';
+import { DealStatus } from '@prisma/client';
 
-@ApiTags('deals')
-@Controller('deals')
+@Controller('admin/deals')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles('SUPER_ADMIN', 'ADMIN') // Ensure administrative access restrictions
 export class DealsController {
   constructor(private readonly dealsService: DealsService) {}
 
-  /**
-   * Production Endpoint: Fetch authenticated user's deals
-   * Route: GET /deals
-   * Permissive: Accessible by any logged-in user so they can track historical info or incoming invites.
-   */
+  // 1. Fetch all system deals with pagination and multi-status filtering
   @Get()
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  async getMyDeals(@CurrentUser('sub') sub: string) {
-    return this.dealsService.getDealsByUserId(sub);
+  async getAllDeals(
+    @Query('status') status?: DealStatus,
+    @Query('search') search?: string,
+    @Query('page') page: string = '1',
+    @Query('limit') limit: string = '10'
+  ) {
+    return this.dealsService.getGlobalDealsDashboard({
+      status,
+      search,
+      page: parseInt(page, 10),
+      limit: parseInt(limit, 10),
+    });
   }
 
-  /**
-   * Planned Production Endpoint Example: Create a draft deal
-   * Route: POST /deals
-   * Restrictive: Enforces sequential gates: Is logged in? -> Is identity approved?
-   */
-  @Post()
-  @UseGuards(JwtAuthGuard, KycVerifiedGuard) // 🔒 Stacking gates blocks unauthorized creation natively
-  @ApiBearerAuth()
-  async createDraftDeal() {
-    // Business logic intentionally left as-is (planned endpoint).
-    // return this.dealsService.createDeal(user.sub, body);
+  // 2. Fetch specific deal details alongside metadata metrics for sub-views
+  @Get(':id')
+  async getDealDetails(@Param('id') id: string) {
+    return this.dealsService.getAdminDealById(id);
   }
 
-  /**
-   * Boilerplate Foundation Info Route
-   * Route: GET /deals/foundation
-   */
-  @Get('foundation')
-  getFoundation(): FoundationModuleSummary & {
-    lifecycleStatuses: readonly string[];
-  } {
-    return {
-      area: 'deals',
-      status: 'ready-for-implementation',
-      owner: 'api',
-      responsibilities: [
-        'Own deal creation, status transitions, and participant access checks.',
-        'Ensure locked approved versions are immutable.',
-        'Coordinate versions, approvals, files, notifications, trust, and audit events.',
-      ],
-      plannedEndpoints: [
-        {
-          method: 'POST',
-          path: '/api/v1/deals',
-          purpose: 'Create a draft deal. Requires full KYC validation confirmation.',
-          authenticated: true,
-          auditRequired: true,
-        },
-        {
-          method: 'GET',
-          path: '/api/v1/deals',
-          purpose: 'List deals where the user is creator or participant.',
-          authenticated: true,
-          auditRequired: false,
-        },
-        {
-          method: 'GET',
-          path: '/api/v1/deals/:dealId',
-          purpose: 'Read one authorized deal with current version and parties.',
-          authenticated: true,
-          auditRequired: false,
-        },
-      ],
-      lifecycleStatuses,
-    };
+  // 3. Force-override state adjustment if a deal gets stuck in legal deadlock
+  @Patch(':id/override-status')
+  async forceOverrideStatus(
+    @Param('id') id: string,
+    @Body('status') status: DealStatus,
+    @Body('reason') reason: string
+  ) {
+    if (!status) throw new BadRequestException('Target status override state missing.');
+    if (!reason?.trim()) throw new BadRequestException('An audit justification reason is required.');
+    
+    return this.dealsService.overrideDealStatus(id, status, reason);
   }
 }

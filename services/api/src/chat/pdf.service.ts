@@ -3,7 +3,7 @@ import PDFDocument = require('pdfkit');
 
 interface MediaItem {
   type: 'image' | 'video';
-  data: string;      // base64
+  data: string; // base64
   caption?: string;
   date?: string;
   thumbnail?: string; // base64 thumbnail pour les vidéos
@@ -29,8 +29,13 @@ export class PdfService {
       doc.moveDown(0.5);
       doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
       doc.moveDown(0.5);
-      doc.fontSize(9).font('Helvetica').fillColor('#888888')
-        .text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, { align: 'right' });
+      doc
+        .fontSize(9)
+        .font('Helvetica')
+        .fillColor('#888888')
+        .text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, {
+          align: 'right',
+        });
       doc.fillColor('#000000').moveDown();
 
       // ── Contenu texte ──
@@ -46,7 +51,10 @@ export class PdfService {
       // ── Photos et vidéos ──
       if (mediaItems && mediaItems.length > 0) {
         doc.addPage();
-        doc.fontSize(16).font('Helvetica-Bold').text('Pièces jointes', { align: 'center' });
+        doc
+          .fontSize(16)
+          .font('Helvetica-Bold')
+          .text('Pièces jointes', { align: 'center' });
         doc.moveDown();
         doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
         doc.moveDown();
@@ -67,17 +75,29 @@ export class PdfService {
           }
 
           try {
-            const rawData = (item.thumbnail || item.data).replace(/^data:image\/\w+;base64,/, '');
+            const rawData = (item.thumbnail || item.data).replace(
+              /^data:image\/\w+;base64,/,
+              '',
+            );
             const buffer = Buffer.from(rawData, 'base64');
-            doc.image(buffer, x, doc.y, { width: imgW, height: imgH, fit: [imgW, imgH] });
+            doc.image(buffer, x, doc.y, {
+              width: imgW,
+              height: imgH,
+              fit: [imgW, imgH],
+            });
 
             // Icône vidéo
             if (item.type === 'video') {
-              doc.save()
-                .fillColor('#000000').opacity(0.45)
-                .rect(x, doc.y - imgH, imgW, imgH).fill()
+              doc
+                .save()
+                .fillColor('#000000')
+                .opacity(0.45)
+                .rect(x, doc.y - imgH, imgW, imgH)
+                .fill()
                 .restore();
-              doc.fontSize(28).fillColor('white')
+              doc
+                .fontSize(28)
+                .fillColor('white')
                 .text('▶', x + imgW / 2 - 14, doc.y - imgH / 2 - 20);
               doc.fillColor('#000000');
             }
@@ -87,11 +107,17 @@ export class PdfService {
 
             // Légende
             if (item.caption) {
-              doc.fontSize(9).font('Helvetica-Bold').fillColor('#333333')
+              doc
+                .fontSize(9)
+                .font('Helvetica-Bold')
+                .fillColor('#333333')
                 .text(item.caption, x, currentY, { width: imgW });
             }
             if (item.date) {
-              doc.fontSize(8).font('Helvetica').fillColor('#888888')
+              doc
+                .fontSize(8)
+                .font('Helvetica')
+                .fillColor('#888888')
                 .text(item.date, x, doc.y, { width: imgW });
             }
             doc.fillColor('#000000');
@@ -113,10 +139,20 @@ export class PdfService {
         try {
           if (doc.y > 650) doc.addPage();
           doc.moveDown(2);
-          doc.fontSize(11).font('Helvetica-Bold').text('Signature :', { continued: false });
+          doc
+            .fontSize(11)
+            .font('Helvetica-Bold')
+            .text('Signature :', { continued: false });
           doc.moveDown(0.5);
-          const sigData = signatureImage.replace(/^data:image\/\w+;base64,/, '');
-          doc.image(Buffer.from(sigData, 'base64'), { width: 180, height: 80, fit: [180, 80] });
+          const sigData = signatureImage.replace(
+            /^data:image\/\w+;base64,/,
+            '',
+          );
+          doc.image(Buffer.from(sigData, 'base64'), {
+            width: 180,
+            height: 80,
+            fit: [180, 80],
+          });
         } catch (e) {}
       }
 

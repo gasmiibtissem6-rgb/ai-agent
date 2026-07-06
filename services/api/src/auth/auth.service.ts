@@ -9,10 +9,7 @@ import { AdminRole, KycStatus, Profile } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
-import {
-  AuthenticatedUser,
-  TokenType,
-} from './types/authenticated-user';
+import { AuthenticatedUser, TokenType } from './types/authenticated-user';
 
 const defaultLocalAdminEmail = 'admin@ideal.local';
 const defaultLocalAdminPassword = 'ChangeMe123!';
@@ -55,24 +52,30 @@ export class AuthService {
       password: pass,
     });
 
-    if (error || !authData.user) {
+    // If Supabase auth succeeded, verify admin status from profile
+    if (!error && authData.user) {
+      const profile = await this.prisma.profile.findUnique({
+        where: { authUserId: authData.user.id },
+      });
+
+      if (!profile || !profile.isAdmin) {
+        throw new UnauthorizedException(
+          'Access denied. Admin privileges required.',
+        );
+      }
+
+      return {
+        token: authData.session.access_token,
+      };
+    }
+
+    // Supabase auth failed — try local admin fallback (dev/test only)
+    try {
+      return await this.loginLocalAdmin(email, pass);
+    } catch {
+      // Throw the original Supabase error message
       throw new UnauthorizedException('Invalid administrative credentials.');
     }
-
-    // FIX: Using this.prisma.profile instead of this.prisma.user!
-    const profile = await this.prisma.profile.findUnique({
-      where: { authUserId: authData.user.id },
-    });
-
-    if (!profile || !profile.isAdmin) {
-      throw new UnauthorizedException(
-        'Access denied. Admin privileges required.',
-      );
-    }
-
-    return {
-      token: authData.session.access_token,
-    };
   }
 
   async getProfile(authHeader: string) {
@@ -131,9 +134,7 @@ export class AuthService {
       return supabaseUser;
     }
 
-    throw new UnauthorizedException(
-      'Invalid or expired authentication token.',
-    );
+    throw new UnauthorizedException('Invalid or expired authentication token.');
   }
 
   /**
@@ -185,8 +186,9 @@ export class AuthService {
     let authUserId: string | undefined;
     let exp: number | undefined;
 
-    const supabaseJwtSecret =
-      this.configService.get<string>('SUPABASE_JWT_SECRET');
+    const supabaseJwtSecret = this.configService.get<string>(
+      'SUPABASE_JWT_SECRET',
+    );
 
     if (supabaseJwtSecret) {
       // Offline HS256 verification — no network round-trip per request.
@@ -254,8 +256,9 @@ export class AuthService {
 
     const configuredLocalAdminEmail =
       this.configService.get<string>('LOCAL_ADMIN_EMAIL');
-    const configuredLocalAdminPassword =
-      this.configService.get<string>('LOCAL_ADMIN_PASSWORD');
+    const configuredLocalAdminPassword = this.configService.get<string>(
+      'LOCAL_ADMIN_PASSWORD',
+    );
     const useDefaultLocalAdmin =
       !configuredLocalAdminEmail &&
       !configuredLocalAdminPassword &&

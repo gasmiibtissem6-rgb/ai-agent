@@ -2,7 +2,7 @@ import * as Icons from "../icons";
 
 export const NAV_DATA = [
   {
-    label: "MAIN MENU",
+    label: "OVERVIEW",
     items: [
       {
         title: "Dashboard",
@@ -14,64 +14,17 @@ export const NAV_DATA = [
           },
         ],
       },
-      {
-        title: "Calendar",
-        url: "/calendar",
-        icon: Icons.Calendar,
-        items: [],
-      },
-      {
-        title: "Profile",
-        url: "/profile",
-        icon: Icons.User,
-        items: [],
-      },
-      {
-        title: "Forms",
-        icon: Icons.Alphabet,
-        items: [
-          {
-            title: "Form Elements",
-            url: "/forms/form-elements",
-          },
-          {
-            title: "Form Layout",
-            url: "/forms/form-layout",
-          },
-        ],
-      },
-      {
-        title: "Tables",
-        url: "/tables",
-        icon: Icons.Table,
-        items: [
-          {
-            title: "Tables",
-            url: "/tables",
-          },
-        ],
-      },
-      {
-        title: "Pages",
-        icon: Icons.Alphabet,
-        items: [
-          {
-            title: "Settings",
-            url: "/pages/settings",
-          },
-        ],
-      },
     ],
   },
   {
-    label: "IDENTITY & SAFETY", // 🛡️ Dedicated Administrative Access Section
+    label: "IDENTITY & SAFETY",
     items: [
       {
         title: "User Management",
-        icon: Icons.User, // Reuses user context icon smoothly
+        icon: Icons.User,
         items: [
           {
-            title: "Directory Table",
+            title: "User Directory",
             url: "/admin/users",
           },
           {
@@ -83,29 +36,50 @@ export const NAV_DATA = [
     ],
   },
   {
-    label: "OTHERS",
+    label: "BUSINESS OPERATIONS",
     items: [
       {
-        title: "Charts",
-        icon: Icons.PieChart,
+        title: "Deal Management",
+        icon: Icons.Table,
         items: [
           {
-            title: "Basic Chart",
-            url: "/charts/basic-chart",
+            title: "Deals Ledger",
+            url: "/admin/deals",
+          },
+          {
+            title: "Contract Archive",
+            url: "/admin/contract-archive",
           },
         ],
       },
       {
-        title: "UI Elements",
+        title: "Dispute Center",
         icon: Icons.FourCircle,
         items: [
           {
-            title: "Alerts",
-            url: "/ui-elements/alerts",
+            title: "Ticket Queue",
+            url: "/admin/dispute-center",
           },
+        ],
+      },
+    ],
+  },
+  {
+    label: "ACCOUNT",
+    items: [
+      {
+        title: "Profile",
+        url: "/profile",
+        icon: Icons.User,
+        items: [],
+      },
+      {
+        title: "Settings",
+        icon: Icons.Alphabet,
+        items: [
           {
-            title: "Buttons",
-            url: "/ui-elements/buttons",
+            title: "Account Settings",
+            url: "/pages/settings",
           },
         ],
       },

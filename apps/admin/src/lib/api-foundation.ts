@@ -1,5 +1,6 @@
-export const apiBasePath =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3001/api/v1';
+import { getApiBaseUrl } from './api-base';
+
+export const apiBasePath = getApiBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL);
 
 export const configurationStatusUrl = `${apiBasePath}/configuration/status`;
 

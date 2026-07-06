@@ -1,5 +1,11 @@
 // services/api/src/common/guards/kyc-verified.guard.ts
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service'; // Adjust path to your PrismaService
 import { KycStatus } from '@prisma/client';
 
@@ -13,7 +19,9 @@ export class KycVerifiedGuard implements CanActivate {
     const user = request.user; // Appended previously by JwtAuthGuard
 
     if (!user || !user.sub) {
-      throw new UnauthorizedException('Authentication context missing. Ensure JwtAuthGuard is applied first.');
+      throw new UnauthorizedException(
+        'Authentication context missing. Ensure JwtAuthGuard is applied first.',
+      );
     }
 
     // Query the structural database state using the Supabase authUserId mapping index
@@ -29,7 +37,7 @@ export class KycVerifiedGuard implements CanActivate {
     // Business Rule Gatekeep: Allow access only if status is fully APPROVED
     if (profile.kycStatus !== KycStatus.APPROVED) {
       throw new ForbiddenException(
-        `Access Denied: Verification status is current ${profile.kycStatus}. Full KYC Approval required.`
+        `Access Denied: Verification status is current ${profile.kycStatus}. Full KYC Approval required.`,
       );
     }
 

@@ -1,5 +1,9 @@
 // admin.service.ts
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service'; // Adjust path to your PrismaService
 import { KycStatus } from '@prisma/client';
 import { KycReviewDecision } from './dto/review-kyc.dto';
@@ -128,11 +132,17 @@ export class AdminService {
   async overrideTrustCounters(
     targetProfileId: string,
     adminId: string,
-    metrics: { successfulDeals: number; ongoingDeals: number; breachedDeals: number },
+    metrics: {
+      successfulDeals: number;
+      ongoingDeals: number;
+      breachedDeals: number;
+    },
     reason: string,
   ) {
     if (!reason) {
-      throw new BadRequestException('An explicit reason is required to override system metrics.');
+      throw new BadRequestException(
+        'An explicit reason is required to override system metrics.',
+      );
     }
 
     return this.prisma.$transaction(async (tx) => {
@@ -167,4 +177,5 @@ export class AdminService {
       return updatedCounter;
     });
   }
+  
 }
