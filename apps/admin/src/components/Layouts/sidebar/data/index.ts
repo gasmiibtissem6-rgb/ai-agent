@@ -93,6 +93,20 @@ export const NAV_DATA = [
             title: "Global Deals Ledger",
             url: "/admin/deals", // Direct path matching directory structure
           },
+          {
+            title: "Contract Archive",
+            url: "/admin/contract-archive",
+          },
+        ],
+      },
+      {
+        title: "Dispute Center",
+        icon: Icons.FourCircle,
+        items: [
+          {
+            title: "Ticket Queue",
+            url: "/admin/dispute-center",
+          },
         ],
       },
     ],
