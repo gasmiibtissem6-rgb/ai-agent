@@ -67,8 +67,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-gray-50">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-950 border-t-transparent"></div>
+      <div className="flex h-screen items-center justify-center bg-gray-50 dark:bg-gray-dark">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-950 border-t-transparent dark:border-white dark:border-t-transparent"></div>
       </div>
     );
   }
@@ -78,7 +78,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-screen overflow-hidden">
       <Sidebar />
-      <div className="relative flex flex-1 flex-col overflow-y-auto overflow-x-hidden bg-gray-50 text-gray-900">
+      <div className="relative flex flex-1 flex-col overflow-y-auto overflow-x-hidden bg-gray-50 text-gray-900 dark:bg-gray-dark dark:text-white">
         <Header />
         <main>
           <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">

@@ -89,7 +89,7 @@ export default function KycQueuePage() {
   }
 
   return (
-    <div className="rounded-[10px] bg-white p-4 shadow-1 dark:bg-gray-dark dark:shadow-card sm:p-7.5">
+    <div className="rounded-[10px] bg-gray-1 p-4 shadow-1 dark:bg-gray-dark dark:shadow-card sm:p-7.5">
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h4 className="text-xl font-bold text-black dark:text-white">

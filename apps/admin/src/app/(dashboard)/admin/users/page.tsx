@@ -192,7 +192,7 @@ export default function UsersDirectoryPage() {
   if (error && users.length === 0) return <div className="p-6 text-red-500 text-center">Error: {error}</div>;
 
   return (
-    <div className="rounded-sm border border-stroke bg-white px-5 pt-6 pb-2.5 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:pb-1">
+    <div className="rounded-sm border border-stroke bg-gray-1 px-5 pt-6 pb-2.5 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:pb-1">
       <div className="max-w-full overflow-x-auto">
         <table className="w-full table-auto">
           <thead>
@@ -294,7 +294,7 @@ export default function UsersDirectoryPage() {
           style={{ backgroundColor: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
           onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
         >
-          <div className="w-full max-w-lg rounded-xl bg-white shadow-2xl dark:bg-boxdark overflow-hidden">
+          <div className="w-full max-w-lg rounded-xl bg-gray-1 shadow-2xl dark:bg-boxdark overflow-hidden">
 
             {/* Header */}
             <div className="flex items-start justify-between border-b border-stroke px-6 py-5 dark:border-strokedark">
@@ -346,15 +346,15 @@ export default function UsersDirectoryPage() {
                     </p>
                     <div className="flex items-center justify-between gap-1">
                       <button type="button" onClick={() => setSuccessCount((v) => Math.max(0, v - 1))}
-                        className="flex h-7 w-7 items-center justify-center rounded-md border border-emerald-300 bg-white text-emerald-700 font-bold text-lg hover:bg-emerald-100 transition dark:bg-boxdark dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/40">
+                        className="flex h-7 w-7 items-center justify-center rounded-md border border-emerald-300 bg-gray-1 text-emerald-700 font-bold text-lg hover:bg-emerald-100 transition dark:bg-boxdark dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/40">
                         −
                       </button>
                       <input type="number" min="0" value={successCount}
                         onChange={(e) => setSuccessCount(Math.max(0, parseInt(e.target.value) || 0))}
-                        className="w-12 rounded-md border border-emerald-300 bg-white py-1 text-center text-base font-bold text-emerald-800 outline-none focus:border-emerald-500 dark:bg-boxdark dark:border-emerald-700 dark:text-emerald-200"
+                        className="w-12 rounded-md border border-emerald-300 bg-gray-1 py-1 text-center text-base font-bold text-emerald-800 outline-none focus:border-emerald-500 dark:bg-boxdark dark:border-emerald-700 dark:text-emerald-200"
                       />
                       <button type="button" onClick={() => setSuccessCount((v) => v + 1)}
-                        className="flex h-7 w-7 items-center justify-center rounded-md border border-emerald-300 bg-white text-emerald-700 font-bold text-lg hover:bg-emerald-100 transition dark:bg-boxdark dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/40">
+                        className="flex h-7 w-7 items-center justify-center rounded-md border border-emerald-300 bg-gray-1 text-emerald-700 font-bold text-lg hover:bg-emerald-100 transition dark:bg-boxdark dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/40">
                         +
                       </button>
                     </div>
@@ -367,15 +367,15 @@ export default function UsersDirectoryPage() {
                     </p>
                     <div className="flex items-center justify-between gap-1">
                       <button type="button" onClick={() => setOngoingCount((v) => Math.max(0, v - 1))}
-                        className="flex h-7 w-7 items-center justify-center rounded-md border border-blue-300 bg-white text-blue-700 font-bold text-lg hover:bg-blue-100 transition dark:bg-boxdark dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900/40">
+                        className="flex h-7 w-7 items-center justify-center rounded-md border border-blue-300 bg-gray-1 text-blue-700 font-bold text-lg hover:bg-blue-100 transition dark:bg-boxdark dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900/40">
                         −
                       </button>
                       <input type="number" min="0" value={ongoingCount}
                         onChange={(e) => setOngoingCount(Math.max(0, parseInt(e.target.value) || 0))}
-                        className="w-12 rounded-md border border-blue-300 bg-white py-1 text-center text-base font-bold text-blue-800 outline-none focus:border-blue-500 dark:bg-boxdark dark:border-blue-700 dark:text-blue-200"
+                        className="w-12 rounded-md border border-blue-300 bg-gray-1 py-1 text-center text-base font-bold text-blue-800 outline-none focus:border-blue-500 dark:bg-boxdark dark:border-blue-700 dark:text-blue-200"
                       />
                       <button type="button" onClick={() => setOngoingCount((v) => v + 1)}
-                        className="flex h-7 w-7 items-center justify-center rounded-md border border-blue-300 bg-white text-blue-700 font-bold text-lg hover:bg-blue-100 transition dark:bg-boxdark dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900/40">
+                        className="flex h-7 w-7 items-center justify-center rounded-md border border-blue-300 bg-gray-1 text-blue-700 font-bold text-lg hover:bg-blue-100 transition dark:bg-boxdark dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900/40">
                         +
                       </button>
                     </div>
@@ -388,15 +388,15 @@ export default function UsersDirectoryPage() {
                     </p>
                     <div className="flex items-center justify-between gap-1">
                       <button type="button" onClick={() => setBreachCount((v) => Math.max(0, v - 1))}
-                        className="flex h-7 w-7 items-center justify-center rounded-md border border-rose-300 bg-white text-rose-700 font-bold text-lg hover:bg-rose-100 transition dark:bg-boxdark dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900/40">
+                        className="flex h-7 w-7 items-center justify-center rounded-md border border-rose-300 bg-gray-1 text-rose-700 font-bold text-lg hover:bg-rose-100 transition dark:bg-boxdark dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900/40">
                         −
                       </button>
                       <input type="number" min="0" value={breachCount}
                         onChange={(e) => setBreachCount(Math.max(0, parseInt(e.target.value) || 0))}
-                        className="w-12 rounded-md border border-rose-300 bg-white py-1 text-center text-base font-bold text-rose-800 outline-none focus:border-rose-500 dark:bg-boxdark dark:border-rose-700 dark:text-rose-200"
+                        className="w-12 rounded-md border border-rose-300 bg-gray-1 py-1 text-center text-base font-bold text-rose-800 outline-none focus:border-rose-500 dark:bg-boxdark dark:border-rose-700 dark:text-rose-200"
                       />
                       <button type="button" onClick={() => setBreachCount((v) => v + 1)}
-                        className="flex h-7 w-7 items-center justify-center rounded-md border border-rose-300 bg-white text-rose-700 font-bold text-lg hover:bg-rose-100 transition dark:bg-boxdark dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900/40">
+                        className="flex h-7 w-7 items-center justify-center rounded-md border border-rose-300 bg-gray-1 text-rose-700 font-bold text-lg hover:bg-rose-100 transition dark:bg-boxdark dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900/40">
                         +
                       </button>
                     </div>

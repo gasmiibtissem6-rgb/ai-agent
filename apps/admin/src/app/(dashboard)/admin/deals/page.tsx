@@ -99,7 +99,7 @@ export default function AdminDealsLedgerPage() {
   const renderCreator = (creator: any) => typeof creator === 'object' ? (creator?.displayName || creator?.email) : creator;
 
   return (
-    <div className="rounded-sm border border-stroke bg-white px-5 pt-6 pb-2.5 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:pb-1">
+    <div className="rounded-sm border border-stroke bg-gray-1 px-5 pt-6 pb-2.5 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:pb-1">
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h4 className="text-xl font-bold text-black dark:text-white">Global Deals Ledger</h4>
