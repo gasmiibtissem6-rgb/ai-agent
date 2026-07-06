@@ -1,13 +1,4 @@
-import {
-  Controller,
-  Get,
-  Patch,
-  Body,
-  Param,
-  Query,
-  UseGuards,
-  BadRequestException,
-} from '@nestjs/common';
+import { Controller, Get, Patch, Body, Param, Query, UseGuards, BadRequestException } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -26,7 +17,7 @@ export class DealsController {
     @Query('status') status?: DealStatus,
     @Query('search') search?: string,
     @Query('page') page: string = '1',
-    @Query('limit') limit: string = '10',
+    @Query('limit') limit: string = '10'
   ) {
     return this.dealsService.getGlobalDealsDashboard({
       status,
@@ -47,15 +38,11 @@ export class DealsController {
   async forceOverrideStatus(
     @Param('id') id: string,
     @Body('status') status: DealStatus,
-    @Body('reason') reason: string,
+    @Body('reason') reason: string
   ) {
-    if (!status)
-      throw new BadRequestException('Target status override state missing.');
-    if (!reason?.trim())
-      throw new BadRequestException(
-        'An audit justification reason is required.',
-      );
-
+    if (!status) throw new BadRequestException('Target status override state missing.');
+    if (!reason?.trim()) throw new BadRequestException('An audit justification reason is required.');
+    
     return this.dealsService.overrideDealStatus(id, status, reason);
   }
 }
