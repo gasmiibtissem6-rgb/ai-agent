@@ -1,4 +1,23 @@
 // admin.controller.ts
+/*
+ * TODO FOR OUSSEMA
+ * This controller has been restored to its pre-KYC-session state. It keeps the
+ * basic KYC review routes you owned before:
+ *   - GET   /admin/kyc/pending
+ *   - PATCH /admin/kyc/:submissionId/review   (body: ReviewKycDto)
+ *
+ * The KYC session had removed these from here and replaced them with a richer,
+ * dedicated surface. That richer surface is NOT wired anymore. If you want it,
+ * implement it in admin-kyc.controller.ts (see the placeholder there):
+ *   - GET   /admin/kyc                         (paginated queue + status filter)
+ *   - GET   /admin/kyc/:id                     (detail + signed document URLs + audit)
+ *   - PATCH /admin/kyc/:id/approve
+ *   - PATCH /admin/kyc/:id/reject
+ *   - PATCH /admin/kyc/:id/request-resubmission
+ *   - PATCH /admin/kyc/:id/revoke              (APPROVED only)
+ *   - POST  /admin/kyc/:id/recheck            (SUPER_ADMIN, ADMIN only)
+ * Then register AdminKycController in admin.module.ts.
+ */
 import {
   Controller,
   Get,
