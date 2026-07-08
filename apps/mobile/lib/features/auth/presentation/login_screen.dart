@@ -6,7 +6,6 @@ import '../domain/auth_state.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../services/auth_service.dart';
 import '../../../core/security/rate_limiter.dart';
 import '../../../shared/ideal_ui.dart';
 
@@ -55,12 +54,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           password: _passwordController.text,
         );
     final state = ref.read(authProvider).whenOrNull(data: (s) => s);
-    if (state?.errorMessage == 'Please verify your email first.') {
-      await ref.read(authProvider.notifier).resendOtp(email: email);
-      if (!mounted) return;
-      context.go(AppRoutes.otp, extra: email);
-      return;
-    }
     if (state?.status == AuthStatus.error) {
       _rateLimiter.recordFailure();
     } else {
@@ -69,11 +62,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _loginWithGoogle() async {
+    // Navigation is handled by the ref.listen below once authenticated.
     await ref.read(authProvider.notifier).signInWithGoogle();
-    if (!mounted) return;
-    if (AuthService.isLoggedIn) {
-      context.go(AppRoutes.home);
-    }
   }
 
   @override
@@ -87,9 +77,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (state?.status == AuthStatus.authenticated) {
         context.go(AppRoutes.home);
       }
-      if (state?.status == AuthStatus.error &&
-          state?.errorMessage != null &&
-          state?.errorMessage != 'Please verify your email first.') {
+      if (state?.status == AuthStatus.error && state?.errorMessage != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(state!.errorMessage!),

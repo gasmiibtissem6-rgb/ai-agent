@@ -1,13 +1,20 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'auth_profile.dart';
 
-enum AuthStatus { initial, authenticated, unauthenticated, loading, error, passwordRecovery }
+enum AuthStatus {
+  initial,
+  authenticated,
+  unauthenticated,
+  loading,
+  error,
+  passwordRecovery,
+}
 
 class AppAuthState {
   final AuthStatus status;
-  final User? user;
+  final AuthProfile? profile;
   final String? errorMessage;
 
-  const AppAuthState({required this.status, this.user, this.errorMessage});
+  const AppAuthState({required this.status, this.profile, this.errorMessage});
 
   factory AppAuthState.initial() =>
       const AppAuthState(status: AuthStatus.initial);
@@ -18,8 +25,8 @@ class AppAuthState {
   factory AppAuthState.unauthenticated() =>
       const AppAuthState(status: AuthStatus.unauthenticated);
 
-  factory AppAuthState.authenticated(User user) =>
-      AppAuthState(status: AuthStatus.authenticated, user: user);
+  factory AppAuthState.authenticated(AuthProfile profile) =>
+      AppAuthState(status: AuthStatus.authenticated, profile: profile);
 
   factory AppAuthState.passwordRecovery() =>
       const AppAuthState(status: AuthStatus.passwordRecovery);

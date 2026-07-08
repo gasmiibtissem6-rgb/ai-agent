@@ -21,10 +21,7 @@ class HomeScreen extends ConsumerWidget {
         .watch(dealProvider)
         .whenOrNull(data: (state) => state);
     final deals = dealState?.deals ?? const <Deal>[];
-    final displayName =
-        authState?.user?.userMetadata?['full_name'] as String? ??
-        authState?.user?.email?.split('@').first ??
-        'there';
+    final displayName = authState?.profile?.displayNameOrEmail ?? 'there';
 
     return IdealAppScaffold(
       activeRoute: 'home',

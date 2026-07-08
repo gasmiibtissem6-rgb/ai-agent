@@ -47,26 +47,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       return;
     }
     final email = _emailController.text.trim();
-    final success = await ref
+    // On success the provider emits `authenticated` and the ref.listen below
+    // navigates straight to home — no OTP step. Errors surface via the listener.
+    await ref
         .read(authProvider.notifier)
         .signUp(
           email: email,
           password: _passwordController.text,
           fullName: _nameController.text.trim(),
         );
-    debugPrint('Register success: $success, email: $email');
-    if (success && mounted) {
-      context.go(AppRoutes.otp, extra: email);
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Signup failed. Please check your email and try again.',
-          ),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    }
   }
 
   Future<void> _registerWithGoogle() async {

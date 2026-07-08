@@ -55,6 +55,11 @@ export class PrismaService
 
     // Setup auth trigger and enable realtime on profiles when connected to a Supabase-style database
     try {
+      // NOTE: SECURITY DEFINER functions triggered by Supabase Auth run under the
+      // `supabase_auth_admin` role, whose search_path excludes `public`. Without
+      // `SET search_path` (and a schema-qualified enum cast), the unqualified
+      // `::kyc_status` cast fails and Supabase reports "Database error saving new
+      // user" on every signup. Both guards below are required.
       await this.$executeRawUnsafe(`
         CREATE OR REPLACE FUNCTION public.handle_new_user()
         RETURNS trigger AS $$
@@ -65,7 +70,7 @@ export class PrismaService
             new.id,
             new.email,
             COALESCE(new.raw_user_meta_data->>'display_name', new.raw_user_meta_data->>'full_name', 'Anonymous User'),
-            'NOT_STARTED'::kyc_status,
+            'NOT_STARTED'::public.kyc_status,
             FALSE,
             NOW()
           )
@@ -75,7 +80,7 @@ export class PrismaService
               updated_at = NOW();
           RETURN new;
         END;
-        $$ LANGUAGE plpgsql SECURITY DEFINER;
+        $$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions;
       `);
 
       await this.$executeRawUnsafe(`

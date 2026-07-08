@@ -3,6 +3,7 @@ import 'package:logger/logger.dart';
 import '../constants/env.dart';
 import '../errors/app_exception.dart';
 import 'token_storage.dart';
+import 'auth_session_events.dart';
 import '../security/security_config.dart';
 
 class ApiClient {
@@ -21,6 +22,7 @@ class ApiClient {
 
     _dio.interceptors.add(_AuthInterceptor());
     _dio.interceptors.add(_LoggingInterceptor());
+    _dio.interceptors.add(_RefreshInterceptor(_dio));
     SecurityConfig.applyCertificatePinning(_dio);
   }
 
@@ -162,5 +164,91 @@ class _LoggingInterceptor extends Interceptor {
       '[API] Error ${err.response?.statusCode} ${err.requestOptions.path}',
     );
     handler.next(err);
+  }
+}
+
+// Interceptor: on a 401, refresh the Supabase session via POST /auth/refresh
+// (through NestJS), then retry the original request once. If refresh fails,
+// clear tokens and signal the auth layer to route back to login.
+class _RefreshInterceptor extends Interceptor {
+  _RefreshInterceptor(this._dio);
+
+  final Dio _dio;
+
+  // Public auth endpoints whose 401 means "bad credentials", NOT "expired
+  // session" — they must never trigger a refresh attempt.
+  static const _noRefreshPaths = [
+    '/auth/login',
+    '/auth/register',
+    '/auth/refresh',
+    '/auth/forgot-password',
+  ];
+
+  // Single-flight guard so concurrent 401s trigger only one refresh call.
+  Future<bool>? _inFlightRefresh;
+
+  @override
+  Future<void> onError(
+    DioException err,
+    ErrorInterceptorHandler handler,
+  ) async {
+    final options = err.requestOptions;
+    final isAuthEndpoint = _noRefreshPaths.any(options.path.contains);
+    final alreadyRetried = options.extra['retried'] == true;
+
+    if (err.response?.statusCode != 401 || isAuthEndpoint || alreadyRetried) {
+      return handler.next(err);
+    }
+
+    final refreshed = await (_inFlightRefresh ??= _refreshTokens());
+    _inFlightRefresh = null;
+
+    if (!refreshed) {
+      await TokenStorage.clearTokens();
+      AuthSessionEvents.instance.notifySignedOut();
+      return handler.next(err);
+    }
+
+    try {
+      final token = await TokenStorage.getAccessToken();
+      options.headers['Authorization'] = 'Bearer $token';
+      options.extra['retried'] = true;
+      final response = await _dio.fetch(options);
+      return handler.resolve(response);
+    } on DioException catch (retryError) {
+      return handler.next(retryError);
+    }
+  }
+
+  Future<bool> _refreshTokens() async {
+    final refreshToken = await TokenStorage.getRefreshToken();
+    if (refreshToken == null) return false;
+
+    try {
+      // Bare client: no auth/refresh interceptors, so this can't recurse.
+      final bareDio = Dio(
+        BaseOptions(
+          baseUrl: Env.apiBaseUrl,
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+        ),
+      );
+      final response = await bareDio.post(
+        '/auth/refresh',
+        data: {'refresh_token': refreshToken},
+      );
+      final data = (response.data as Map)['data'] as Map<String, dynamic>;
+      final newAccess = data['access_token'] as String?;
+      if (newAccess == null) return false;
+      await TokenStorage.saveTokens(
+        accessToken: newAccess,
+        refreshToken: data['refresh_token'] as String?,
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 }
