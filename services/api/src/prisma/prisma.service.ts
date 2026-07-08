@@ -14,6 +14,14 @@ export class PrismaService
 {
   private readonly logger = new Logger(PrismaService.name);
 
+  private hasSupabaseConfig(): boolean {
+    return Boolean(
+      process.env.SUPABASE_URL &&
+        process.env.SUPABASE_ANON_KEY &&
+        process.env.SUPABASE_SERVICE_ROLE_KEY,
+    );
+  }
+
   async onModuleInit() {
     if (!process.env.DATABASE_URL) {
       this.logger.warn(
@@ -25,7 +33,27 @@ export class PrismaService
     // Connects to your PostgreSQL instance on startup when configured
     await this.$connect();
 
-    // Setup auth trigger and enable realtime on profiles
+    if (!this.hasSupabaseConfig()) {
+      this.logger.log(
+        'PrismaService: Supabase env is not fully configured. Skipping auth trigger and realtime setup.',
+      );
+      return;
+    }
+
+    const authSchemaRows = await this.$queryRaw<Array<{ schema_name: string }>>`
+      SELECT schema_name
+      FROM information_schema.schemata
+      WHERE schema_name = 'auth'
+    `;
+
+    if (authSchemaRows.length === 0) {
+      this.logger.log(
+        'PrismaService: Database has no auth schema. Skipping Supabase auth trigger and realtime setup.',
+      );
+      return;
+    }
+
+    // Setup auth trigger and enable realtime on profiles when connected to a Supabase-style database
     try {
       await this.$executeRawUnsafe(`
         CREATE OR REPLACE FUNCTION public.handle_new_user()
