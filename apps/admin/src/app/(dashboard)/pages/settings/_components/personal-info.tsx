@@ -61,8 +61,8 @@ export function PersonalInfoForm(personalInfo: UserInfo) {
         bio: formData.bio,
       };
 
-      // TODO: Replace with NestJS API call to update user
       const updatePromise = (async () => {
+        void updatePayload;
         // await authClient.updateUser(updatePayload);
         await new Promise((resolve) => setTimeout(resolve, 1000));
       })();

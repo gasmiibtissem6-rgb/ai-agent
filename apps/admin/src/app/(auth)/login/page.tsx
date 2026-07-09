@@ -1,30 +1,22 @@
 "use client";
 
-import { useActionState } from "react";
-import { useRouter } from "next/navigation";
+import { ThemeToggleSwitch } from "@/components/Layouts/header/theme-toggle";
 import { getApiBaseUrl } from "@/lib/api-base";
+import { useActionState } from "react";
 
 const API_BASE_URL = getApiBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL);
 
 export default function LoginPage() {
-  const router = useRouter();
-
   const [errorMessage, submitAction, isPending] = useActionState(
-    async (previousState: string | null, formData: FormData) => {
-      const email = formData.get("email") as string;
-      const password = formData.get("password") as string;
-
-      // 🔍 DEBUG STEP 1: Check your terminal/browser console when you click submit.
-      // If this prints "admin@api.com" but you typed something else, your browser's
-      // password manager/autofill is hijacking the form submission at the last millisecond.
-      console.log("SUBMITTING -> Email:", email, "Password:", password);
+    async (_previousState: string | null, formData: FormData) => {
+      const email = String(formData.get("email") ?? "");
+      const password = String(formData.get("password") ?? "");
 
       try {
         const res = await fetch(`${API_BASE_URL}/auth/login/admin`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password }),
-          // 🛡️ DEBUG STEP 2: Force Next.js to NEVER cache this route
           cache: "no-store",
         });
 
@@ -33,11 +25,7 @@ export default function LoginPage() {
           return errorData.message || "Invalid administrative credentials.";
         }
 
-        // Inside your LoginPage try block:
-        // Inside LoginPage try block...
-        // Inside your LoginPage try block...
         const resData = await res.json();
-
         const token =
           resData.data?.data?.token || resData.data?.token || resData.token;
 
@@ -45,15 +33,9 @@ export default function LoginPage() {
           return "Login failed: No token received from server.";
         }
 
-        // 1. Keep this for your api-client.ts to use
         localStorage.setItem("admin_token", token);
-
-        // 2. NEW: Save it as a cookie so Next.js Middleware can see it!
-        // We set both 'admin_token' and 'token' just in case the template middleware is looking for 'token'
         document.cookie = `admin_token=${token}; path=/; max-age=86400; SameSite=Lax`;
         document.cookie = `token=${token}; path=/; max-age=86400; SameSite=Lax`;
-
-        // 3. NEW: Force a hard browser navigation instead of a soft router.push
         window.location.href = "/";
 
         return null;
@@ -65,66 +47,74 @@ export default function LoginPage() {
   );
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8 rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
-        <div className="text-center">
-          <h2 className="text-3xl font-extrabold tracking-tight text-gray-900">
-            IDEAL Console
-          </h2>
-          <p className="mt-2 text-sm text-gray-500">
-            Sign in with your admin privileges
-          </p>
-        </div>
+    <div className="min-h-screen bg-slate-100 px-4 py-6 text-slate-950 dark:bg-gray-dark dark:text-white sm:px-6">
+      <div className="mx-auto flex max-w-6xl justify-end">
+        <ThemeToggleSwitch />
+      </div>
 
-        {/* Added autoComplete="off" to stop aggressive browser autofills from hijacking */}
-        <form
-          action={submitAction}
-          className="mt-8 space-y-6"
-          autoComplete="off"
-        >
-          {errorMessage && (
-            <div className="rounded-md bg-red-50 p-3 text-sm text-red-600 border border-red-200">
-              {errorMessage}
-            </div>
-          )}
+      <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-6xl items-center justify-center">
+        <section className="w-full max-w-[560px] rounded-[28px] border border-slate-200 bg-white p-8 shadow-lg dark:border-dark-3 dark:bg-dark-2 sm:p-10">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold tracking-tight text-slate-950 dark:text-white">
+              Sign in
+            </h1>
+            <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-dark-6">
+              Enter your administrative credentials to continue.
+            </p>
+          </div>
 
-          <div className="space-y-4 rounded-md shadow-sm">
+          <form action={submitAction} className="space-y-5" autoComplete="off">
+            {errorMessage && (
+              <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">
+                {errorMessage}
+              </div>
+            )}
+
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase">
-                Email address
+              <label
+                htmlFor="email"
+                className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-dark-6"
+              >
+                Email Address
               </label>
               <input
+                id="email"
                 name="email"
                 type="email"
                 required
-                autoComplete="new-password" // Hack to stop Chrome from autofilling emails
-                className="relative block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+                autoComplete="new-password"
+                placeholder="admin@ideal.local"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-slate-950 outline-none transition focus:border-primary focus:bg-white dark:border-dark-3 dark:bg-dark dark:text-white dark:focus:bg-dark"
               />
             </div>
+
             <div>
-              <label className="text-xs font-semibold text-gray-500 uppercase">
+              <label
+                htmlFor="password"
+                className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-dark-6"
+              >
                 Password
               </label>
               <input
+                id="password"
                 name="password"
                 type="password"
                 required
                 autoComplete="new-password"
-                className="relative block w-full rounded-md border border-gray-300 px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:border-indigo-500 focus:outline-none focus:ring-indigo-500 sm:text-sm"
+                placeholder="Enter your password"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-slate-950 outline-none transition focus:border-primary focus:bg-white dark:border-dark-3 dark:bg-dark dark:text-white dark:focus:bg-dark"
               />
             </div>
-          </div>
 
-          <div>
             <button
               type="submit"
               disabled={isPending}
-              className="group relative flex w-full justify-center rounded-md border border-transparent bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 disabled:opacity-50"
+              className="flex w-full items-center justify-center rounded-xl bg-slate-950 px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-primary dark:hover:bg-primary/90"
             >
               {isPending ? "Authenticating..." : "Sign in"}
             </button>
-          </div>
-        </form>
+          </form>
+        </section>
       </div>
     </div>
   );
