@@ -1,9 +1,10 @@
-// src/app/admin/users/page.tsx
 'use client';
 
+import { AdminPageHeader } from '@/components/Layouts/admin-page-header';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { adminService } from '@/services/adminService';
 import { getApiBaseUrl } from '@/lib/api-base';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface UserProfileRow {
   id: string;
@@ -20,15 +21,24 @@ interface UserProfileRow {
   } | null;
 }
 
+interface SupabaseConfig {
+  supabaseUrl?: string;
+  supabaseAnonKey?: string;
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 const API_BASE_URL = getApiBaseUrl(
   process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL,
 );
 
-const fetchSupabaseConfig = async () => {
+const fetchSupabaseConfig = async (): Promise<SupabaseConfig | null> => {
   try {
     const res = await fetch(`${API_BASE_URL}/configuration/supabase`);
     if (res.ok) {
-      const payload = await res.json();
+      const payload = await res.json() as { data?: SupabaseConfig } & SupabaseConfig;
       return payload?.data || payload;
     }
   } catch (err) {
@@ -41,14 +51,15 @@ export default function UsersDirectoryPage() {
   const [users, setUsers] = useState<UserProfileRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState('ALL');
+  const [kycFilter, setKycFilter] = useState('ALL');
 
-  // Pagination State
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
   const [totalUsers, setTotalUsers] = useState(0);
 
-  // Modal state
   const [selectedUser, setSelectedUser] = useState<UserProfileRow | null>(null);
   const [successCount, setSuccessCount] = useState(0);
   const [ongoingCount, setOngoingCount] = useState(0);
@@ -75,15 +86,19 @@ export default function UsersDirectoryPage() {
       } else {
         setUsers([]);
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred loading users.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'An error occurred loading users.'));
     } finally {
       setLoading(false);
     }
   }, [page, limit]);
 
   useEffect(() => {
-    loadDirectoryData(page, limit);
+    const timeout = window.setTimeout(() => {
+      void loadDirectoryData(page, limit);
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
   }, [page, limit, loadDirectoryData]);
 
   const loadRef = useRef(loadDirectoryData);
@@ -96,9 +111,8 @@ export default function UsersDirectoryPage() {
     limitRef.current = limit;
   }, [loadDirectoryData, page, limit]);
 
-  // Supabase Realtime subscription
   useEffect(() => {
-    let supabaseChannel: any = null;
+    let supabaseChannel: RealtimeChannel | null = null;
 
     async function initRealtime() {
       const config = await fetchSupabaseConfig();
@@ -109,7 +123,7 @@ export default function UsersDirectoryPage() {
           supabaseChannel = supabase
             .channel('live-profiles-updates')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => {
-              loadRef.current(pageRef.current, limitRef.current);
+              void loadRef.current(pageRef.current, limitRef.current);
             })
             .subscribe();
         } catch (err) {
@@ -118,11 +132,10 @@ export default function UsersDirectoryPage() {
       }
     }
 
-    initRealtime();
+    void initRealtime();
     return () => { if (supabaseChannel) supabaseChannel.unsubscribe(); };
   }, []);
 
-  // ── Modal helpers ──────────────────────────────────────────
   const openOverrideModal = (user: UserProfileRow) => {
     setSelectedUser(user);
     setSuccessCount(user.trustCounter?.successfulDeals ?? 0);
@@ -162,14 +175,13 @@ export default function UsersDirectoryPage() {
       setModalSuccess('Trust metrics updated. Action logged to audit trail.');
       await loadDirectoryData(page, limit);
       setTimeout(() => closeModal(), 1800);
-    } catch (err: any) {
-      setModalError(err.message || 'Failed to update trust metrics. Please try again.');
+    } catch (err: unknown) {
+      setModalError(getErrorMessage(err, 'Failed to update trust metrics. Please try again.'));
     } finally {
       setSubmitting(false);
     }
   };
 
-  // ── Badge helpers ──────────────────────────────────────────
   const getKycBadgeClass = (status: string) => {
     switch (status) {
       case 'APPROVED': return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300';
@@ -188,15 +200,135 @@ export default function UsersDirectoryPage() {
     }
   };
 
-  if (loading && users.length === 0) return <div className="p-6 text-center">Loading administrative user directory...</div>;
-  if (error && users.length === 0) return <div className="p-6 text-red-500 text-center">Error: {error}</div>;
+  const visibleTotal = totalUsers || users.length;
+  const adminCount = users.filter((user) => user.isAdmin).length;
+  const approvedKycCount = users.filter((user) => user.kycStatus === 'APPROVED').length;
+  const trustEventCount = users.reduce(
+    (total, user) =>
+      total +
+      (user.trustCounter?.successfulDeals || 0) +
+      (user.trustCounter?.ongoingDeals || 0) +
+      (user.trustCounter?.breachedDeals || 0),
+    0,
+  );
+  const filteredUsers = users.filter((user) => {
+    const query = searchTerm.trim().toLowerCase();
+    const matchesSearch =
+      !query ||
+      (user.displayName || '').toLowerCase().includes(query) ||
+      user.email.toLowerCase().includes(query);
+    const matchesRole =
+      roleFilter === 'ALL' ||
+      (roleFilter === 'ADMIN' && user.isAdmin) ||
+      (roleFilter === 'MEMBER' && !user.isAdmin);
+    const matchesKyc = kycFilter === 'ALL' || user.kycStatus === kycFilter;
+
+    return matchesSearch && matchesRole && matchesKyc;
+  });
 
   return (
-    <div className="rounded-sm border border-stroke bg-gray-1 px-5 pt-6 pb-2.5 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:pb-1">
+    <div className="space-y-7">
+      <AdminPageHeader
+        eyebrow="IDENTITY COMMAND"
+        title="User Directory"
+        description="Review platform accounts, administrative access, KYC posture, and trust counters from one controlled directory."
+        panelLabel="Directory Coverage"
+        panelValue={loading ? '...' : visibleTotal}
+        panelNote="Known accounts"
+        panelSubtext={`${approvedKycCount} approved identities visible on this page.`}
+        panelBarValue={visibleTotal ? Math.min((approvedKycCount / visibleTotal) * 100, 100) : 12}
+        metrics={[
+          {
+            label: 'Users',
+            value: loading ? '...' : visibleTotal,
+            note: 'Platform accounts',
+            accent: 'from-slate-900 to-slate-700',
+          },
+          {
+            label: 'Admins',
+            value: loading ? '...' : adminCount,
+            note: 'Privileged profiles',
+            accent: 'from-blue-700 to-indigo-600',
+          },
+          {
+            label: 'Approved KYC',
+            value: loading ? '...' : approvedKycCount,
+            note: 'Verified identities',
+            accent: 'from-emerald-600 to-teal-500',
+          },
+          {
+            label: 'Trust Events',
+            value: loading ? '...' : trustEventCount,
+            note: 'Recorded deal counters',
+            accent: 'from-amber-600 to-amber-500',
+          },
+        ]}
+        tone="emerald"
+        compact
+      />
+
+      <div className="rounded-[20px] border border-stroke bg-white px-5 pb-3 pt-6 shadow-card-2 dark:border-dark-3 dark:bg-dark-2 sm:px-7.5">
+      <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+        <div>
+        <h4 className="text-xl font-bold text-black dark:text-white">User Directory</h4>
+        <p className="mt-1 text-sm font-medium text-gray-500 dark:text-dark-6">
+          Administrative overview of platform users and trust metrics.
+        </p>
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-2 xl:flex xl:items-center">
+          <input
+            type="search"
+            placeholder="Search name or email"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            className="rounded-xl border border-stroke bg-gray-1 px-4 py-2.5 text-sm text-black outline-none transition focus:border-primary dark:border-dark-3 dark:bg-dark dark:text-white"
+          />
+          <select
+            value={roleFilter}
+            onChange={(event) => setRoleFilter(event.target.value)}
+            className="rounded-xl border border-stroke bg-gray-1 px-4 py-2.5 text-sm text-black outline-none transition focus:border-primary dark:border-dark-3 dark:bg-dark dark:text-white"
+          >
+            <option value="ALL">All roles</option>
+            <option value="ADMIN">Admins</option>
+            <option value="MEMBER">Members</option>
+          </select>
+          <select
+            value={kycFilter}
+            onChange={(event) => setKycFilter(event.target.value)}
+            className="rounded-xl border border-stroke bg-gray-1 px-4 py-2.5 text-sm text-black outline-none transition focus:border-primary dark:border-dark-3 dark:bg-dark dark:text-white"
+          >
+            <option value="ALL">All KYC</option>
+            <option value="APPROVED">Approved</option>
+            <option value="UNDER_REVIEW">Under review</option>
+            <option value="SUBMITTED">Submitted</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="NOT_STARTED">Not started</option>
+          </select>
+          <button
+            type="button"
+            onClick={() => {
+              setSearchTerm('');
+              setRoleFilter('ALL');
+              setKycFilter('ALL');
+            }}
+            className="rounded-xl border border-stroke px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-gray-100 dark:border-dark-3 dark:text-white dark:hover:bg-dark"
+          >
+            Reset
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="mb-6 rounded-lg bg-rose-50 p-4 text-sm text-rose-600 dark:bg-rose-950/20 dark:text-rose-400">
+          {error}
+        </div>
+      )}
+
       <div className="max-w-full overflow-x-auto">
         <table className="w-full table-auto">
           <thead>
-            <tr className="bg-gray-2 text-left dark:bg-meta-4">
+            <tr className="bg-gray-2 text-left dark:bg-dark">
               <th className="min-w-[220px] py-4 px-4 font-medium text-black dark:text-white xl:pl-11">User Profile</th>
               <th className="min-w-[150px] py-4 px-4 font-medium text-black dark:text-white">Security Access</th>
               <th className="min-w-[120px] py-4 px-4 font-medium text-black dark:text-white">KYC Status</th>
@@ -205,18 +337,24 @@ export default function UsersDirectoryPage() {
             </tr>
           </thead>
           <tbody>
-            {users.length === 0 ? (
+            {loading && users.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="py-10 text-center text-gray-500 dark:text-dark-6">
+                  Loading administrative user directory...
+                </td>
+              </tr>
+            ) : filteredUsers.length === 0 ? (
               <tr>
                 <td colSpan={5} className="py-10 text-center text-gray-500">
-                  No registered users found in the system.
+                  No users match the selected filters.
                 </td>
               </tr>
             ) : (
-              users.map((user) => (
-                <tr key={user.id} className="border-b border-[#eee] dark:border-strokedark">
+              filteredUsers.map((user) => (
+                <tr key={user.id} className="border-b border-stroke/80 dark:border-dark-3">
                   <td className="py-5 px-4 pl-9 xl:pl-11">
                     <h5 className="font-medium text-black dark:text-white">{user.displayName || 'Anonymous User'}</h5>
-                    <p className="text-sm text-gray-500">{user.email}</p>
+                    <p className="text-sm text-gray-500 dark:text-dark-6">{user.email}</p>
                   </td>
                   <td className="py-5 px-4">
                     {user.isAdmin ? (
@@ -237,20 +375,20 @@ export default function UsersDirectoryPage() {
                   <td className="py-5 px-4 text-sm">
                     <div className="flex items-center space-x-3.5">
                       <span className="inline-flex items-center text-emerald-600 font-semibold" title="Successful Deals">
-                        <span className="mr-1">✓</span> {user.trustCounter?.successfulDeals || 0}
+                        <span className="mr-1">S</span> {user.trustCounter?.successfulDeals || 0}
                       </span>
                       <span className="inline-flex items-center text-blue-600 font-semibold" title="Ongoing Deals">
-                        <span className="mr-1">⟳</span> {user.trustCounter?.ongoingDeals || 0}
+                        <span className="mr-1">O</span> {user.trustCounter?.ongoingDeals || 0}
                       </span>
                       <span className="inline-flex items-center text-amber-600 font-semibold" title="Breached Deals">
-                        <span className="mr-1">⚠</span> {user.trustCounter?.breachedDeals || 0}
+                        <span className="mr-1">B</span> {user.trustCounter?.breachedDeals || 0}
                       </span>
                     </div>
                   </td>
                   <td className="py-5 px-4">
                     <button
                       onClick={() => openOverrideModal(user)}
-                      className="inline-flex items-center justify-center rounded-md border border-stroke py-1.5 px-4 text-center text-sm font-medium text-black hover:bg-gray-100 transition dark:border-strokedark dark:text-white dark:hover:bg-meta-4"
+                      className="inline-flex items-center justify-center rounded-lg border border-stroke px-4 py-2 text-center text-sm font-medium text-black transition hover:bg-gray-100 dark:border-dark-3 dark:text-white dark:hover:bg-dark"
                     >
                       Adjust Metrics
                     </button>
@@ -264,40 +402,38 @@ export default function UsersDirectoryPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex flex-col items-center justify-between border-t border-stroke py-4 px-4 dark:border-strokedark sm:flex-row">
-          <p className="text-sm text-gray-500">
+        <div className="flex flex-col items-center justify-between border-t border-stroke px-4 py-4 dark:border-dark-3 sm:flex-row">
+          <p className="text-sm text-gray-500 dark:text-dark-6">
             Showing {(page - 1) * limit + 1} to {Math.min(page * limit, totalUsers)} of {totalUsers} accounts
           </p>
           <div className="flex items-center space-x-2 mt-4 sm:mt-0">
             <button onClick={() => setPage((p) => Math.max(p - 1, 1))} disabled={page === 1}
-              className="inline-flex items-center justify-center rounded border border-stroke py-1 px-3 text-sm font-medium text-black hover:bg-gray-100 disabled:opacity-50 dark:border-strokedark dark:text-white dark:hover:bg-meta-4">
+              className="inline-flex items-center justify-center rounded border border-stroke py-1 px-3 text-sm font-medium text-black hover:bg-gray-100 disabled:opacity-50 dark:border-dark-3 dark:text-white dark:hover:bg-dark">
               Previous
             </button>
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
               <button key={p} onClick={() => setPage(p)}
-                className={`inline-flex items-center justify-center rounded border py-1 px-3 text-sm font-medium transition ${page === p ? 'bg-primary border-primary text-white' : 'border-stroke text-black hover:bg-gray-100 dark:border-strokedark dark:text-white dark:hover:bg-meta-4'}`}>
+                className={`inline-flex items-center justify-center rounded border py-1 px-3 text-sm font-medium transition ${page === p ? 'bg-primary border-primary text-white' : 'border-stroke text-black hover:bg-gray-100 dark:border-dark-3 dark:text-white dark:hover:bg-dark'}`}>
                 {p}
               </button>
             ))}
             <button onClick={() => setPage((p) => Math.min(p + 1, totalPages))} disabled={page === totalPages}
-              className="inline-flex items-center justify-center rounded border border-stroke py-1 px-3 text-sm font-medium text-black hover:bg-gray-100 disabled:opacity-50 dark:border-strokedark dark:text-white dark:hover:bg-meta-4">
+              className="inline-flex items-center justify-center rounded border border-stroke py-1 px-3 text-sm font-medium text-black hover:bg-gray-100 disabled:opacity-50 dark:border-dark-3 dark:text-white dark:hover:bg-dark">
               Next
             </button>
           </div>
         </div>
       )}
 
-      {/* ── Trust Metrics Override Modal ── */}
       {selectedUser && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ backgroundColor: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)' }}
           onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
         >
-          <div className="w-full max-w-lg rounded-xl bg-gray-1 shadow-2xl dark:bg-boxdark overflow-hidden">
+          <div className="w-full max-w-lg overflow-hidden rounded-xl bg-white shadow-2xl dark:bg-dark-2">
 
-            {/* Header */}
-            <div className="flex items-start justify-between border-b border-stroke px-6 py-5 dark:border-strokedark">
+            <div className="flex items-start justify-between border-b border-stroke px-6 py-5 dark:border-dark-3">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-900/40">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -310,15 +446,14 @@ export default function UsersDirectoryPage() {
                 </div>
               </div>
               <button onClick={closeModal} disabled={submitting}
-                className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition disabled:opacity-40 dark:hover:bg-meta-4">
+                className="rounded-lg p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 disabled:opacity-40 dark:hover:bg-dark">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
                 </svg>
               </button>
             </div>
 
-            {/* User Info Banner */}
-            <div className="mx-6 mt-5 flex items-center gap-3 rounded-lg border border-stroke bg-gray-1 px-4 py-3 dark:border-strokedark dark:bg-meta-4">
+            <div className="mx-6 mt-5 flex items-center gap-3 rounded-lg border border-stroke bg-gray-1 px-4 py-3 dark:border-dark-3 dark:bg-dark">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-sm">
                 {(selectedUser.displayName || selectedUser.email).charAt(0).toUpperCase()}
               </div>
@@ -334,69 +469,65 @@ export default function UsersDirectoryPage() {
             </div>
 
             <form onSubmit={handleOverrideSubmit}>
-              {/* Metric Counters */}
               <div className="px-6 pt-5 pb-3">
                 <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-400">Trust Counters</p>
                 <div className="grid grid-cols-3 gap-3">
 
-                  {/* Successful */}
                   <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-800 dark:bg-emerald-900/20">
                     <p className="mb-2 text-xs font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
-                      <span>✓</span> Successful
+                      <span>S</span> Successful
                     </p>
                     <div className="flex items-center justify-between gap-1">
                       <button type="button" onClick={() => setSuccessCount((v) => Math.max(0, v - 1))}
-                        className="flex h-7 w-7 items-center justify-center rounded-md border border-emerald-300 bg-gray-1 text-emerald-700 font-bold text-lg hover:bg-emerald-100 transition dark:bg-boxdark dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/40">
-                        −
+                        className="flex h-7 w-7 items-center justify-center rounded-md border border-emerald-300 bg-white text-lg font-bold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-700 dark:bg-dark dark:text-emerald-300 dark:hover:bg-emerald-900/40">
+                        -
                       </button>
                       <input type="number" min="0" value={successCount}
                         onChange={(e) => setSuccessCount(Math.max(0, parseInt(e.target.value) || 0))}
-                        className="w-12 rounded-md border border-emerald-300 bg-gray-1 py-1 text-center text-base font-bold text-emerald-800 outline-none focus:border-emerald-500 dark:bg-boxdark dark:border-emerald-700 dark:text-emerald-200"
+                        className="w-12 rounded-md border border-emerald-300 bg-white py-1 text-center text-base font-bold text-emerald-800 outline-none focus:border-emerald-500 dark:border-emerald-700 dark:bg-dark dark:text-emerald-200"
                       />
                       <button type="button" onClick={() => setSuccessCount((v) => v + 1)}
-                        className="flex h-7 w-7 items-center justify-center rounded-md border border-emerald-300 bg-gray-1 text-emerald-700 font-bold text-lg hover:bg-emerald-100 transition dark:bg-boxdark dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/40">
+                        className="flex h-7 w-7 items-center justify-center rounded-md border border-emerald-300 bg-white text-lg font-bold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-700 dark:bg-dark dark:text-emerald-300 dark:hover:bg-emerald-900/40">
                         +
                       </button>
                     </div>
                   </div>
 
-                  {/* Ongoing */}
                   <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
                     <p className="mb-2 text-xs font-medium text-blue-700 dark:text-blue-400 flex items-center gap-1">
-                      <span>⟳</span> Ongoing
+                      <span>O</span> Ongoing
                     </p>
                     <div className="flex items-center justify-between gap-1">
                       <button type="button" onClick={() => setOngoingCount((v) => Math.max(0, v - 1))}
-                        className="flex h-7 w-7 items-center justify-center rounded-md border border-blue-300 bg-gray-1 text-blue-700 font-bold text-lg hover:bg-blue-100 transition dark:bg-boxdark dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900/40">
-                        −
+                        className="flex h-7 w-7 items-center justify-center rounded-md border border-blue-300 bg-white text-lg font-bold text-blue-700 transition hover:bg-blue-100 dark:border-blue-700 dark:bg-dark dark:text-blue-300 dark:hover:bg-blue-900/40">
+                        -
                       </button>
                       <input type="number" min="0" value={ongoingCount}
                         onChange={(e) => setOngoingCount(Math.max(0, parseInt(e.target.value) || 0))}
-                        className="w-12 rounded-md border border-blue-300 bg-gray-1 py-1 text-center text-base font-bold text-blue-800 outline-none focus:border-blue-500 dark:bg-boxdark dark:border-blue-700 dark:text-blue-200"
+                        className="w-12 rounded-md border border-blue-300 bg-white py-1 text-center text-base font-bold text-blue-800 outline-none focus:border-blue-500 dark:border-blue-700 dark:bg-dark dark:text-blue-200"
                       />
                       <button type="button" onClick={() => setOngoingCount((v) => v + 1)}
-                        className="flex h-7 w-7 items-center justify-center rounded-md border border-blue-300 bg-gray-1 text-blue-700 font-bold text-lg hover:bg-blue-100 transition dark:bg-boxdark dark:border-blue-700 dark:text-blue-300 dark:hover:bg-blue-900/40">
+                        className="flex h-7 w-7 items-center justify-center rounded-md border border-blue-300 bg-white text-lg font-bold text-blue-700 transition hover:bg-blue-100 dark:border-blue-700 dark:bg-dark dark:text-blue-300 dark:hover:bg-blue-900/40">
                         +
                       </button>
                     </div>
                   </div>
 
-                  {/* Breached */}
                   <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 dark:border-rose-800 dark:bg-rose-900/20">
                     <p className="mb-2 text-xs font-medium text-rose-700 dark:text-rose-400 flex items-center gap-1">
-                      <span>⚠</span> Breached
+                      <span>B</span> Breached
                     </p>
                     <div className="flex items-center justify-between gap-1">
                       <button type="button" onClick={() => setBreachCount((v) => Math.max(0, v - 1))}
-                        className="flex h-7 w-7 items-center justify-center rounded-md border border-rose-300 bg-gray-1 text-rose-700 font-bold text-lg hover:bg-rose-100 transition dark:bg-boxdark dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900/40">
-                        −
+                        className="flex h-7 w-7 items-center justify-center rounded-md border border-rose-300 bg-white text-lg font-bold text-rose-700 transition hover:bg-rose-100 dark:border-rose-700 dark:bg-dark dark:text-rose-300 dark:hover:bg-rose-900/40">
+                        -
                       </button>
                       <input type="number" min="0" value={breachCount}
                         onChange={(e) => setBreachCount(Math.max(0, parseInt(e.target.value) || 0))}
-                        className="w-12 rounded-md border border-rose-300 bg-gray-1 py-1 text-center text-base font-bold text-rose-800 outline-none focus:border-rose-500 dark:bg-boxdark dark:border-rose-700 dark:text-rose-200"
+                        className="w-12 rounded-md border border-rose-300 bg-white py-1 text-center text-base font-bold text-rose-800 outline-none focus:border-rose-500 dark:border-rose-700 dark:bg-dark dark:text-rose-200"
                       />
                       <button type="button" onClick={() => setBreachCount((v) => v + 1)}
-                        className="flex h-7 w-7 items-center justify-center rounded-md border border-rose-300 bg-gray-1 text-rose-700 font-bold text-lg hover:bg-rose-100 transition dark:bg-boxdark dark:border-rose-700 dark:text-rose-300 dark:hover:bg-rose-900/40">
+                        className="flex h-7 w-7 items-center justify-center rounded-md border border-rose-300 bg-white text-lg font-bold text-rose-700 transition hover:bg-rose-100 dark:border-rose-700 dark:bg-dark dark:text-rose-300 dark:hover:bg-rose-900/40">
                         +
                       </button>
                     </div>
@@ -404,7 +535,6 @@ export default function UsersDirectoryPage() {
                 </div>
               </div>
 
-              {/* Audit Reason */}
               <div className="px-6 pb-4">
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
                   Audit Justification <span className="text-rose-500 normal-case font-normal">*</span>
@@ -415,14 +545,13 @@ export default function UsersDirectoryPage() {
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="Describe the reason for this adjustment (min. 10 characters)..."
-                  className="w-full resize-none rounded-lg border border-stroke bg-gray-1 px-4 py-3 text-sm text-black outline-none transition focus:border-primary dark:border-strokedark dark:bg-meta-4 dark:text-white dark:placeholder-gray-500"
+                  className="w-full resize-none rounded-lg border border-stroke bg-gray-1 px-4 py-3 text-sm text-black outline-none transition focus:border-primary dark:border-dark-3 dark:bg-dark dark:text-white dark:placeholder-gray-500"
                 />
                 <p className={`mt-1 text-right text-xs transition-colors ${reason.length > 0 && reason.length < 10 ? 'text-rose-500' : 'text-gray-400'}`}>
-                  {reason.length} chars {reason.length >= 10 ? '✓' : `— ${10 - reason.length} more needed`}
+                  {reason.length} chars {reason.length >= 10 ? 'ready' : `${10 - reason.length} more needed`}
                 </p>
               </div>
 
-              {/* Inline feedback */}
               {modalError && (
                 <div className="mx-6 mb-4 flex items-start gap-2.5 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 dark:border-rose-800 dark:bg-rose-900/20">
                   <svg xmlns="http://www.w3.org/2000/svg" className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -440,10 +569,9 @@ export default function UsersDirectoryPage() {
                 </div>
               )}
 
-              {/* Footer */}
-              <div className="flex items-center justify-end gap-3 border-t border-stroke px-6 py-4 dark:border-strokedark">
+              <div className="flex items-center justify-end gap-3 border-t border-stroke px-6 py-4 dark:border-dark-3">
                 <button type="button" onClick={closeModal} disabled={submitting}
-                  className="rounded-lg border border-stroke px-5 py-2.5 text-sm font-medium text-black transition hover:bg-gray-100 disabled:opacity-50 dark:border-strokedark dark:text-white dark:hover:bg-meta-4">
+                  className="rounded-lg border border-stroke px-5 py-2.5 text-sm font-medium text-black transition hover:bg-gray-100 disabled:opacity-50 dark:border-dark-3 dark:text-white dark:hover:bg-dark">
                   Cancel
                 </button>
                 <button type="submit" disabled={submitting || reason.trim().length < 10}
@@ -470,6 +598,7 @@ export default function UsersDirectoryPage() {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }

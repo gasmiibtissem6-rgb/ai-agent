@@ -1,5 +1,6 @@
 "use client";
 
+import { AdminPageHeader } from "@/components/Layouts/admin-page-header";
 import { getApiBaseUrl } from "@/lib/api-base";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -264,73 +265,30 @@ export default function Home() {
 
   return (
     <div className="space-y-7">
-      <section className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-7 shadow-sm dark:border-dark-3 dark:bg-dark-2 md:p-9">
-        <div className="pointer-events-none absolute -left-16 -top-20 h-56 w-56 rounded-full bg-sky-100/60 blur-3xl dark:bg-sky-900/30" />
-        <div className="pointer-events-none absolute -right-16 -bottom-24 h-64 w-64 rounded-full bg-indigo-100/60 blur-3xl dark:bg-indigo-900/30" />
-
-        <div className="relative grid gap-6 lg:grid-cols-[1.4fr_1fr] lg:items-end">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500 dark:text-dark-6">
-              IDEAL OPERATIONS HUB
-            </p>
-            <h1 className="mt-3 text-3xl font-bold tracking-tight text-slate-950 dark:text-white md:text-4xl">
-              Executive Overview
-            </h1>
-            <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 dark:text-dark-7 md:text-base">
-              Consolidated command surface for moderation, verification, deal flow,
-              and dispute resolution across the IDEAL platform.
-            </p>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-slate-950 p-5 text-white shadow-md dark:border-slate-800 dark:bg-slate-900">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-300 dark:text-slate-400">
-              Reliability Index
-            </p>
-            <div className="mt-3 flex items-end justify-between">
-              <p className="text-4xl font-semibold">
-                {loading ? "..." : `${reliability.score}%`}
-              </p>
-              <p className="text-xs text-slate-300 dark:text-slate-400">Daily health estimate</p>
-            </div>
-            <div className="mt-4 h-2 rounded-full bg-white/15">
-              <div
-                className="h-2 rounded-full bg-gradient-to-r from-emerald-300 to-sky-300 transition-all duration-500"
-                style={{ width: `${loading ? 25 : reliability.score}%` }}
-              />
-            </div>
-            <p className="mt-3 text-xs text-slate-300 dark:text-slate-400">
-              Dispute exposure: {loading ? "..." : `${reliability.exposure}%`} of active users.
-            </p>
-          </div>
-        </div>
-      </section>
+      <AdminPageHeader
+        eyebrow="IDEAL OPERATIONS HUB"
+        title="Executive Overview"
+        description="Consolidated command surface for moderation, verification, deal flow, and dispute resolution across the IDEAL platform."
+        panelLabel="Reliability Index"
+        panelValue={loading ? "..." : `${reliability.score}%`}
+        panelNote="Daily health estimate"
+        panelSubtext={`Dispute exposure: ${loading ? "..." : `${reliability.exposure}%`} of active users.`}
+        panelBarValue={loading ? 25 : reliability.score}
+        metrics={metrics.map((metric) => ({
+          label: metric.title,
+          value: formatMetric(metric.value, loading),
+          note: metric.note,
+          accent: metric.accent,
+          href: metric.href,
+        }))}
+        tone="blue"
+      />
 
       {fetchError && (
         <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
           {fetchError}
         </section>
       )}
-
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {metrics.map((metric) => (
-          <Link
-            key={metric.title}
-            href={metric.href}
-            className="group rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md dark:border-dark-3 dark:bg-dark-2 dark:hover:border-dark-4"
-          >
-            <div className={`inline-flex rounded-full bg-gradient-to-r px-3 py-1 text-xs font-medium text-white ${metric.accent}`}>
-              {metric.title}
-            </div>
-            <p className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
-              {formatMetric(metric.value, loading)}
-            </p>
-            <p className="mt-1 text-sm text-slate-500 dark:text-dark-6">{metric.note}</p>
-            <p className="mt-4 text-xs font-medium uppercase tracking-[0.16em] text-slate-400 transition group-hover:text-slate-600 dark:text-dark-6 dark:group-hover:text-dark-7">
-              Open section
-            </p>
-          </Link>
-        ))}
-      </section>
 
       <section className="grid gap-4 xl:grid-cols-[1.25fr_1fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-dark-3 dark:bg-dark-2 md:p-7">
