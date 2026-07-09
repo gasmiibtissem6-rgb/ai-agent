@@ -1,4 +1,16 @@
 // admin.module.ts
+/*
+ * TODO FOR OUSSEMA
+ * Restored to its pre-KYC-session state: registers only AdminController + AdminService.
+ * The KYC session had also registered AdminKycController + AdminKycService and imported
+ * KycModule (for KycStorageService / KYC_PROVIDER). Those registrations were removed.
+ * If you implement the enhanced admin KYC surface (admin-kyc.controller.ts /
+ * admin-kyc.service.ts), re-add here:
+ *   imports:     [PrismaModule, AuthModule, KycModule]
+ *   controllers: [AdminController, AdminKycController]
+ *   providers:   [AdminService, AdminKycService]
+ * (KycModule already exports KycService, KYC_PROVIDER and KycStorageService.)
+ */
 import { Module } from '@nestjs/common';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';

@@ -8,33 +8,34 @@ datasource db {
 }
 
 model Profile {
-  id                  String          @id @default(uuid()) @db.Uuid
-  authUserId          String          @unique @map("auth_user_id") @db.Uuid
-  email               String          @unique
-  displayName         String?         @map("display_name")
-  avatarUrl           String?         @map("avatar_url")
-  kycStatus           KycStatus       @default(NOT_STARTED) @map("kyc_status")
-  isAdmin             Boolean         @default(false) @map("is_admin")
-  adminRole           AdminRole?      @map("admin_role")
-  createdAt           DateTime        @default(now()) @map("created_at")
-  updatedAt           DateTime        @updatedAt @map("updated_at")
-  archivedAt          DateTime?       @map("archived_at")
-  adminActions        AdminAction[]   @relation("AdminActor")
-  auditLogs           AuditLog[]      @relation("AuditActor")
-  ownedCompanies      Company[]       @relation("CompanyOwner")
+  id                  String           @id @default(uuid()) @db.Uuid
+  authUserId          String           @unique @map("auth_user_id") @db.Uuid
+  email               String           @unique
+  displayName         String?          @map("display_name")
+  avatarUrl           String?          @map("avatar_url")
+  kycStatus           KycStatus        @default(NOT_STARTED) @map("kyc_status")
+  isAdmin             Boolean          @default(false) @map("is_admin")
+  adminRole           AdminRole?       @map("admin_role")
+  createdAt           DateTime         @default(now()) @map("created_at")
+  updatedAt           DateTime         @updatedAt @map("updated_at")
+  archivedAt          DateTime?        @map("archived_at")
+  adminActions        AdminAction[]    @relation("AdminActor")
+  auditLogs           AuditLog[]       @relation("AuditActor")
+  ownedCompanies      Company[]        @relation("CompanyOwner")
   companyMemberships  CompanyMember[]
   dealApprovals       DealApproval[]
   uploadedFiles       DealFile[]
-  invitedDealParties  DealParty[]     @relation("PartyInviter")
-  dealParties         DealParty[]     @relation("PartyProfile")
-  createdDealVersions DealVersion[]   @relation("VersionCreator")
-  createdDeals        Deal[]          @relation("DealCreator")
-  kycSubmissions      KycSubmission[] @relation("KycOwner")
-  reviewedSubmissions KycSubmission[] @relation("KycReviewer")
+  invitedDealParties  DealParty[]      @relation("PartyInviter")
+  dealParties         DealParty[]      @relation("PartyProfile")
+  createdDealVersions DealVersion[]    @relation("VersionCreator")
+  createdDeals        Deal[]           @relation("DealCreator")
+  createdInviteLinks  DealInviteLink[] @relation("InviteCreator")
+  kycSubmissions      KycSubmission[]  @relation("KycOwner")
+  reviewedSubmissions KycSubmission[]  @relation("KycReviewer")
   sentMessages        Message[]
   notifications       Notification[]
-  reportsCreated      Report[]        @relation("ReportCreator")
-  reportsReviewed     Report[]        @relation("ReportReviewer")
+  reportsCreated      Report[]         @relation("ReportCreator")
+  reportsReviewed     Report[]         @relation("ReportReviewer")
   subscriptions       Subscription[]
   trustCounter        TrustCounter?
 
@@ -82,6 +83,11 @@ model KycSubmission {
   id                  String     @id @default(uuid()) @db.Uuid
   profileId           String     @map("profile_id") @db.Uuid
   status              KycStatus  @default(SUBMITTED)
+  documentType        String?    @map("document_type")
+  front               String?
+  back                String?
+  selfie              String?
+  personalInfo        Json?      @map("personal_info")
   providerReference   String?    @map("provider_reference")
   rejectionReason     String?    @map("rejection_reason")
   submittedAt         DateTime?  @map("submitted_at")
@@ -111,23 +117,25 @@ model TrustCounter {
 }
 
 model Deal {
-  id               String        @id @default(uuid()) @db.Uuid
-  creatorProfileId String        @map("creator_profile_id") @db.Uuid
-  companyId        String?       @map("company_id") @db.Uuid
+  id               String           @id @default(uuid()) @db.Uuid
+  creatorProfileId String           @map("creator_profile_id") @db.Uuid
+  companyId        String?          @map("company_id") @db.Uuid
   title            String
   description      String?
-  status           DealStatus    @default(DRAFT)
-  currentVersionId String?       @map("current_version_id") @db.Uuid
-  lockedVersionId  String?       @map("locked_version_id") @db.Uuid
-  createdAt        DateTime      @default(now()) @map("created_at")
-  updatedAt        DateTime      @updatedAt @map("updated_at")
-  archivedAt       DateTime?     @map("archived_at")
-  cancelledAt      DateTime?     @map("cancelled_at")
+  dealType         String?          @map("deal_type")
+  status           DealStatus       @default(DRAFT)
+  currentVersionId String?          @map("current_version_id") @db.Uuid
+  lockedVersionId  String?          @map("locked_version_id") @db.Uuid
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  archivedAt       DateTime?        @map("archived_at")
+  cancelledAt      DateTime?        @map("cancelled_at")
   files            DealFile[]
+  inviteLinks      DealInviteLink[]
   parties          DealParty[]
   versions         DealVersion[]
-  company          Company?      @relation(fields: [companyId], references: [id])
-  creator          Profile       @relation("DealCreator", fields: [creatorProfileId], references: [id])
+  company          Company?         @relation(fields: [companyId], references: [id])
+  creator          Profile          @relation("DealCreator", fields: [creatorProfileId], references: [id])
   messages         Message[]
 
   @@index([creatorProfileId])
@@ -272,6 +280,7 @@ model Subscription {
   id                   String             @id @default(uuid()) @db.Uuid
   profileId            String?            @map("profile_id") @db.Uuid
   companyId            String?            @map("company_id") @db.Uuid
+  planId               String?            @map("plan_id") @db.Uuid
   stripeCustomerId     String?            @map("stripe_customer_id")
   stripeSubscriptionId String?            @map("stripe_subscription_id")
   status               SubscriptionStatus @default(TRIALING)
@@ -281,11 +290,44 @@ model Subscription {
   createdAt            DateTime           @default(now()) @map("created_at")
   updatedAt            DateTime           @updatedAt @map("updated_at")
   company              Company?           @relation(fields: [companyId], references: [id])
+  plan                 Plan?              @relation(fields: [planId], references: [id])
   profile              Profile?           @relation(fields: [profileId], references: [id])
 
   @@index([profileId])
   @@index([companyId])
+  @@index([planId])
   @@map("subscriptions")
+}
+
+model Plan {
+  id               String         @id @default(uuid()) @db.Uuid
+  code             String         @unique
+  name             String
+  monthlyDealLimit Int?           @map("monthly_deal_limit")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  subscriptions    Subscription[]
+
+  @@map("plans")
+}
+
+model DealInviteLink {
+  id                 String    @id @default(uuid()) @db.Uuid
+  dealId             String    @map("deal_id") @db.Uuid
+  token              String    @unique
+  createdByProfileId String    @map("created_by_profile_id") @db.Uuid
+  permissions        Json
+  expiresAt          DateTime  @map("expires_at")
+  maxUses            Int?      @map("max_uses")
+  usedCount          Int       @default(0) @map("used_count")
+  revokedAt          DateTime? @map("revoked_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  createdBy          Profile   @relation("InviteCreator", fields: [createdByProfileId], references: [id])
+  deal               Deal      @relation(fields: [dealId], references: [id])
+
+  @@index([dealId])
+  @@index([token])
+  @@map("deal_invite_links")
 }
 
 model AuditLog {
@@ -383,6 +425,7 @@ enum KycStatus {
   APPROVED
   REJECTED
   RESUBMISSION_REQUIRED
+  REVOKED
 
   @@map("kyc_status")
 }
@@ -451,7 +494,16 @@ enum AuditActionType {
   KYC_SUBMITTED
   KYC_APPROVED
   KYC_REJECTED
+  KYC_REVOKED
+  KYC_RECHECK
+  KYC_RESUBMISSION_REQUESTED
   DEAL_CREATED
+  DEAL_UPDATED
+  DEAL_DELETED
+  DEAL_VERSION_CREATED
+  DEAL_SHARED
+  DEAL_INVITE_ACCEPTED
+  DEAL_INVITE_REVOKED
   PARTY_INVITED
   PARTY_ACCEPTED
   PARTY_DECLINED

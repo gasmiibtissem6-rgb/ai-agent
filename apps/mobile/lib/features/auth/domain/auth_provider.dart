@@ -1,82 +1,180 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../core/errors/app_exception.dart';
+import '../../../core/network/auth_session_events.dart';
+import '../../../core/network/token_storage.dart';
+import '../../../services/auth_api.dart';
 import '../../../services/auth_service.dart';
 import 'auth_state.dart';
 
 class AuthNotifier extends AsyncNotifier<AppAuthState> {
   StreamSubscription<AuthState>? _subscription;
-  bool _suppressSignedInEvents = false;
+  StreamSubscription<void>? _sessionSub;
 
   @override
   Future<AppAuthState> build() async {
-    final user = AuthService.currentUser;
+    // Route back to login whenever the network layer reports a dead session
+    // (refresh failed on a 401).
+    _sessionSub?.cancel();
+    _sessionSub = AuthSessionEvents.instance.onSignedOut.listen((_) async {
+      await TokenStorage.clearTokens();
+      state = AsyncData(AppAuthState.unauthenticated());
+    });
 
+    // Supabase auth events are still consumed for the flows kept on Supabase:
+    //  - passwordRecovery: the reset-password deep link (to migrate later).
+    //  - signedIn: Google OAuth, whose web redirect completes asynchronously
+    //    and delivers the session via this event (not the signInWithGoogle call).
     _subscription?.cancel();
     _subscription = AuthService.authStateChanges.listen((authState) {
-      final u = authState.session?.user;
-      if (authState.event == AuthChangeEvent.passwordRecovery) {
-        state = AsyncData(AppAuthState.passwordRecovery());
-      } else if (_suppressSignedInEvents &&
-          authState.event == AuthChangeEvent.signedIn) {
-        return;
-      } else if (u != null) {
-        state = AsyncData(AppAuthState.authenticated(u));
-      } else {
-        state = AsyncData(AppAuthState.unauthenticated());
+      switch (authState.event) {
+        case AuthChangeEvent.passwordRecovery:
+          state = AsyncData(AppAuthState.passwordRecovery());
+          break;
+        case AuthChangeEvent.signedIn:
+          final session = authState.session;
+          if (session != null) {
+            _hydrateFromSupabaseSession(session);
+          }
+          break;
+        default:
+          break;
       }
     });
 
-    ref.onDispose(() => _subscription?.cancel());
+    ref.onDispose(() {
+      _subscription?.cancel();
+      _sessionSub?.cancel();
+    });
 
-    if (user != null) return AppAuthState.authenticated(user);
-    return AppAuthState.unauthenticated();
+    // Restore the session from the stored token via NestJS GET /auth/me.
+    final token = await TokenStorage.getAccessToken();
+    if (token == null) {
+      return AppAuthState.unauthenticated();
+    }
+    try {
+      final profile = await AuthApi.me();
+      return AppAuthState.authenticated(profile);
+    } catch (_) {
+      // Token invalid and unrecoverable (the interceptor already tried refresh).
+      await TokenStorage.clearTokens();
+      return AppAuthState.unauthenticated();
+    }
   }
 
-  /// Sign up — returns true if successful (navigate to OTP screen)
+  /// Register via NestJS (email auto-confirmed, no OTP) and log straight in.
   Future<bool> signUp({
     required String email,
     required String password,
     String? fullName,
   }) async {
     state = AsyncData(AppAuthState.loading());
-    _suppressSignedInEvents = true;
     try {
-      await AuthService.signUp(
+      final profile = await AuthApi.register(
         email: email,
         password: password,
-        fullName: fullName,
+        fullName: fullName ?? '',
       );
-      if (AuthService.currentSession != null) {
-        try {
-          await AuthService.signOut();
-        } catch (_) {
-          // If Supabase already cleared the session, we still want to continue
-          // into the OTP flow without interrupting signup.
-        }
-      }
-      state = AsyncData(AppAuthState.unauthenticated());
+      state = AsyncData(AppAuthState.authenticated(profile));
       return true;
     } catch (e) {
-      final message = e.toString();
-      if (message.contains('User already registered') ||
-          message.contains('already been registered') ||
-          message.contains('email address is already')) {
-        state = AsyncData(
-          AppAuthState.error(
-            'An account with this email already exists. Please sign in instead.',
-          ),
-        );
-      } else {
-        state = AsyncData(AppAuthState.error(_formatError(e)));
-      }
+      state = AsyncData(AppAuthState.error(_formatError(e)));
       return false;
-    } finally {
-      _suppressSignedInEvents = false;
     }
   }
 
-  /// Verify OTP after signup
+  /// Sign in with email and password via NestJS.
+  Future<void> signIn({required String email, required String password}) async {
+    state = AsyncData(AppAuthState.loading());
+    try {
+      final profile = await AuthApi.login(email: email, password: password);
+      state = AsyncData(AppAuthState.authenticated(profile));
+    } catch (e) {
+      state = AsyncData(AppAuthState.error(_formatError(e)));
+    }
+  }
+
+  /// Sign in with Google — STILL ON SUPABASE (to migrate later). The resulting
+  /// Supabase JWT is stored and validated by NestJS like any other token.
+  Future<void> signInWithGoogle() async {
+    state = AsyncData(AppAuthState.loading());
+    try {
+      await AuthService.signInWithGoogle();
+      final session = AuthService.currentSession;
+      if (session != null) {
+        await TokenStorage.saveTokens(
+          accessToken: session.accessToken,
+          refreshToken: session.refreshToken,
+        );
+        final profile = await AuthApi.me();
+        state = AsyncData(AppAuthState.authenticated(profile));
+      } else {
+        state = AsyncData(AppAuthState.unauthenticated());
+      }
+    } catch (e) {
+      state = AsyncData(AppAuthState.error(_formatError(e)));
+    }
+  }
+
+  /// Send a password-reset email via NestJS (generic success always).
+  Future<void> resetPassword(String email) async {
+    state = AsyncData(AppAuthState.loading());
+    try {
+      await AuthApi.forgotPassword(email);
+      state = AsyncData(AppAuthState.unauthenticated());
+    } catch (e) {
+      state = AsyncData(AppAuthState.error(_formatError(e)));
+    }
+  }
+
+  /// Update the password after a PASSWORD_RECOVERY deep link.
+  /// STILL ON SUPABASE (to migrate later) — completion uses the recovery token.
+  Future<bool> updatePassword(String newPassword) async {
+    state = AsyncData(AppAuthState.loading());
+    try {
+      await AuthService.updatePassword(newPassword);
+      // Sign out everywhere and force a fresh login for security.
+      await AuthApi.logout();
+      await TokenStorage.clearTokens();
+      try {
+        await AuthService.signOut();
+      } catch (_) {}
+      state = AsyncData(AppAuthState.unauthenticated());
+      return true;
+    } catch (e) {
+      state = AsyncData(AppAuthState.error(_formatError(e)));
+      return false;
+    }
+  }
+
+  /// Sign out: NestJS logout (best-effort) + clear tokens + clear any Supabase
+  /// session left over from Google/recovery flows.
+  Future<void> signOut() async {
+    await AuthApi.logout();
+    await TokenStorage.clearTokens();
+    try {
+      await AuthService.signOut();
+    } catch (_) {}
+    state = AsyncData(AppAuthState.unauthenticated());
+  }
+
+  /// Delete account — STILL ON SUPABASE (out of scope this session).
+  Future<void> deleteAccount() async {
+    state = AsyncData(AppAuthState.loading());
+    try {
+      await AuthService.deleteAccount();
+      await TokenStorage.clearTokens();
+      state = AsyncData(AppAuthState.unauthenticated());
+    } catch (e) {
+      state = AsyncData(AppAuthState.error(_formatError(e)));
+    }
+  }
+
+  // --- DEAD CODE (kept intentionally, no longer reachable) -------------------
+  // The OTP email-verification flow is disabled now that registration
+  // auto-confirms the email. These remain until explicitly removed.
+
   Future<void> verifyOtp({required String email, required String token}) async {
     state = AsyncData(AppAuthState.loading());
     try {
@@ -86,7 +184,6 @@ class AuthNotifier extends AsyncNotifier<AppAuthState> {
     }
   }
 
-  /// Resend OTP code
   Future<void> resendOtp({required String email}) async {
     try {
       await AuthService.resendOtp(email: email);
@@ -95,112 +192,27 @@ class AuthNotifier extends AsyncNotifier<AppAuthState> {
     }
   }
 
-  /// Sign in with email and password
-  Future<void> signIn({required String email, required String password}) async {
-    state = AsyncData(AppAuthState.loading());
-    _suppressSignedInEvents = true;
+  // ---------------------------------------------------------------------------
+
+  /// Persists a Supabase-issued session (e.g. from Google OAuth) and resolves
+  /// the canonical profile through NestJS so the rest of the app is token-driven.
+  Future<void> _hydrateFromSupabaseSession(Session session) async {
     try {
-      await AuthService.signIn(email: email, password: password);
-      final user = AuthService.currentUser;
-      if (user == null) {
-        state = AsyncData(AppAuthState.unauthenticated());
-        return;
-      }
-
-      if (user.emailConfirmedAt == null) {
-        try {
-          await AuthService.signOut();
-        } catch (_) {
-          // Ignore sign-out errors here. The important part is to keep the
-          // user in the verification flow instead of treating this as a login.
-        }
-        state = AsyncData(
-          AppAuthState.error('Please verify your email first.'),
-        );
-        return;
-      }
-
-      state = AsyncData(AppAuthState.authenticated(user));
-    } catch (e) {
-      state = AsyncData(AppAuthState.error(_formatError(e)));
-    } finally {
-      _suppressSignedInEvents = false;
-    }
-  }
-
-  /// Sign in with Google OAuth
-  Future<void> signInWithGoogle() async {
-    state = AsyncData(AppAuthState.loading());
-    try {
-      await AuthService.signInWithGoogle();
-      final user = AuthService.currentUser;
-      if (user != null) {
-        state = AsyncData(AppAuthState.authenticated(user));
-      } else {
-        state = AsyncData(AppAuthState.unauthenticated());
-      }
-    } catch (e) {
-      state = AsyncData(AppAuthState.error(_formatError(e)));
-    }
-  }
-
-  /// Send password reset email
-  Future<void> resetPassword(String email) async {
-    state = AsyncData(AppAuthState.loading());
-    try {
-      await AuthService.resetPassword(email);
-      state = AsyncData(AppAuthState.unauthenticated());
-    } catch (e) {
-      state = AsyncData(AppAuthState.error(_formatError(e)));
-    }
-  }
-
-  /// Update the user's password after PASSWORD_RECOVERY
-  Future<bool> updatePassword(String newPassword) async {
-    state = AsyncData(AppAuthState.loading());
-    try {
-      await AuthService.updatePassword(newPassword);
-      // Sign the user out and redirect to login for security
-      await AuthService.signOut();
-      state = AsyncData(AppAuthState.unauthenticated());
-      return true;
-    } catch (e) {
-      state = AsyncData(AppAuthState.error(_formatError(e)));
-      return false;
-    }
-  }
-
-  /// Sign out
-  Future<void> signOut() async {
-    await AuthService.signOut();
-  }
-
-  /// Delete account permanently
-  Future<void> deleteAccount() async {
-    state = AsyncData(AppAuthState.loading());
-    try {
-      await AuthService.deleteAccount();
-    } catch (e) {
-      state = AsyncData(AppAuthState.error(_formatError(e)));
+      await TokenStorage.saveTokens(
+        accessToken: session.accessToken,
+        refreshToken: session.refreshToken,
+      );
+      final profile = await AuthApi.me();
+      state = AsyncData(AppAuthState.authenticated(profile));
+    } catch (_) {
+      // Leave current state untouched if hydration fails.
     }
   }
 
   String _formatError(Object e) {
-    final message = e.toString();
-    if (message.contains('Invalid login credentials')) {
-      return 'Invalid email or password.';
-    }
-    if (message.contains('Email not confirmed')) {
-      return 'Please verify your email first.';
-    }
-    if (message.contains('User already registered')) {
-      return 'An account with this email already exists.';
-    }
-    if (message.contains('Token has expired')) {
-      return 'Verification code expired. Please sign up again.';
-    }
-    if (message.contains('Invalid OTP')) {
-      return 'Invalid verification code. Please try again.';
+    if (e is AppException) {
+      // Surface the NestJS envelope's `message` verbatim.
+      return e.message;
     }
     return 'Something went wrong. Please try again.';
   }
