@@ -50,7 +50,7 @@ class ChatNotifier extends Notifier<ChatState> {
         data: {
           'message': message,
           'history': newMessages.map((m) => m.toJson()).toList(),
-          if (image != null) 'image': image,
+          'image': ?image,
         },
         options: Options(
           headers: {

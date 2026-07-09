@@ -159,13 +159,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   '${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year} ---';
             }
           });
-          if (mounted)
+          if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Signature apposée !'),
                 backgroundColor: Colors.green,
               ),
             );
+          }
         },
       ),
     );
@@ -201,13 +202,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           : Uint8List.fromList(List<int>.from(response.data as List));
       await savePdfBytes(bytes, 'contrat.pdf');
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Erreur export PDF'),
             backgroundColor: Colors.red,
           ),
         );
+      }
     }
   }
 
@@ -234,7 +236,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             Icon(
               Icons.document_scanner,
               size: 80,
-              color: cs.primary.withOpacity(0.5),
+              color: cs.primary.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 24),
             Text(
@@ -249,7 +251,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             Text(
               'Scannez ou importez un contrat pour le modifier, ajouter des photos/vidéos et le signer',
               textAlign: TextAlign.center,
-              style: TextStyle(color: cs.onSurface.withOpacity(0.6)),
+              style: TextStyle(color: cs.onSurface.withValues(alpha: 0.6)),
             ),
             const SizedBox(height: 40),
             if (_isScanning)
@@ -309,14 +311,14 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         decoration: BoxDecoration(
           color: c.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
+                color: color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: color, size: 28),
@@ -337,7 +339,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   Text(
                     sub,
                     style: TextStyle(
-                      color: c.onSurface.withOpacity(0.6),
+                      color: c.onSurface.withValues(alpha: 0.6),
                       fontSize: 13,
                     ),
                   ),
@@ -467,9 +469,9 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
+                      color: Colors.green.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.green.withOpacity(0.4)),
+                      border: Border.all(color: Colors.green.withValues(alpha: 0.4)),
                     ),
                     child: Row(
                       children: [
@@ -610,7 +612,7 @@ class _SignatureDialogState extends State<_SignatureDialog> {
   bool _hasSignature = false;
   bool _isProcessing = false;
   String? _cameraImageBase64;
-  bool _useCameraCapture = false;
+  final bool _useCameraCapture = false;
 
   Future<void> _onTerminer() async {
     setState(() => _isProcessing = true);
@@ -724,7 +726,7 @@ class _SignatureDialogState extends State<_SignatureDialog> {
                   decoration: BoxDecoration(
                     color: Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue.withOpacity(0.4)),
+                    border: Border.all(color: Colors.blue.withValues(alpha: 0.4)),
                   ),
                   child: const Center(
                     child: Column(
@@ -868,8 +870,9 @@ class _SigPainter extends CustomPainter {
       ..strokeWidth = 2.5
       ..strokeCap = StrokeCap.round;
     for (int i = 0; i < points.length - 1; i++) {
-      if (points[i] != null && points[i + 1] != null)
+      if (points[i] != null && points[i + 1] != null) {
         canvas.drawLine(points[i]!, points[i + 1]!, p);
+      }
     }
   }
 

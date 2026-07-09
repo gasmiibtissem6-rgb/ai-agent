@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -58,6 +60,75 @@ class IdealGradientBackground extends StatelessWidget {
         ),
       ),
       child: child,
+    );
+  }
+}
+
+/// Fades and slides its child in once, on first build.
+///
+/// [delay] staggers siblings so a grid or list resolves as a wave rather than
+/// all at once.
+class FadeSlideIn extends StatefulWidget {
+  final Widget child;
+  final Duration delay;
+  final Duration duration;
+  final double offsetY;
+
+  const FadeSlideIn({
+    super.key,
+    required this.child,
+    this.delay = Duration.zero,
+    this.duration = const Duration(milliseconds: 320),
+    this.offsetY = 12,
+  });
+
+  @override
+  State<FadeSlideIn> createState() => _FadeSlideInState();
+}
+
+class _FadeSlideInState extends State<FadeSlideIn>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: widget.duration,
+  );
+  late final Animation<double> _curve = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeOutCubic,
+  );
+  Timer? _startTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.delay == Duration.zero) {
+      _controller.forward();
+    } else {
+      _startTimer = Timer(widget.delay, () {
+        if (mounted) _controller.forward();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _startTimer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _curve,
+      builder: (context, child) => Opacity(
+        opacity: _curve.value,
+        child: Transform.translate(
+          offset: Offset(0, widget.offsetY * (1 - _curve.value)),
+          child: child,
+        ),
+      ),
+      child: widget.child,
     );
   }
 }
@@ -168,19 +239,24 @@ const _navItems = <_NavItem>[
   _NavItem('home', 'Home', Icons.home_outlined, AppRoutes.home),
   _NavItem('deals', 'Deals', Icons.business_center_outlined, AppRoutes.deals),
   _NavItem(
-    'contracts',
-    'Contracts',
-    Icons.description_outlined,
-    AppRoutes.contracts,
-  ),
-  _NavItem(
     'notifications',
     'Notifications',
     Icons.notifications_outlined,
     AppRoutes.notifications,
   ),
-  _NavItem('documents', 'Documents', Icons.document_scanner, '/documents'),
-    _NavItem('chat', 'AI Assistant', Icons.smart_toy_outlined, AppRoutes.chat),
+  _NavItem(
+    'documents',
+    'Documents',
+    Icons.document_scanner_outlined,
+    AppRoutes.documents,
+  ),
+  _NavItem('chat', 'AI Assistant', Icons.smart_toy_outlined, AppRoutes.chat),
+  _NavItem(
+    'profile',
+    'Profile',
+    Icons.person_outline,
+    AppRoutes.editProfile,
+  ),
   _NavItem('settings', 'Settings', Icons.settings_outlined, AppRoutes.settings),
 ];
 
@@ -240,7 +316,9 @@ class _DesktopNavItem extends StatelessWidget {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => context.go(item.route),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
@@ -255,11 +333,15 @@ class _DesktopNavItem extends StatelessWidget {
               size: 20,
             ),
             const SizedBox(width: 12),
-            Text(
-              item.label,
-              style: TextStyle(
-                color: selected ? AppColors.primary : AppColors.textPrimary,
-                fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+            Expanded(
+              child: Text(
+                item.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: selected ? AppColors.primary : AppColors.textPrimary,
+                  fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+                ),
               ),
             ),
           ],
@@ -355,6 +437,28 @@ class SectionTitle extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+class FieldLabel extends StatelessWidget {
+  final String text;
+
+  const FieldLabel(this.text, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontWeight: FontWeight.w800,
+          fontSize: 13,
+          letterSpacing: 0.2,
+          color: AppColors.textSecondary,
+        ),
+      ),
     );
   }
 }

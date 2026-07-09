@@ -2,6 +2,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthenticatedUser } from '../auth/types/authenticated-user';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class ProfilesService {
@@ -19,6 +20,20 @@ export class ProfilesService {
       );
     }
     return profile;
+  }
+
+  /** Updates the caller's own presentation fields. Privilege fields are untouchable. */
+  async updateProfileByUserId(userId: string, dto: UpdateProfileDto) {
+    // Ensures the row exists and belongs to the caller before writing.
+    await this.getProfileByUserId(userId);
+
+    return this.prisma.profile.update({
+      where: { authUserId: userId },
+      data: {
+        displayName: dto.displayName ?? undefined,
+        avatarUrl: dto.avatarUrl ?? undefined,
+      },
+    });
   }
 
   async getSessionMetadata(user: AuthenticatedUser) {

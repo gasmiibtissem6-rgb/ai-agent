@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/router/app_router.dart';
 import '../../../core/theme/theme_provider.dart';
 import '../../../features/auth/domain/auth_provider.dart';
 import '../../../shared/ideal_ui.dart';
@@ -142,8 +144,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Edit Profile'),
+                  subtitle: const Text('Change your display name and avatar'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _comingSoon(context),
+                  onTap: () => context.go(AppRoutes.editProfile),
                 ),
                 const Divider(),
                 ListTile(

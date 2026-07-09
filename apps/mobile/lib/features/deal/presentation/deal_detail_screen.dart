@@ -4,8 +4,12 @@ import 'package:go_router/go_router.dart';
 
 import '../domain/deal_model.dart';
 import '../domain/deal_provider.dart';
+import 'deal_status_ui.dart';
+import '../../auth/domain/auth_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/router/app_router.dart';
+import '../../../services/document_service.dart';
+import '../../../shared/file_saver.dart';
 import '../../../shared/ideal_ui.dart';
 
 class DealDetailScreen extends ConsumerWidget {
@@ -16,19 +20,36 @@ class DealDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final versionsAsync = ref.watch(dealVersionsProvider(deal.id));
-    final statusColor = _statusColor(deal.status);
+    final dealState = ref.watch(dealProvider).whenOrNull(data: (s) => s);
+
+    // The list is the source of truth after a status change; fall back to the
+    // deal handed over by the router on first paint.
+    final current = dealState?.deals.firstWhere(
+      (d) => d.id == deal.id,
+      orElse: () => deal,
+    ) ?? deal;
+
+    final profileId = ref
+        .watch(authProvider)
+        .whenOrNull(data: (s) => s.profile?.id);
+    final isCreator = current.isCreatedBy(profileId);
+    final isUpdating = dealState?.isUpdating ?? false;
+
+    ref.listen(dealProvider, (_, next) {
+      final state = next.whenOrNull(data: (s) => s);
+      if (state?.hasError == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(state!.errorMessage ?? 'Something went wrong.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    });
 
     return IdealAppScaffold(
       activeRoute: 'deals',
       showBack: true,
-      actions: [
-        if (deal.isEditable)
-          IconButton(
-            icon: const Icon(Icons.send_outlined),
-            tooltip: 'Send deal',
-            onPressed: () => _sendDeal(context, ref),
-          ),
-      ],
       body: IdealGradientBackground(
         child: DefaultTabController(
           length: 3,
@@ -48,7 +69,7 @@ class DealDetailScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          deal.title,
+                          current.title,
                           style: Theme.of(context).textTheme.headlineMedium,
                         ),
                         const SizedBox(height: 8),
@@ -58,19 +79,19 @@ class DealDetailScreen extends ConsumerWidget {
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             StatusPill(
-                              label: deal.statusLabel,
-                              color: statusColor,
+                              label: current.statusLabel,
+                              color: dealStatusColor(current.status),
                             ),
-                            if (deal.isFinalized)
+                            if (current.contentType != null)
+                              _InlineMeta(
+                                icon: dealContentTypeIcon(current.contentType!),
+                                label: current.contentType!.label,
+                              ),
+                            if (current.isLocked)
                               const _InlineMeta(
                                 icon: Icons.lock_outline,
                                 label: 'Locked official version',
                                 color: AppColors.success,
-                              )
-                            else
-                              const _InlineMeta(
-                                icon: Icons.lock_open_outlined,
-                                label: 'Editable before approval',
                               ),
                           ],
                         ),
@@ -80,8 +101,18 @@ class DealDetailScreen extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 22),
-              _InfoGrid(deal: deal),
+              _InfoGrid(deal: current),
               const SizedBox(height: 22),
+              if (isCreator)
+                FadeSlideIn(
+                  child: _StatusChanger(
+                    deal: current,
+                    isUpdating: isUpdating,
+                    onChange: (status) =>
+                        _confirmStatusChange(context, ref, current, status),
+                  ),
+                ),
+              if (isCreator) const SizedBox(height: 22),
               IdealCard(
                 padding: EdgeInsets.zero,
                 child: Column(
@@ -93,7 +124,7 @@ class DealDetailScreen extends ConsumerWidget {
                       tabs: const [
                         Tab(text: 'Overview'),
                         Tab(text: 'Versions'),
-                        Tab(text: 'Actions'),
+                        Tab(text: 'Document'),
                       ],
                     ),
                     const Divider(height: 1),
@@ -101,41 +132,11 @@ class DealDetailScreen extends ConsumerWidget {
                       height: 460,
                       child: TabBarView(
                         children: [
-                          _OverviewTab(deal: deal),
-                          _VersionsTab(
+                          _OverviewTab(deal: current),
+                          _VersionsTab(versionsAsync: versionsAsync),
+                          _DocumentTab(
+                            deal: current,
                             versionsAsync: versionsAsync,
-                            deal: deal,
-                            onApprove: (version) => _showApprovalDialog(
-                              context,
-                              ref,
-                              deal: deal,
-                              version: version,
-                              action: 'approve',
-                            ),
-                            onReject: (version) => _showApprovalDialog(
-                              context,
-                              ref,
-                              deal: deal,
-                              version: version,
-                              action: 'reject',
-                            ),
-                            onModify: (version) => _showApprovalDialog(
-                              context,
-                              ref,
-                              deal: deal,
-                              version: version,
-                              action: 'modify',
-                            ),
-                            onFinalize: (version) => _showFinalizeDialog(
-                              context,
-                              ref,
-                              deal: deal,
-                              version: version,
-                            ),
-                          ),
-                          _ActionsTab(
-                            deal: deal,
-                            onSend: () => _sendDeal(context, ref),
                           ),
                         ],
                       ),
@@ -150,170 +151,207 @@ class DealDetailScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _sendDeal(BuildContext context, WidgetRef ref) async {
+  Future<void> _confirmStatusChange(
+    BuildContext context,
+    WidgetRef ref,
+    Deal deal,
+    DealStatus target,
+  ) async {
+    final reasonController = TextEditingController();
+    final destructive = target == DealStatus.cancelled;
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Send deal'),
-        content: const Text('Send this deal to the other party for review?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Send'),
-          ),
-        ],
-      ),
-    );
-    if (confirm == true) {
-      await ref.read(dealProvider.notifier).sendDeal(deal.id);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Deal sent successfully!'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-        context.go(AppRoutes.deals);
-      }
-    }
-  }
-
-  Future<void> _showApprovalDialog(
-    BuildContext context,
-    WidgetRef ref, {
-    required Deal deal,
-    required DealVersion version,
-    required String action,
-  }) async {
-    final commentController = TextEditingController();
-    final title = action == 'approve'
-        ? 'Approve deal'
-        : action == 'reject'
-        ? 'Reject deal'
-        : 'Request modification';
-
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
+        title: Text('Set status to ${target.label}'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              action == 'approve'
-                  ? 'Are you sure you want to approve version ${version.versionNumber}?'
-                  : action == 'reject'
-                  ? 'Are you sure you want to reject this deal?'
-                  : 'Describe what changes you need.',
+              destructive
+                  ? 'Cancelling records a cancellation date on the deal. Participants will see it as Cancelled.'
+                  : 'This change is recorded in the deal audit trail.',
+              style: TextStyle(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 16),
             TextField(
-              controller: commentController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                labelText: action == 'modify'
-                    ? 'Required changes'
-                    : 'Comment (optional)',
+              controller: reasonController,
+              maxLines: 2,
+              decoration: const InputDecoration(
+                labelText: 'Reason (optional)',
               ),
             ),
           ],
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            style: action == 'reject'
+            style: destructive
                 ? ElevatedButton.styleFrom(backgroundColor: AppColors.error)
                 : null,
-            onPressed: () async {
-              Navigator.pop(context);
-              if (action == 'approve') {
-                await ref
-                    .read(dealProvider.notifier)
-                    .approveDeal(
-                      dealId: deal.id,
-                      versionId: version.id,
-                      comment: commentController.text.trim(),
-                    );
-              } else if (action == 'reject') {
-                await ref
-                    .read(dealProvider.notifier)
-                    .rejectDeal(
-                      dealId: deal.id,
-                      versionId: version.id,
-                      comment: commentController.text.trim(),
-                    );
-              } else {
-                await ref
-                    .read(dealProvider.notifier)
-                    .requestModification(
-                      dealId: deal.id,
-                      versionId: version.id,
-                      comment: commentController.text.trim(),
-                    );
-              }
-              if (context.mounted) context.go(AppRoutes.deals);
-            },
-            child: Text(
-              action == 'approve'
-                  ? 'Approve'
-                  : action == 'reject'
-                  ? 'Reject'
-                  : 'Request',
-            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(destructive ? 'Cancel deal' : 'Confirm'),
+          ),
+        ],
+      ),
+    );
+
+    final reason = reasonController.text;
+    reasonController.dispose();
+    if (confirm != true) return;
+
+    final updated = await ref
+        .read(dealProvider.notifier)
+        .updateStatus(
+          dealId: deal.id,
+          status: target,
+          reason: reason,
+        );
+
+    if (updated != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Deal is now ${updated.statusLabel}.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+    }
+  }
+}
+
+/// Creator-only control to move the deal between Approved, Bridged and Cancelled.
+class _StatusChanger extends StatelessWidget {
+  final Deal deal;
+  final bool isUpdating;
+  final ValueChanged<DealStatus> onChange;
+
+  const _StatusChanger({
+    required this.deal,
+    required this.isUpdating,
+    required this.onChange,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final terminal = deal.isTerminal;
+
+    return IdealCard(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.flag_outlined, size: 18, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Deal status',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 15,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              if (isUpdating)
+                const SizedBox(
+                  height: 16,
+                  width: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            terminal
+                ? 'A ${deal.statusLabel.toLowerCase()} deal can no longer change status.'
+                : 'As the creator, you can move this deal between these states.',
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final status in kCreatorSettableStatuses)
+                _StatusChoice(
+                  status: status,
+                  selected: deal.status == status,
+                  enabled: !terminal && !isUpdating && deal.status != status,
+                  onTap: () => onChange(status),
+                ),
+            ],
           ),
         ],
       ),
     );
   }
+}
 
-  Future<void> _showFinalizeDialog(
-    BuildContext context,
-    WidgetRef ref, {
-    required Deal deal,
-    required DealVersion version,
-  }) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Finalize deal'),
-        content: const Text(
-          'This will permanently lock the deal. This action cannot be undone. Are you sure?',
+class _StatusChoice extends StatelessWidget {
+  final DealStatus status;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _StatusChoice({
+    required this.status,
+    required this.selected,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = dealStatusColor(status);
+    final foreground = selected
+        ? Colors.white
+        : enabled
+        ? color
+        : AppColors.textSecondary;
+
+    return Opacity(
+      opacity: enabled || selected ? 1 : 0.5,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: enabled ? onTap : null,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? color : color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: selected ? color : color.withValues(alpha: 0.35),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(dealStatusIcon(status), size: 16, color: foreground),
+              const SizedBox(width: 8),
+              Text(
+                status.label,
+                style: TextStyle(
+                  color: foreground,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                ),
+              ),
+              if (selected) ...[
+                const SizedBox(width: 6),
+                const Icon(Icons.check, size: 14, color: Colors.white),
+              ],
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Finalize'),
-          ),
-        ],
       ),
     );
-
-    if (confirm == true) {
-      await ref
-          .read(dealProvider.notifier)
-          .finalizeDeal(dealId: deal.id, versionId: version.id);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Deal finalized and locked!'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-        context.go(AppRoutes.deals);
-      }
-    }
   }
 }
 
@@ -325,17 +363,19 @@ class _InfoGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      _InfoItem('Status', deal.statusLabel, Icons.flag_outlined),
+      _InfoItem('Status', deal.statusLabel, dealStatusIcon(deal.status)),
       _InfoItem('Created', _formatDate(deal.createdAt), Icons.event_outlined),
       _InfoItem(
-        'Versions',
-        deal.versions.length.toString(),
-        Icons.description_outlined,
+        'Type',
+        deal.contentType?.label ?? 'Document',
+        deal.contentType == null
+            ? Icons.description_outlined
+            : dealContentTypeIcon(deal.contentType!),
       ),
       _InfoItem(
         'Lock',
-        deal.isFinalized ? 'Final' : 'Open',
-        deal.isFinalized ? Icons.lock_outline : Icons.lock_open_outlined,
+        deal.isLocked ? 'Final' : 'Open',
+        deal.isLocked ? Icons.lock_outline : Icons.lock_open_outlined,
       ),
     ];
 
@@ -434,18 +474,18 @@ class _OverviewTab extends StatelessWidget {
           const SizedBox(height: 12),
           const _WorkflowStep(
             icon: Icons.edit_note_outlined,
-            title: 'Draft and negotiate',
-            subtitle: 'Terms remain editable until approval.',
+            title: 'Draft',
+            subtitle: 'Terms remain editable while the deal is a draft.',
           ),
           const _WorkflowStep(
-            icon: Icons.task_alt_outlined,
-            title: 'Approve same version',
-            subtitle: 'Every required party accepts one version.',
+            icon: Icons.compare_arrows_outlined,
+            title: 'Bridged',
+            subtitle: 'The deal is in flight between the parties.',
           ),
           const _WorkflowStep(
-            icon: Icons.lock_outline,
-            title: 'Finalize contract',
-            subtitle: 'The approved version becomes locked and official.',
+            icon: Icons.check_circle_outline,
+            title: 'Approved',
+            subtitle: 'All parties agree on the current version.',
           ),
         ],
       ),
@@ -455,20 +495,8 @@ class _OverviewTab extends StatelessWidget {
 
 class _VersionsTab extends StatelessWidget {
   final AsyncValue<List<DealVersion>> versionsAsync;
-  final Deal deal;
-  final ValueChanged<DealVersion> onApprove;
-  final ValueChanged<DealVersion> onReject;
-  final ValueChanged<DealVersion> onModify;
-  final ValueChanged<DealVersion> onFinalize;
 
-  const _VersionsTab({
-    required this.versionsAsync,
-    required this.deal,
-    required this.onApprove,
-    required this.onReject,
-    required this.onModify,
-    required this.onFinalize,
-  });
+  const _VersionsTab({required this.versionsAsync});
 
   @override
   Widget build(BuildContext context) {
@@ -488,86 +516,128 @@ class _VersionsTab extends StatelessWidget {
           padding: const EdgeInsets.all(18),
           itemCount: versions.length,
           separatorBuilder: (_, _) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            final version = versions[index];
-            return _VersionCard(
-              version: version,
-              deal: deal,
-              onApprove: () => onApprove(version),
-              onReject: () => onReject(version),
-              onModify: () => onModify(version),
-              onFinalize: () => onFinalize(version),
-            );
-          },
+          itemBuilder: (context, index) =>
+              _VersionCard(version: versions[index]),
         );
       },
     );
   }
 }
 
-class _ActionsTab extends StatelessWidget {
+/// Lets the user regenerate and download the deal's document at any time.
+class _DocumentTab extends ConsumerStatefulWidget {
   final Deal deal;
-  final VoidCallback onSend;
+  final AsyncValue<List<DealVersion>> versionsAsync;
 
-  const _ActionsTab({required this.deal, required this.onSend});
+  const _DocumentTab({required this.deal, required this.versionsAsync});
+
+  @override
+  ConsumerState<_DocumentTab> createState() => _DocumentTabState();
+}
+
+class _DocumentTabState extends ConsumerState<_DocumentTab> {
+  bool _isGenerating = false;
+
+  Future<void> _download(String content) async {
+    setState(() => _isGenerating = true);
+    try {
+      final bytes = await DocumentService.generatePdf(
+        title: widget.deal.title,
+        content: content,
+      );
+      await savePdfBytes(bytes, '${_fileSafe(widget.deal.title)}.pdf');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e'), backgroundColor: AppColors.error),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isGenerating = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(22),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Available Actions',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-              color: AppColors.textPrimary,
+    return widget.versionsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Error loading document: $e')),
+      data: (versions) {
+        final document = versions.isEmpty ? '' : versions.first.document;
+        if (document.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                'This deal has no generated document.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
             ),
-          ),
-          const SizedBox(height: 14),
-          _ActionRow(
-            icon: Icons.send_outlined,
-            title: 'Send for review',
-            subtitle: deal.isEditable
-                ? 'Send the current draft to the other party.'
-                : 'This deal cannot be sent in its current status.',
-            enabled: deal.isEditable,
-            onTap: onSend,
-          ),
-          const SizedBox(height: 12),
-          const _ActionRow(
-            icon: Icons.history_outlined,
-            title: 'Version history',
-            subtitle: 'Review submitted versions and approval actions.',
-            enabled: false,
-          ),
-        ],
-      ),
+          );
+        }
+
+        return Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(22),
+                child: Text(
+                  document,
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    height: 1.6,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _isGenerating ? null : () => _download(document),
+                  icon: _isGenerating
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.download_outlined),
+                  label: Text(
+                    _isGenerating ? 'Generating…' : 'Download PDF',
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
 
+String _fileSafe(String value) {
+  final cleaned = value.trim().replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_');
+  return cleaned.isEmpty ? 'deal' : cleaned;
+}
+
 class _VersionCard extends StatelessWidget {
   final DealVersion version;
-  final Deal deal;
-  final VoidCallback onApprove;
-  final VoidCallback onReject;
-  final VoidCallback onModify;
-  final VoidCallback onFinalize;
 
-  const _VersionCard({
-    required this.version,
-    required this.deal,
-    required this.onApprove,
-    required this.onReject,
-    required this.onModify,
-    required this.onFinalize,
-  });
+  const _VersionCard({required this.version});
 
   @override
   Widget build(BuildContext context) {
+    final preview = version.document.isEmpty
+        ? (version.summary ?? 'No content.')
+        : version.document;
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -590,74 +660,26 @@ class _VersionCard extends StatelessWidget {
                 ),
               ),
               if (version.isFinal)
-                const StatusPill(label: 'Final', color: AppColors.success),
+                const StatusPill(label: 'Final', color: AppColors.success)
+              else
+                StatusPill(
+                  label: version.status.label,
+                  color: dealStatusColor(version.status),
+                ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
-            version.content,
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              height: 1.45,
-            ),
+            preview,
+            style: TextStyle(color: AppColors.textSecondary, height: 1.45),
             maxLines: 5,
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 12),
           Text(
             _formatDateTime(version.createdAt),
-            style: TextStyle(
-              fontSize: 12,
-              color: AppColors.textSecondary,
-            ),
+            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
           ),
-          if (!deal.isFinalized && !version.isFinal) ...[
-            const SizedBox(height: 14),
-            const Divider(),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: onReject,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.error,
-                      side: const BorderSide(color: AppColors.error),
-                    ),
-                    child: const Text('Reject'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: onModify,
-                    child: const Text('Modify'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: onApprove,
-                    child: const Text('Approve'),
-                  ),
-                ),
-              ],
-            ),
-            if (deal.status == DealStatus.approved) ...[
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.lock_outlined),
-                  label: const Text('Finalize & Lock'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.success,
-                  ),
-                  onPressed: onFinalize,
-                ),
-              ),
-            ],
-          ],
         ],
       ),
     );
@@ -712,85 +734,12 @@ class _WorkflowStep extends StatelessWidget {
   }
 }
 
-class _ActionRow extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final bool enabled;
-  final VoidCallback? onTap;
-
-  const _ActionRow({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.enabled,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: enabled
-              ? AppColors.primary.withValues(alpha: 0.06)
-              : AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              color: enabled ? AppColors.primary : AppColors.textSecondary,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(
-              Icons.chevron_right,
-              color: enabled ? AppColors.primary : AppColors.textSecondary,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _InlineMeta extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color? color;
 
-  const _InlineMeta({
-    required this.icon,
-    required this.label,
-    this.color,
-  });
+  const _InlineMeta({required this.icon, required this.label, this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -819,23 +768,6 @@ class _InfoItem {
   final IconData icon;
 
   const _InfoItem(this.title, this.value, this.icon);
-}
-
-Color _statusColor(DealStatus status) {
-  switch (status) {
-    case DealStatus.draft:
-      return AppColors.textSecondary;
-    case DealStatus.sent:
-      return AppColors.primary;
-    case DealStatus.negotiating:
-      return AppColors.warning;
-    case DealStatus.approved:
-      return AppColors.success;
-    case DealStatus.rejected:
-      return AppColors.error;
-    case DealStatus.finalized:
-      return AppColors.success;
-  }
 }
 
 String _formatDate(DateTime date) {

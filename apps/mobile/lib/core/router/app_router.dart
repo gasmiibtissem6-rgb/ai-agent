@@ -11,14 +11,16 @@ import '../../features/auth/presentation/register_screen.dart';
 import '../../features/auth/presentation/reset_password_screen.dart';
 import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/deal/domain/deal_model.dart';
-import '../../features/deal/presentation/contracts_screen.dart';
 import '../../features/deal/presentation/create_deal_screen.dart';
 import '../../features/deal/presentation/deal_detail_screen.dart';
 import '../../features/deal/presentation/deals_list_screen.dart';
 import '../../features/deal/presentation/home_screen.dart';
 import '../../features/kyc/presentation/kyc_status_screen.dart';
+import '../../features/template/domain/template_model.dart';
+import '../../features/template/presentation/template_form_screen.dart';
 import '../../features/kyc/presentation/kyc_upload_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
+import '../../features/profile/presentation/edit_profile_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/chat/presentation/chat_screen.dart';
 import '../../features/documents/presentation/documents_screen.dart';
@@ -38,10 +40,12 @@ class AppRoutes {
   static const deals = '/deals';
   static const createDeal = '/deals/create';
   static const dealDetail = '/deals/detail';
-  static const contracts = '/contracts';
+  static const templateForm = '/deals/templates/form';
   static const notifications = '/notifications';
   static const settings = '/settings';
+  static const editProfile = '/profile/edit';
   static const chat = '/chat';
+  static const documents = '/documents';
 }
 
 final _authListenableProvider = Provider<ValueNotifier<AppAuthState?>>((ref) {
@@ -160,8 +164,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.createDeal,
-        pageBuilder: (context, state) =>
-            _flowPage(state, const CreateDealScreen()),
+        pageBuilder: (context, state) => _flowPage(
+          state,
+          CreateDealScreen(template: state.extra as DealTemplate?),
+        ),
       ),
       GoRoute(
         path: AppRoutes.dealDetail,
@@ -171,9 +177,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: AppRoutes.contracts,
-        pageBuilder: (context, state) =>
-            _sectionPage(state, const ContractsScreen()),
+        path: AppRoutes.templateForm,
+        pageBuilder: (context, state) => _flowPage(
+          state,
+          TemplateFormScreen(template: state.extra as DealTemplate?),
+        ),
       ),
       GoRoute(
         path: AppRoutes.notifications,
@@ -186,13 +194,19 @@ final routerProvider = Provider<GoRouter>((ref) {
             _sectionPage(state, const SettingsScreen()),
       ),
       GoRoute(
+        path: AppRoutes.editProfile,
+        pageBuilder: (context, state) =>
+            _flowPage(state, const EditProfileScreen()),
+      ),
+      GoRoute(
         path: AppRoutes.chat,
         pageBuilder: (context, state) =>
             _flowPage(state, const ChatScreen()),
       ),
       GoRoute(
-        path: '/documents',
-        builder: (context, state) => const DocumentsScreen(),
+        path: AppRoutes.documents,
+        pageBuilder: (context, state) =>
+            _sectionPage(state, const DocumentsScreen()),
       ),
     ],
   );

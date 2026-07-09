@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/errors/app_exception.dart';
 import '../../../services/deal_service.dart';
 import 'deal_model.dart';
 import 'deal_state.dart';
@@ -10,114 +12,81 @@ class DealNotifier extends AsyncNotifier<DealState> {
     return DealState.loaded(deals);
   }
 
+  List<Deal> get _current => state.whenOrNull(data: (s) => s.deals) ?? const [];
+
   Future<void> loadDeals() async {
     state = AsyncData(DealState.loading());
     try {
-      final deals = await DealService.getMyDeals();
-      state = AsyncData(DealState.loaded(deals));
+      state = AsyncData(DealState.loaded(await DealService.getMyDeals()));
     } catch (e) {
-      state = AsyncData(DealState.error(e.toString()));
+      state = AsyncData(DealState.error(_message(e, 'Failed to load deals.')));
     }
   }
 
   Future<Deal?> createDeal({
     required String title,
     required String description,
-    required String content,
+    required Map<String, dynamic> terms,
+    DealContentType? contentType,
+    List<DealPartyInput> parties = const [],
   }) async {
     state = AsyncData(DealState.creating());
     try {
       final deal = await DealService.createDeal(
         title: title,
         description: description,
-        content: content,
+        terms: terms,
+        contentType: contentType,
+        parties: parties,
       );
       final deals = await DealService.getMyDeals();
       state = AsyncData(DealState.success(deals, selectedDeal: deal));
       return deal;
     } catch (e) {
-      state = AsyncData(DealState.error('Failed to create deal.'));
+      state = AsyncData(DealState.error(_message(e, 'Failed to create deal.')));
       return null;
     }
   }
 
-  Future<void> sendDeal(String dealId) async {
-    try {
-      await DealService.sendDeal(dealId);
-      await loadDeals();
-    } catch (e) {
-      state = AsyncData(DealState.error('Failed to send deal.'));
-    }
-  }
-
-  Future<void> approveDeal({
+  /// Creator-only transition to Approved, Bridged (NEGOTIATION) or Cancelled.
+  Future<Deal?> updateStatus({
     required String dealId,
-    required String versionId,
-    String? comment,
+    required DealStatus status,
+    String? reason,
   }) async {
+    final previous = _current;
+    state = AsyncData(DealState.updating(previous));
     try {
-      await DealService.approveDeal(
+      final updated = await DealService.updateStatus(
         dealId: dealId,
-        versionId: versionId,
-        comment: comment,
+        status: status,
+        reason: reason,
       );
-      await loadDeals();
+      final deals = await DealService.getMyDeals();
+      state = AsyncData(DealState.success(deals, selectedDeal: updated));
+      return updated;
     } catch (e) {
-      state = AsyncData(DealState.error('Failed to approve deal.'));
+      state = AsyncData(
+        DealState.error(
+          _message(e, 'Failed to update the deal status.'),
+          deals: previous,
+        ),
+      );
+      return null;
     }
   }
 
-  Future<void> rejectDeal({
-    required String dealId,
-    required String versionId,
-    String? comment,
-  }) async {
-    try {
-      await DealService.rejectDeal(
-        dealId: dealId,
-        versionId: versionId,
-        comment: comment,
-      );
-      await loadDeals();
-    } catch (e) {
-      state = AsyncData(DealState.error('Failed to reject deal.'));
-    }
-  }
-
-  Future<void> requestModification({
-    required String dealId,
-    required String versionId,
-    required String comment,
-  }) async {
-    try {
-      await DealService.requestModification(
-        dealId: dealId,
-        versionId: versionId,
-        comment: comment,
-      );
-      await loadDeals();
-    } catch (e) {
-      state = AsyncData(DealState.error('Failed to request modification.'));
-    }
-  }
-
-  Future<void> finalizeDeal({
-    required String dealId,
-    required String versionId,
-  }) async {
-    try {
-      await DealService.finalizeDeal(dealId: dealId, versionId: versionId);
-      await loadDeals();
-    } catch (e) {
-      state = AsyncData(DealState.error('Failed to finalize deal.'));
-    }
-  }
+  /// Surfaces the backend's message (403 "Only the deal creator…", quota, KYC)
+  /// instead of swallowing it behind a generic string.
+  String _message(Object error, String fallback) =>
+      error is AppException ? error.message : fallback;
 }
 
 final dealProvider = AsyncNotifierProvider<DealNotifier, DealState>(
   DealNotifier.new,
 );
 
+/// Versions are embedded in GET /deals/:id; this refetches the deal for them.
 final dealVersionsProvider = FutureProvider.family<List<DealVersion>, String>((
   ref,
   dealId,

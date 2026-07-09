@@ -37,6 +37,9 @@ dependencies:
   # Image display
   cached_network_image: ^3.4.1
 
+  # Web interop (browser download shim in lib/shared/file_saver_web.dart)
+  web: ^1.1.1
+
   # Utilities
   logger: ^2.6.2
   uuid: ^4.5.1

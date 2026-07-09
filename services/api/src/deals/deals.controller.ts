@@ -32,6 +32,7 @@ import { lifecycleStatuses } from '../common/foundation.types';
 import { AuditContext, DealsService } from './deals.service';
 import { CreateDealDto } from './dto/create-deal.dto';
 import { UpdateDealDto } from './dto/update-deal.dto';
+import { UpdateDealStatusDto } from './dto/update-deal-status.dto';
 import { ListDealsQueryDto } from './dto/list-deals-query.dto';
 import { CreateDealVersionDto } from './dto/create-deal-version.dto';
 import { ShareDealDto } from './dto/share-deal.dto';
@@ -277,6 +278,33 @@ export class DealsController {
     );
   }
 
+  @Patch(':id/status')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Set the deal status to APPROVED, NEGOTIATION ("Bridged") or CANCELLED (creator only).',
+  })
+  @ApiResponse({ status: 200, description: 'Deal status updated.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Not the creator, or the deal is LOCKED/ARCHIVED.',
+  })
+  async updateDealStatus(
+    @CurrentUser('profileId') profileId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: UpdateDealStatusDto,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    return this.dealsService.updateDealStatus(
+      profileId,
+      id,
+      body,
+      this.audit(ipAddress, userAgent),
+    );
+  }
+
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -344,7 +372,9 @@ export class DealsAdminController {
     if (!status)
       throw new BadRequestException('Target status override state missing.');
     if (!reason?.trim())
-      throw new BadRequestException('An audit justification reason is required.');
+      throw new BadRequestException(
+        'An audit justification reason is required.',
+      );
 
     return this.dealsService.overrideDealStatus(id, status, reason);
   }

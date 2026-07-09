@@ -1,33 +1,39 @@
 import '../core/network/api_client.dart';
-import '../features/profile/domain/profile_model.dart';
+import '../features/auth/domain/auth_profile.dart';
 
-/// Profile service communicates with the NestJS backend API.
-/// It never calls Supabase directly.
+/// Profile service — talks to the NestJS `/profile` endpoints, never Supabase.
+///
+/// Responses use the backend envelope `{ success, message, data, requestId }`
+/// and carry the Prisma `Profile` shape (camelCase), the same one [AuthProfile]
+/// already parses for `GET /auth/me`.
 class ProfileService {
   const ProfileService._();
 
-  static final _api = ApiClient.instance;
+  static final ApiClient _api = ApiClient.instance;
 
-  static Future<ProfileModel> getMyProfile() async {
-    return await _api.get<ProfileModel>(
-      '/profile/me',
-      fromJson: (data) => ProfileModel.fromJson(data as Map<String, dynamic>),
-    );
+  /// GET /profile → the caller's profile.
+  static Future<AuthProfile> getMyProfile() async {
+    final response = await _api.get('/profile');
+    return AuthProfile.fromJson(_data(response));
   }
 
-  static Future<ProfileModel> updateProfile({
-    String? fullName,
+  /// PATCH /profile → updates the caller's own presentation fields.
+  ///
+  /// `kycStatus`, `isAdmin` and `adminRole` are privilege-bearing and are
+  /// rejected by the backend DTO, so they are not exposed here.
+  static Future<AuthProfile> updateProfile({
+    String? displayName,
     String? avatarUrl,
   }) async {
-    final data = <String, dynamic>{};
-
-    if (fullName != null) data['full_name'] = fullName;
-    if (avatarUrl != null) data['avatar_url'] = avatarUrl;
-
-    return await _api.patch<ProfileModel>(
-      '/profile/me',
-      data: data,
-      fromJson: (data) => ProfileModel.fromJson(data as Map<String, dynamic>),
+    final response = await _api.patch(
+      '/profile',
+      data: {'displayName': ?displayName, 'avatarUrl': ?avatarUrl},
     );
+    return AuthProfile.fromJson(_data(response));
+  }
+
+  static Map<String, dynamic> _data(dynamic response) {
+    final body = response as Map;
+    return Map<String, dynamic>.from(body['data'] as Map);
   }
 }

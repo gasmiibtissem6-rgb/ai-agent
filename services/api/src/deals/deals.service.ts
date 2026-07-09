@@ -20,6 +20,7 @@ import {
 } from './deal-quota.constants';
 import { CreateDealDto } from './dto/create-deal.dto';
 import { UpdateDealDto } from './dto/update-deal.dto';
+import { UpdateDealStatusDto } from './dto/update-deal-status.dto';
 import { ListDealsQueryDto } from './dto/list-deals-query.dto';
 import { CreateDealVersionDto } from './dto/create-deal-version.dto';
 import { ShareDealDto } from './dto/share-deal.dto';
@@ -34,6 +35,12 @@ export interface AuditContext {
 const IMMUTABLE_DEAL_STATUSES: DealStatus[] = [
   DealStatus.APPROVED,
   DealStatus.LOCKED,
+];
+
+/** Deal statuses that can never transition again. */
+const TERMINAL_DEAL_STATUSES: DealStatus[] = [
+  DealStatus.LOCKED,
+  DealStatus.ARCHIVED,
 ];
 
 @Injectable()
@@ -293,6 +300,63 @@ export class DealsService {
         metadata: {
           fields: Object.keys(dto),
           termsChanged: dto.terms !== undefined,
+        },
+        audit,
+      });
+
+      return tx.deal.findUnique({
+        where: { id: dealId },
+        include: {
+          versions: { orderBy: { versionNumber: 'asc' } },
+          parties: true,
+        },
+      });
+    });
+  }
+
+  /**
+   * Sets the deal's status (creator only) to one of the creator-settable states.
+   *
+   * A LOCKED or ARCHIVED deal is terminal and cannot be moved again. `cancelledAt`
+   * is stamped when the deal is cancelled so the column stops being dead weight.
+   */
+  async updateDealStatus(
+    profileId: string,
+    dealId: string,
+    dto: UpdateDealStatusDto,
+    audit: AuditContext,
+  ) {
+    const deal = await this.getDealOrThrow(dealId);
+    this.assertCreator(deal, profileId);
+
+    if (TERMINAL_DEAL_STATUSES.includes(deal.status)) {
+      throw new ForbiddenException(
+        `A ${deal.status} deal can no longer change status.`,
+      );
+    }
+
+    if (deal.status === dto.status) {
+      return deal;
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.deal.update({
+        where: { id: dealId },
+        data: {
+          status: dto.status,
+          cancelledAt:
+            dto.status === DealStatus.CANCELLED ? new Date() : deal.cancelledAt,
+        },
+      });
+
+      await this.writeAudit(tx, {
+        actorProfileId: profileId,
+        actionType: AuditActionType.DEAL_UPDATED,
+        resourceId: dealId,
+        metadata: {
+          previousStatus: deal.status,
+          newStatus: dto.status,
+          reason: dto.reason ?? null,
         },
         audit,
       });
