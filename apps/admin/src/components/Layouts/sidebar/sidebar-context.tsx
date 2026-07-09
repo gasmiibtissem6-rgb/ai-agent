@@ -34,11 +34,11 @@ export function SidebarProvider({
   const isMobile = useIsMobile();
 
   useEffect(() => {
-    if (isMobile) {
-      setIsOpen(false);
-    } else {
-      setIsOpen(true);
-    }
+    const timeout = window.setTimeout(() => {
+      setIsOpen(!isMobile);
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
   }, [isMobile]);
 
   function toggleSidebar() {
