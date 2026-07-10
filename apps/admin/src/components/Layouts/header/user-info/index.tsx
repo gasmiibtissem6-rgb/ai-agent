@@ -28,43 +28,39 @@ export function UserInfo() {
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
 
-useEffect(() => {
-  // Ensure we are on the client and actually have a token before bothering the backend
-  const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") : null;
-  if (!token || token === "undefined") {
-    setLoading(false);
-    return;
-  }
+  useEffect(() => {
+    // Always attempt to load profile via cookie-based session; apiRequest includes credentials.
+    // Note: If you renamed this endpoint to /auth/me in your NestJS controller, change this path to match.
+    apiRequest<any>("/auth/profile")
+      .then((response) => {
+        if (!response) return;
+        const userData = response?.data || response; // Fallback handle if your interceptor unwraps the object cleanly
 
-  // 💡 FIXED: Changed from "/profile" to "/auth/profile"
-  apiRequest<any>("/auth/profile")
-    .then((response) => {
-      if (!response) return;
-      
-      // Extract the nested 'data' object from NestJS
-      const userData = response?.data; 
+        if (userData) {
+          setUser({
+            name: userData.displayName || userData.name || userData.adminRole || "Admin", 
+            email: userData.email,
+            img: userData.avatarUrl || userData.img || null,
+          });
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load user info:", err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
 
-      if (userData) {
-        setUser({
-          // 💡 FIXED: Fallback to adminRole and check displayName from your logs
-          name: userData.displayName || userData.name || userData.adminRole || "Admin", 
-          email: userData.email,
-          img: userData.avatarUrl || userData.img || null,
-        });
-      }
-    })
-    .catch((err) => {
-      console.error("Failed to load user info:", err);
-    })
-    .finally(() => {
-      setLoading(false);
-    });
-}, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem("admin_token"); // Ensure this matches your login token key
+  const handleLogout = async () => {
+    try {
+      // 🚀 FIXED: Point to your exact NestJS secure admin logout route
+      await apiRequest('/auth/logout/admin', { method: 'POST' });
+    } catch (e) {
+      // ignore errors during logout
+    }
     setIsOpen(false);
-    router.replace("/login"); 
+    router.replace('/login');
   };
 
   if (loading) {

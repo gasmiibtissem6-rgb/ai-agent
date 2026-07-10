@@ -151,47 +151,23 @@ export default function Home() {
   });
 
   useEffect(() => {
-    const token = localStorage.getItem("admin_token");
-
-    const headers: HeadersInit = {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token ?? ""}`,
-    };
-
     async function loadDashboardSnapshot() {
       try {
         setLoading(true);
         setFetchError(null);
 
-        if (!token || token === "undefined" || token === "null") {
-          throw new Error("MISSING_TOKEN");
-        }
-
-        const [usersRes, kycRes, dealsRes, disputesRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/admin/users?page=1&limit=1`, {
-            headers,
-            cache: "no-store",
-          }),
-          fetch(`${API_BASE_URL}/admin/kyc/pending`, {
-            headers,
-            cache: "no-store",
-          }),
-          fetch(`${API_BASE_URL}/admin/deals`, {
-            headers,
-            cache: "no-store",
-          }),
-          fetch(`${API_BASE_URL}/admin/dispute-center`, {
-            headers,
-            cache: "no-store",
-          }),
+        const [usersRes, kycRes, dealsRes, disputesRes] = await Promise.allSettled([
+          // apiRequest will include credentials: 'include' so HttpOnly cookies are forwarded
+          import("@/lib/api-client").then((m) => m.apiRequest<any>("/admin/users?page=1&limit=1")),
+          import("@/lib/api-client").then((m) => m.apiRequest<any>("/admin/kyc/pending")),
+          import("@/lib/api-client").then((m) => m.apiRequest<any>("/admin/deals")),
+          import("@/lib/api-client").then((m) => m.apiRequest<any>("/admin/dispute-center")),
         ]);
 
-        const [usersData, kycData, dealsData, disputesData] = await Promise.all([
-          usersRes.ok ? usersRes.json() : null,
-          kycRes.ok ? kycRes.json() : null,
-          dealsRes.ok ? dealsRes.json() : null,
-          disputesRes.ok ? disputesRes.json() : null,
-        ]);
+        const usersData = usersRes.status === 'fulfilled' ? usersRes.value : null;
+        const kycData = kycRes.status === 'fulfilled' ? kycRes.value : null;
+        const dealsData = dealsRes.status === 'fulfilled' ? dealsRes.value : null;
+        const disputesData = disputesRes.status === 'fulfilled' ? disputesRes.value : null;
 
         const disputeItems = (disputesData?.data?.items ??
           disputesData?.items ??
@@ -209,17 +185,13 @@ export default function Home() {
           openDisputes,
         });
 
-        if (!usersRes.ok || !kycRes.ok || !dealsRes.ok || !disputesRes.ok) {
+        if (usersRes.status === 'rejected' || kycRes.status === 'rejected' || dealsRes.status === 'rejected' || disputesRes.status === 'rejected') {
           setFetchError(
             "Some dashboard metrics could not be loaded. Core pages are still available.",
           );
         }
       } catch {
-        setFetchError(
-          !token || token === "undefined" || token === "null"
-            ? "Admin session is missing. Please sign in again."
-            : "Unable to load dashboard metrics. Check backend connectivity and admin token.",
-        );
+        setFetchError("Unable to load dashboard metrics. Please sign in again.");
       } finally {
         setLoading(false);
       }

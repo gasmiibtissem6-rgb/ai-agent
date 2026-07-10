@@ -5,7 +5,10 @@ import {
 } from '@nestjs/common';
 import { AuditActionType, KycStatus } from '@prisma/client';
 import { KycService } from './kyc.service';
-import { PendingUploadRegistry, PendingUpload } from './storage/pending-upload.registry';
+import {
+  PendingUploadRegistry,
+  PendingUpload,
+} from './storage/pending-upload.registry';
 import { KycStorageService } from './storage/kyc-storage.service';
 import { KycProvider } from './providers/kyc-provider.interface';
 import { SubmitKycDto } from './dto/submit-kyc.dto';
@@ -76,7 +79,7 @@ describe('KycService', () => {
       prisma as never,
       registry as never,
       storage as never,
-      provider as never,
+      provider,
     );
   });
 
@@ -84,9 +87,9 @@ describe('KycService', () => {
     it('blocks a duplicate submission when one is SUBMITTED or UNDER_REVIEW', async () => {
       prisma.kycSubmission.findFirst.mockResolvedValue({ id: 'existing' });
 
-      await expect(service.submit(profileId, submitDto, {})).rejects.toBeInstanceOf(
-        ConflictException,
-      );
+      await expect(
+        service.submit(profileId, submitDto, {}),
+      ).rejects.toBeInstanceOf(ConflictException);
       expect(prisma.$transaction).not.toHaveBeenCalled();
     });
 
@@ -94,9 +97,9 @@ describe('KycService', () => {
       prisma.kycSubmission.findFirst.mockResolvedValue(null);
       registry.peek.mockReturnValue(null);
 
-      await expect(service.submit(profileId, submitDto, {})).rejects.toBeInstanceOf(
-        ForbiddenException,
-      );
+      await expect(
+        service.submit(profileId, submitDto, {}),
+      ).rejects.toBeInstanceOf(ForbiddenException);
       expect(prisma.$transaction).not.toHaveBeenCalled();
     });
 
@@ -130,9 +133,9 @@ describe('KycService', () => {
         status: KycStatus.UNDER_REVIEW,
       });
 
-      await expect(service.resubmit(profileId, submitDto, {})).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
+      await expect(
+        service.resubmit(profileId, submitDto, {}),
+      ).rejects.toBeInstanceOf(BadRequestException);
       expect(prisma.$transaction).not.toHaveBeenCalled();
     });
 

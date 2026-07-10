@@ -24,7 +24,8 @@ export default function LoginPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password }),
-          // 🛡️ DEBUG STEP 2: Force Next.js to NEVER cache this route
+          // Ensure the server can set an HttpOnly cookie on successful login
+          credentials: 'include',
           cache: "no-store",
         });
 
@@ -45,15 +46,8 @@ export default function LoginPage() {
           return "Login failed: No token received from server.";
         }
 
-        // 1. Keep this for your api-client.ts to use
-        localStorage.setItem("admin_token", token);
-
-        // 2. NEW: Save it as a cookie so Next.js Middleware can see it!
-        // We set both 'admin_token' and 'token' just in case the template middleware is looking for 'token'
-        document.cookie = `admin_token=${token}; path=/; max-age=86400; SameSite=Lax`;
-        document.cookie = `token=${token}; path=/; max-age=86400; SameSite=Lax`;
-
-        // 3. NEW: Force a hard browser navigation instead of a soft router.push
+        // Server should set HttpOnly cookie; client should NOT store the token in localStorage.
+        // Force a hard navigation to refresh server-protected routes.
         window.location.href = "/";
 
         return null;

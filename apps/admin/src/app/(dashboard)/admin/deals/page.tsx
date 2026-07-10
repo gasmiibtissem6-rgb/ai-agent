@@ -30,29 +30,9 @@ export default function AdminDealsLedgerPage() {
       setLoading(true);
       setError('');
 
-      const token = localStorage.getItem('admin_token');
-      if (!token || token === 'undefined' || token === 'null') {
-        throw new Error('Authentication required. Please sign in again.');
-      }
-
-      const res = await fetch(`${API_BASE_URL}/admin/deals?search=${encodeURIComponent(searchQuery.trim())}`, {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        cache: 'no-store',
-      });
-
-      if (!res.ok) {
-        const apiError = await res.json().catch(() => ({}));
-        const apiMessage = Array.isArray(apiError?.message)
-          ? apiError.message[0]
-          : apiError?.message;
-        throw new Error(apiMessage || `Server responded with status ${res.status}`);
-      }
-
-      const data = await res.json();
+      const data = await (await import("@/lib/api-client")).apiRequest<any>(
+        `/admin/deals?search=${encodeURIComponent(searchQuery.trim())}`,
+      );
       const targetData = data?.data ? data.data : data;
 
       if (targetData && Array.isArray(targetData.items)) {
