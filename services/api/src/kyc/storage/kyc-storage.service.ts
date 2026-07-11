@@ -1,10 +1,12 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-
-interface SignedUrlRow {
-  signed_url: string | null;
-}
 
 export interface KycDocumentRow {
   document_type: string | null;
@@ -15,58 +17,98 @@ export interface KycDocumentRow {
 
 /**
  * Single integration seam for KYC document storage. It NEVER handles binary data — it only:
- *  (a) asks the EXISTING Supabase signed-URL SQL function for temporary URLs, and
+ *  (a) asks the Supabase Storage API for temporary signed URLs (upload/download), and
  *  (b) reads/writes the KYC document columns `document_type`, `front`, `back`, `selfie`.
  *
- * The document columns are now mapped in schema.prisma (KycSubmission.documentType/front/
- * back/selfie), so reads/writes go through the type-safe Prisma client — no raw SQL. The
- * ONLY remaining Supabase coupling is the signed-URL SQL function, isolated below so it can
- * be corrected in one place once its exact name/signature is confirmed with Ranine.
+ * The document columns are mapped in schema.prisma, so reads/writes go through the type-safe
+ * Prisma client. Signed URLs are issued through the Supabase Storage client (service-role key
+ * so it bypasses RLS), matching the Front → NestJS → Supabase architecture.
  */
 @Injectable()
 export class KycStorageService {
-  // TODO(ranine): confirm the exact name/signature of the EXISTING signed-URL SQL function
-  // and the private KYC bucket name. These two constants are the only coupling points.
-  private static readonly SIGNED_URL_FUNCTION = 'create_signed_url';
+  // The private bucket that holds KYC documents. It must exist in Supabase Storage.
   private static readonly KYC_BUCKET = 'kyc-documents';
 
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(KycStorageService.name);
+  private readonly supabase: SupabaseClient | null;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly config: ConfigService,
+  ) {
+    const url = this.config.get<string>('SUPABASE_URL');
+    // Service-role key is required for storage admin ops on a private bucket;
+    // fall back to the anon key so local setups without it still boot.
+    const key =
+      this.config.get<string>('SUPABASE_SERVICE_ROLE_KEY') ??
+      this.config.get<string>('SUPABASE_ANON_KEY');
+
+    this.supabase =
+      url && key
+        ? createClient(url, key, { auth: { persistSession: false } })
+        : null;
+  }
+
+  private bucket() {
+    if (!this.supabase) {
+      throw new InternalServerErrorException(
+        'Supabase Storage is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.',
+      );
+    }
+    return this.supabase.storage.from(KycStorageService.KYC_BUCKET);
+  }
 
   /** Temporary URL a client uses to PUT a document straight to private Storage. */
-  createSignedUploadUrl(
+  async createSignedUploadUrl(
     storagePath: string,
-    expiresInSeconds: number,
+    _expiresInSeconds: number,
   ): Promise<string> {
-    return this.callSignedUrlFunction(storagePath, expiresInSeconds);
+    const { data, error } = await this.bucket().createSignedUploadUrl(
+      storagePath,
+      { upsert: true },
+    );
+    if (error || !data?.signedUrl) {
+      this.logger.error(
+        `createSignedUploadUrl failed for "${storagePath}": ${error?.message ?? 'no URL returned'}`,
+      );
+      throw new InternalServerErrorException(
+        'Failed to generate a signed upload URL for the KYC document. ' +
+          `Ensure the private "${KycStorageService.KYC_BUCKET}" bucket exists in Supabase Storage.`,
+      );
+    }
+    return this.toAbsolute(data.signedUrl);
   }
 
   /** Temporary URL an admin uses to view a private document. Never a public URL. */
-  createSignedDownloadUrl(
+  async createSignedDownloadUrl(
     storagePath: string,
     expiresInSeconds: number,
   ): Promise<string> {
-    return this.callSignedUrlFunction(storagePath, expiresInSeconds);
-  }
-
-  private async callSignedUrlFunction(
-    storagePath: string,
-    expiresInSeconds: number,
-  ): Promise<string> {
-    // Reuses the EXISTING database signed-URL function — this code does not create it.
-    const rows = await this.prisma.$queryRawUnsafe<SignedUrlRow[]>(
-      `SELECT ${KycStorageService.SIGNED_URL_FUNCTION}($1, $2, $3) AS signed_url`,
-      KycStorageService.KYC_BUCKET,
+    const { data, error } = await this.bucket().createSignedUrl(
       storagePath,
       expiresInSeconds,
     );
-
-    const signed = rows[0]?.signed_url;
-    if (!signed) {
+    if (error || !data?.signedUrl) {
+      this.logger.error(
+        `createSignedUrl failed for "${storagePath}": ${error?.message ?? 'no URL returned'}`,
+      );
       throw new InternalServerErrorException(
         'Failed to generate a signed URL for the requested document.',
       );
     }
-    return signed;
+    return this.toAbsolute(data.signedUrl);
+  }
+
+  /** Supabase returns a relative signed URL; make it absolute for the client. */
+  private toAbsolute(signedUrl: string): string {
+    if (signedUrl.startsWith('http')) {
+      return signedUrl;
+    }
+    const base = (this.config.get<string>('SUPABASE_URL') ?? '').replace(
+      /\/$/,
+      '',
+    );
+    return `${base}${signedUrl.startsWith('/') ? '' : '/'}${signedUrl}`;
   }
 
   /**

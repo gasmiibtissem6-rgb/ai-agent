@@ -36,6 +36,10 @@ import { UpdateDealStatusDto } from './dto/update-deal-status.dto';
 import { ListDealsQueryDto } from './dto/list-deals-query.dto';
 import { CreateDealVersionDto } from './dto/create-deal-version.dto';
 import { ShareDealDto } from './dto/share-deal.dto';
+import { AddPartyDto } from './dto/add-party.dto';
+import { RespondDealDto } from './dto/respond-deal.dto';
+import { DecideVersionDto } from './dto/decide-version.dto';
+import { SendMessageDto } from './dto/send-message.dto';
 
 @ApiTags('deals')
 @Controller('deals')
@@ -232,6 +236,128 @@ export class DealsController {
       body,
       this.audit(ipAddress, userAgent),
     );
+  }
+
+  @Post(':id/versions/:versionId/submit')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Submit a version for the accepted parties to approve (creator only).',
+  })
+  @ApiResponse({ status: 201, description: 'Version submitted for approval.' })
+  async submitVersion(
+    @CurrentUser('profileId') profileId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('versionId', ParseUUIDPipe) versionId: string,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    return this.dealsService.submitVersion(
+      profileId,
+      id,
+      versionId,
+      this.audit(ipAddress, userAgent),
+    );
+  }
+
+  @Post(':id/versions/:versionId/decide')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'Approve or reject a submitted version (required parties only). ' +
+      'When both parties approve the same version it is locked and the deal is approved.',
+  })
+  @ApiResponse({ status: 201, description: 'Decision recorded.' })
+  async decideVersion(
+    @CurrentUser('profileId') profileId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('versionId', ParseUUIDPipe) versionId: string,
+    @Body() body: DecideVersionDto,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    return this.dealsService.decideVersion(
+      profileId,
+      id,
+      versionId,
+      body,
+      this.audit(ipAddress, userAgent),
+    );
+  }
+
+  // --- Participants ----------------------------------------------------------
+
+  @Post(':id/parties')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Attach a counterparty by username or email (creator only).',
+  })
+  @ApiResponse({ status: 201, description: 'Party added; deal returned.' })
+  async addParty(
+    @CurrentUser('profileId') profileId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: AddPartyDto,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    return this.dealsService.addParty(
+      profileId,
+      id,
+      body,
+      this.audit(ipAddress, userAgent),
+    );
+  }
+
+  @Post(':id/respond')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Accept or refuse a deal invitation (invited party only).',
+  })
+  @ApiResponse({ status: 201, description: 'Response recorded; deal returned.' })
+  async respondToDeal(
+    @CurrentUser('profileId') profileId: string,
+    @CurrentUser('email') email: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: RespondDealDto,
+    @Ip() ipAddress: string,
+    @Headers('user-agent') userAgent: string,
+  ) {
+    return this.dealsService.respondToInvite(
+      profileId,
+      email,
+      id,
+      body,
+      this.audit(ipAddress, userAgent),
+    );
+  }
+
+  // --- Party discussion (deal chat) ------------------------------------------
+
+  @Get(':id/messages')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List discussion messages (participants only).' })
+  async getMessages(
+    @CurrentUser('profileId') profileId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.dealsService.getMessages(profileId, id);
+  }
+
+  @Post(':id/messages')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Post a discussion message (participants only).' })
+  async sendMessage(
+    @CurrentUser('profileId') profileId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: SendMessageDto,
+  ) {
+    return this.dealsService.sendMessage(profileId, id, body.body);
   }
 
   // --- Single deal read/update/delete ----------------------------------------

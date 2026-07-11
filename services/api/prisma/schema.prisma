@@ -12,8 +12,10 @@ model Profile {
   authUserId          String           @unique @map("auth_user_id") @db.Uuid
   email               String           @unique
   displayName         String?          @map("display_name")
+  username            String?          @unique
   avatarUrl           String?          @map("avatar_url")
   kycStatus           KycStatus        @default(NOT_STARTED) @map("kyc_status")
+  isPublic            Boolean          @default(false) @map("is_public")
   isAdmin             Boolean          @default(false) @map("is_admin")
   adminRole           AdminRole?       @map("admin_role")
   createdAt           DateTime         @default(now()) @map("created_at")

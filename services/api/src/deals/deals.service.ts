@@ -6,13 +6,19 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import {
+  ApprovalStatus,
   AuditActionType,
   DealStatus,
+  NotificationType,
   PartyStatus,
   Prisma,
   SubscriptionStatus,
 } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { AddPartyDto } from './dto/add-party.dto';
+import { RespondDealDto } from './dto/respond-deal.dto';
+import { DecideVersionDto } from './dto/decide-version.dto';
 import {
   FREE_PLAN_CODE,
   getFreePlanDealLimit,
@@ -31,12 +37,6 @@ export interface AuditContext {
   userAgent?: string;
 }
 
-/** Deal statuses whose current version is immutable and blocks new-version creation. */
-const IMMUTABLE_DEAL_STATUSES: DealStatus[] = [
-  DealStatus.APPROVED,
-  DealStatus.LOCKED,
-];
-
 /** Deal statuses that can never transition again. */
 const TERMINAL_DEAL_STATUSES: DealStatus[] = [
   DealStatus.LOCKED,
@@ -45,7 +45,10 @@ const TERMINAL_DEAL_STATUSES: DealStatus[] = [
 
 @Injectable()
 export class DealsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly notifications: NotificationsService,
+  ) {}
 
   // ---------------------------------------------------------------------------
   // Quota (must run BEFORE any create transaction opens)
@@ -384,7 +387,10 @@ export class DealsService {
   ) {
     const deal = await this.getDealOrThrow(dealId);
     this.assertCreator(deal, profileId);
-    if (IMMUTABLE_DEAL_STATUSES.includes(deal.status)) {
+    // A brand-new version (e.g. V1 after the locked V0) is allowed while the
+    // deal is APPROVED — it starts a fresh negotiation round. Only truly
+    // terminal deals (LOCKED / ARCHIVED) can never spawn a new version.
+    if (TERMINAL_DEAL_STATUSES.includes(deal.status)) {
       throw new ForbiddenException(
         `A new version cannot be created while the deal is ${deal.status}.`,
       );
@@ -425,6 +431,494 @@ export class DealsService {
 
       return version;
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Participation & approval workflow
+  // ---------------------------------------------------------------------------
+
+  /** Standard include used when returning a deal to the client. */
+  private static readonly DEAL_INCLUDE = {
+    versions: { orderBy: { versionNumber: 'asc' } },
+    parties: true,
+  } as const;
+
+  /**
+   * Attaches a counterparty to a deal by username OR email (creator only) and
+   * notifies them if they already have an IDEAL profile.
+   */
+  async addParty(
+    profileId: string,
+    dealId: string,
+    dto: AddPartyDto,
+    audit: AuditContext,
+  ) {
+    const deal = await this.getDealOrThrow(dealId);
+    this.assertCreator(deal, profileId);
+
+    const identifier = dto.identifier.trim().toLowerCase();
+    const target = await this.prisma.profile.findFirst({
+      where: { OR: [{ email: identifier }, { username: identifier }] },
+      select: { id: true, email: true },
+    });
+
+    const email = target?.email ?? (identifier.includes('@') ? identifier : null);
+    if (!email) {
+      throw new NotFoundException('No user found with that username.');
+    }
+    if (target?.id === profileId) {
+      throw new ForbiddenException('You cannot add yourself as a counterparty.');
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.dealParty.upsert({
+        where: { dealId_email: { dealId, email } },
+        create: {
+          dealId,
+          profileId: target?.id ?? null,
+          email,
+          role: dto.role ?? 'PARTICIPANT',
+          requiredApproval: true,
+          invitedByProfileId: profileId,
+          partyStatus: PartyStatus.INVITED,
+        },
+        update: {
+          profileId: target?.id ?? undefined,
+          role: dto.role ?? undefined,
+        },
+      });
+
+      if (target) {
+        await this.notifications.create(
+          {
+            profileId: target.id,
+            type: NotificationType.DEAL_INVITATION,
+            title: 'New deal invitation',
+            body: `You have been invited to "${deal.title}".`,
+            payload: { dealId },
+          },
+          tx,
+        );
+      }
+
+      await this.writeAudit(tx, {
+        actorProfileId: profileId,
+        actionType: AuditActionType.DEAL_UPDATED,
+        resourceId: dealId,
+        metadata: { action: 'PARTY_ADDED', email },
+        audit,
+      });
+
+      return tx.deal.findUnique({
+        where: { id: dealId },
+        include: DealsService.DEAL_INCLUDE,
+      });
+    });
+  }
+
+  /**
+   * The invited party accepts or refuses the deal. On a decision the deal
+   * creator is notified. Accepting a deal opens the chat between the parties.
+   */
+  async respondToInvite(
+    profileId: string,
+    email: string,
+    dealId: string,
+    dto: RespondDealDto,
+    audit: AuditContext,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const deal = await tx.deal.findUnique({ where: { id: dealId } });
+      if (!deal) {
+        throw new NotFoundException('Deal not found.');
+      }
+
+      const party = await tx.dealParty.findFirst({
+        where: {
+          dealId,
+          OR: [{ profileId }, { email: email.toLowerCase() }],
+        },
+      });
+      if (!party) {
+        throw new ForbiddenException('You were not invited to this deal.');
+      }
+
+      const now = new Date();
+      await tx.dealParty.update({
+        where: { id: party.id },
+        data: {
+          profileId,
+          partyStatus: dto.accept ? PartyStatus.ACCEPTED : PartyStatus.DECLINED,
+          acceptedAt: dto.accept ? now : party.acceptedAt,
+          declinedAt: dto.accept ? party.declinedAt : now,
+        },
+      });
+
+      await this.notifications.create(
+        {
+          profileId: deal.creatorProfileId,
+          type: dto.accept
+            ? NotificationType.APPROVED
+            : NotificationType.REJECTED,
+          title: dto.accept
+            ? 'Deal invitation accepted'
+            : 'Deal invitation declined',
+          body: `${email} ${dto.accept ? 'accepted' : 'declined'} "${deal.title}".`,
+          payload: { dealId, partyId: party.id },
+        },
+        tx,
+      );
+
+      await this.writeAudit(tx, {
+        actorProfileId: profileId,
+        actionType: AuditActionType.DEAL_UPDATED,
+        resourceId: dealId,
+        metadata: { action: dto.accept ? 'INVITE_ACCEPTED' : 'INVITE_DECLINED' },
+        audit,
+      });
+
+      return tx.deal.findUnique({
+        where: { id: dealId },
+        include: DealsService.DEAL_INCLUDE,
+      });
+    });
+  }
+
+  /**
+   * Creator submits a version for the accepted parties to approve. This is the
+   * creator's own approval; it moves the deal to PENDING_APPROVAL and asks each
+   * required, accepted party to decide.
+   */
+  async submitVersion(
+    profileId: string,
+    dealId: string,
+    versionId: string,
+    audit: AuditContext,
+  ) {
+    const deal = await this.getDealOrThrow(dealId);
+    this.assertCreator(deal, profileId);
+
+    return this.prisma.$transaction(async (tx) => {
+      const version = await tx.dealVersion.findUnique({
+        where: { id: versionId },
+      });
+      if (!version || version.dealId !== dealId) {
+        throw new NotFoundException('Version not found for this deal.');
+      }
+      if (version.lockedAt) {
+        throw new ForbiddenException(
+          'This version is locked and cannot be resubmitted.',
+        );
+      }
+
+      const approvers = await tx.dealParty.findMany({
+        where: {
+          dealId,
+          requiredApproval: true,
+          partyStatus: PartyStatus.ACCEPTED,
+          profileId: { not: null },
+        },
+      });
+      if (approvers.length === 0) {
+        throw new ForbiddenException(
+          'No party has accepted this deal yet, so there is nobody to approve it.',
+        );
+      }
+
+      await tx.dealVersion.update({
+        where: { id: versionId },
+        data: { status: DealStatus.PENDING_APPROVAL, submittedAt: new Date() },
+      });
+      await tx.deal.update({
+        where: { id: dealId },
+        data: {
+          status: DealStatus.PENDING_APPROVAL,
+          currentVersionId: versionId,
+        },
+      });
+
+      for (const party of approvers) {
+        await tx.dealApproval.upsert({
+          where: { versionId_partyId: { versionId, partyId: party.id } },
+          create: {
+            versionId,
+            partyId: party.id,
+            profileId: party.profileId!,
+            approvalStatus: ApprovalStatus.PENDING,
+          },
+          update: {
+            approvalStatus: ApprovalStatus.PENDING,
+            reason: null,
+            decidedAt: null,
+          },
+        });
+      }
+
+      await this.notifications.createMany(
+        approvers.map((party) => ({
+          profileId: party.profileId!,
+          type: NotificationType.APPROVAL_REQUESTED,
+          title: 'Approval requested',
+          body: `Please review version ${version.versionNumber} of "${deal.title}".`,
+          payload: { dealId, versionId },
+        })),
+        tx,
+      );
+
+      await this.writeAudit(tx, {
+        actorProfileId: profileId,
+        actionType: AuditActionType.DEAL_UPDATED,
+        resourceId: dealId,
+        metadata: { action: 'VERSION_SUBMITTED', versionId },
+        audit,
+      });
+
+      return tx.deal.findUnique({
+        where: { id: dealId },
+        include: DealsService.DEAL_INCLUDE,
+      });
+    });
+  }
+
+  /**
+   * A required party approves or rejects a submitted version. Once every
+   * required, accepted party has approved the SAME version, that version is
+   * locked (immutable) and the deal becomes APPROVED. The first locked version
+   * is the official V0 and can never be modified afterwards.
+   */
+  async decideVersion(
+    profileId: string,
+    dealId: string,
+    versionId: string,
+    dto: DecideVersionDto,
+    audit: AuditContext,
+  ) {
+    return this.prisma.$transaction(async (tx) => {
+      const deal = await tx.deal.findUnique({ where: { id: dealId } });
+      if (!deal) {
+        throw new NotFoundException('Deal not found.');
+      }
+      const version = await tx.dealVersion.findUnique({
+        where: { id: versionId },
+      });
+      if (!version || version.dealId !== dealId) {
+        throw new NotFoundException('Version not found for this deal.');
+      }
+      if (version.lockedAt) {
+        throw new ForbiddenException('This version is already locked.');
+      }
+
+      const party = await tx.dealParty.findFirst({
+        where: {
+          dealId,
+          profileId,
+          requiredApproval: true,
+          partyStatus: PartyStatus.ACCEPTED,
+        },
+      });
+      if (!party) {
+        throw new ForbiddenException(
+          'You are not a required approver on this deal.',
+        );
+      }
+
+      const now = new Date();
+      const decision = dto.approve
+        ? ApprovalStatus.APPROVED
+        : ApprovalStatus.REJECTED;
+
+      await tx.dealApproval.upsert({
+        where: { versionId_partyId: { versionId, partyId: party.id } },
+        create: {
+          versionId,
+          partyId: party.id,
+          profileId,
+          approvalStatus: decision,
+          reason: dto.reason ?? null,
+          decidedAt: now,
+        },
+        update: {
+          approvalStatus: decision,
+          reason: dto.reason ?? null,
+          decidedAt: now,
+        },
+      });
+
+      if (!dto.approve) {
+        await tx.dealVersion.update({
+          where: { id: versionId },
+          data: { status: DealStatus.CHANGES_REQUESTED },
+        });
+        await tx.deal.update({
+          where: { id: dealId },
+          data: { status: DealStatus.CHANGES_REQUESTED },
+        });
+        await this.notifications.create(
+          {
+            profileId: deal.creatorProfileId,
+            type: NotificationType.CHANGES_REQUESTED,
+            title: 'Changes requested',
+            body: `A party requested changes on "${deal.title}".`,
+            payload: { dealId, versionId, reason: dto.reason ?? null },
+          },
+          tx,
+        );
+        await this.writeAudit(tx, {
+          actorProfileId: profileId,
+          actionType: AuditActionType.DEAL_UPDATED,
+          resourceId: dealId,
+          metadata: { action: 'VERSION_REJECTED', versionId },
+          audit,
+        });
+        return tx.deal.findUnique({
+          where: { id: dealId },
+          include: DealsService.DEAL_INCLUDE,
+        });
+      }
+
+      // Approved: has every required, accepted party approved this version?
+      const requiredParties = await tx.dealParty.findMany({
+        where: {
+          dealId,
+          requiredApproval: true,
+          partyStatus: PartyStatus.ACCEPTED,
+        },
+      });
+      const approvals = await tx.dealApproval.findMany({
+        where: { versionId },
+      });
+      const allApproved =
+        requiredParties.length > 0 &&
+        requiredParties.every((p) =>
+          approvals.some(
+            (a) =>
+              a.partyId === p.id &&
+              a.approvalStatus === ApprovalStatus.APPROVED,
+          ),
+        );
+
+      if (allApproved) {
+        // Lock this version (V0/V1/...) and mark the deal approved.
+        await tx.dealVersion.update({
+          where: { id: versionId },
+          data: { status: DealStatus.APPROVED, lockedAt: now },
+        });
+        await tx.deal.update({
+          where: { id: dealId },
+          data: { status: DealStatus.APPROVED, lockedVersionId: versionId },
+        });
+
+        const recipients = [
+          deal.creatorProfileId,
+          ...requiredParties
+            .map((p) => p.profileId)
+            .filter((id): id is string => Boolean(id)),
+        ];
+        await this.notifications.createMany(
+          recipients.map((pid) => ({
+            profileId: pid,
+            type: NotificationType.APPROVED,
+            title: 'Deal approved',
+            body: `Version ${version.versionNumber} of "${deal.title}" is approved and locked.`,
+            payload: { dealId, versionId },
+          })),
+          tx,
+        );
+      } else {
+        await this.notifications.create(
+          {
+            profileId: deal.creatorProfileId,
+            type: NotificationType.APPROVED,
+            title: 'A party approved',
+            body: `A party approved version ${version.versionNumber} of "${deal.title}".`,
+            payload: { dealId, versionId },
+          },
+          tx,
+        );
+      }
+
+      await this.writeAudit(tx, {
+        actorProfileId: profileId,
+        actionType: AuditActionType.DEAL_UPDATED,
+        resourceId: dealId,
+        metadata: { action: 'VERSION_APPROVED', versionId, locked: allApproved },
+        audit,
+      });
+
+      return tx.deal.findUnique({
+        where: { id: dealId },
+        include: DealsService.DEAL_INCLUDE,
+      });
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Party discussion (deal chat — NOT the AI assistant)
+  // ---------------------------------------------------------------------------
+
+  /** Lists the deal's discussion messages for a participant (creator or party). */
+  async getMessages(profileId: string, dealId: string) {
+    await this.assertParticipant(profileId, dealId);
+    return this.prisma.message.findMany({
+      where: { dealId, deletedAt: null },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        sender: { select: { id: true, displayName: true, email: true } },
+      },
+      take: 200,
+    });
+  }
+
+  /** Posts a discussion message and notifies the other side of the deal. */
+  async sendMessage(profileId: string, dealId: string, body: string) {
+    const deal = await this.assertParticipant(profileId, dealId);
+
+    const message = await this.prisma.message.create({
+      data: { dealId, senderProfileId: profileId, body },
+      include: {
+        sender: { select: { id: true, displayName: true, email: true } },
+      },
+    });
+
+    // Notify everyone on the deal except the sender.
+    const recipients = new Set<string>();
+    if (deal.creatorProfileId !== profileId) {
+      recipients.add(deal.creatorProfileId);
+    }
+    for (const party of deal.parties) {
+      if (party.profileId && party.profileId !== profileId) {
+        recipients.add(party.profileId);
+      }
+    }
+    await this.notifications.createMany(
+      [...recipients].map((pid) => ({
+        profileId: pid,
+        type: NotificationType.CHANGES_REQUESTED,
+        title: 'New message',
+        body: `New message on "${deal.title}".`,
+        payload: { dealId, messageId: message.id },
+      })),
+    );
+
+    return message;
+  }
+
+  /** Loads the deal (with parties) and asserts the caller participates in it. */
+  private async assertParticipant(profileId: string, dealId: string) {
+    const deal = await this.prisma.deal.findUnique({
+      where: { id: dealId },
+      include: { parties: true },
+    });
+    if (!deal) {
+      throw new NotFoundException('Deal not found.');
+    }
+    const isParticipant =
+      deal.creatorProfileId === profileId ||
+      deal.parties.some((party) => party.profileId === profileId);
+    if (!isParticipant) {
+      throw new ForbiddenException('You do not have access to this deal.');
+    }
+    return deal;
   }
 
   /** Deletes a DRAFT deal with no confirmed parties (creator only). */
