@@ -284,7 +284,8 @@ class _CreateDealScreenState extends ConsumerState<CreateDealScreen> {
     if (deal == null || !mounted) return;
 
     await _offerDocument(deal.title, document);
-    if (mounted) context.go(AppRoutes.dealDetail, extra: deal);
+    // Next step of the flow: show the deal's link + QR and attach the other party.
+    if (mounted) context.go(AppRoutes.dealShare, extra: deal);
   }
 
   /// Generates the deal document and hands it to the user. A failure here must

@@ -76,6 +76,82 @@ class DealNotifier extends AsyncNotifier<DealState> {
     }
   }
 
+  /// Creator attaches a counterparty by username or email.
+  Future<Deal?> addParty({
+    required String dealId,
+    required String identifier,
+    String? role,
+  }) async {
+    return _runAndRefresh(
+      () => DealService.addParty(
+        dealId: dealId,
+        identifier: identifier,
+        role: role,
+      ),
+      'Failed to add the other party.',
+    );
+  }
+
+  /// Invited party accepts or refuses the deal.
+  Future<Deal?> respondToDeal({
+    required String dealId,
+    required bool accept,
+  }) async {
+    return _runAndRefresh(
+      () => DealService.respondToDeal(dealId: dealId, accept: accept),
+      'Failed to respond to the deal.',
+    );
+  }
+
+  /// Creator submits a version for the accepted parties to approve.
+  Future<Deal?> submitVersion({
+    required String dealId,
+    required String versionId,
+  }) async {
+    return _runAndRefresh(
+      () => DealService.submitVersion(dealId: dealId, versionId: versionId),
+      'Failed to submit the version.',
+    );
+  }
+
+  /// A required party approves or rejects a submitted version.
+  Future<Deal?> decideVersion({
+    required String dealId,
+    required String versionId,
+    required bool approve,
+    String? reason,
+  }) async {
+    return _runAndRefresh(
+      () => DealService.decideVersion(
+        dealId: dealId,
+        versionId: versionId,
+        approve: approve,
+        reason: reason,
+      ),
+      'Failed to record your decision.',
+    );
+  }
+
+  /// Runs a mutating deal action, then refreshes the list from the backend.
+  Future<Deal?> _runAndRefresh(
+    Future<Deal> Function() action,
+    String fallback,
+  ) async {
+    final previous = _current;
+    state = AsyncData(DealState.updating(previous));
+    try {
+      final updated = await action();
+      final deals = await DealService.getMyDeals();
+      state = AsyncData(DealState.success(deals, selectedDeal: updated));
+      return updated;
+    } catch (e) {
+      state = AsyncData(
+        DealState.error(_message(e, fallback), deals: previous),
+      );
+      return null;
+    }
+  }
+
   /// Surfaces the backend's message (403 "Only the deal creator…", quota, KYC)
   /// instead of swallowing it behind a generic string.
   String _message(Object error, String fallback) =>
@@ -92,4 +168,9 @@ final dealVersionsProvider = FutureProvider.family<List<DealVersion>, String>((
   dealId,
 ) async {
   return DealService.getDealVersions(dealId);
+});
+
+/// Full deal detail (parties + versions) used to drive the detail workflow UI.
+final dealByIdProvider = FutureProvider.family<Deal, String>((ref, dealId) async {
+  return DealService.getDeal(dealId);
 });

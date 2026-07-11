@@ -68,6 +68,75 @@ class DealService {
     return Deal.fromJson(_data(response));
   }
 
+  /// POST /deals/:id/share → generates an invitation link + QR payload.
+  /// Grants VIEW + SIGN so whoever accepts becomes a required approver.
+  static Future<DealShareLink> shareDeal(String dealId) async {
+    final response = await _api.post(
+      '/deals/$dealId/share',
+      data: {
+        'permissions': ['VIEW', 'SIGN'],
+        'expiresInHours': 168,
+      },
+    );
+    return DealShareLink.fromJson(_data(response));
+  }
+
+  /// POST /deals/:id/parties → attach a counterparty by username or email.
+  static Future<Deal> addParty({
+    required String dealId,
+    required String identifier,
+    String? role,
+  }) async {
+    final response = await _api.post(
+      '/deals/$dealId/parties',
+      data: {'identifier': identifier, 'role': ?role},
+    );
+    return Deal.fromJson(_data(response));
+  }
+
+  /// POST /deals/:id/respond → invited party accepts or refuses the deal.
+  static Future<Deal> respondToDeal({
+    required String dealId,
+    required bool accept,
+  }) async {
+    final response = await _api.post(
+      '/deals/$dealId/respond',
+      data: {'accept': accept},
+    );
+    return Deal.fromJson(_data(response));
+  }
+
+  /// POST /deals/:id/versions/:versionId/submit → creator submits a version
+  /// for the accepted parties to approve.
+  static Future<Deal> submitVersion({
+    required String dealId,
+    required String versionId,
+  }) async {
+    final response = await _api.post(
+      '/deals/$dealId/versions/$versionId/submit',
+    );
+    return Deal.fromJson(_data(response));
+  }
+
+  /// POST /deals/:id/versions/:versionId/decide → a required party approves or
+  /// rejects. When both parties approve, the version locks and the deal is
+  /// approved.
+  static Future<Deal> decideVersion({
+    required String dealId,
+    required String versionId,
+    required bool approve,
+    String? reason,
+  }) async {
+    final response = await _api.post(
+      '/deals/$dealId/versions/$versionId/decide',
+      data: {
+        'approve': approve,
+        if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+      },
+    );
+    return Deal.fromJson(_data(response));
+  }
+
   /// POST /deals/:id/versions → new version (creator only, not approved/locked).
   static Future<DealVersion> createVersion({
     required String dealId,
@@ -94,9 +163,77 @@ class DealService {
     await _api.delete('/deals/$dealId');
   }
 
+  /// GET /deals/:id/messages → the deal's party discussion (participants only).
+  static Future<List<DealMessage>> getMessages(String dealId) async {
+    final response = await _api.get('/deals/$dealId/messages');
+    final items = (response as Map)['data'] as List? ?? const [];
+    return items
+        .map((e) => DealMessage.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// POST /deals/:id/messages → post a discussion message.
+  static Future<DealMessage> sendMessage(String dealId, String body) async {
+    final response = await _api.post(
+      '/deals/$dealId/messages',
+      data: {'body': body},
+    );
+    return DealMessage.fromJson(_data(response));
+  }
+
   static Map<String, dynamic> _data(dynamic response) {
     final body = response as Map;
     return Map<String, dynamic>.from(body['data'] as Map);
+  }
+}
+
+/// A deal discussion message (party chat, not the AI assistant).
+class DealMessage {
+  final String id;
+  final String senderProfileId;
+  final String body;
+  final DateTime createdAt;
+  final String? senderName;
+
+  const DealMessage({
+    required this.id,
+    required this.senderProfileId,
+    required this.body,
+    required this.createdAt,
+    this.senderName,
+  });
+
+  factory DealMessage.fromJson(Map<String, dynamic> json) {
+    final sender = json['sender'] as Map<String, dynamic>?;
+    return DealMessage(
+      id: json['id'] as String,
+      senderProfileId: json['senderProfileId'] as String? ?? '',
+      body: json['body'] as String? ?? '',
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      senderName:
+          sender?['displayName'] as String? ?? sender?['email'] as String?,
+    );
+  }
+}
+
+/// Invitation link + QR payload returned by POST /deals/:id/share.
+class DealShareLink {
+  final String inviteUrl;
+  final String qrCodeData;
+  final String? token;
+
+  const DealShareLink({
+    required this.inviteUrl,
+    required this.qrCodeData,
+    this.token,
+  });
+
+  factory DealShareLink.fromJson(Map<String, dynamic> json) {
+    return DealShareLink(
+      inviteUrl: json['inviteUrl'] as String? ?? '',
+      qrCodeData: json['qrCodeData'] as String? ?? json['inviteUrl'] as String? ?? '',
+      token: json['token'] as String?,
+    );
   }
 }
 

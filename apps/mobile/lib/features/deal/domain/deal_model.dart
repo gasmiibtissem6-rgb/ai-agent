@@ -123,6 +123,7 @@ class Deal {
   final DateTime? cancelledAt;
   final DateTime? archivedAt;
   final List<DealVersion> versions;
+  final List<DealPartyInfo> parties;
 
   const Deal({
     required this.id,
@@ -137,6 +138,7 @@ class Deal {
     this.cancelledAt,
     this.archivedAt,
     this.versions = const [],
+    this.parties = const [],
   });
 
   /// Parses the NestJS/Prisma shape (camelCase, uppercase status enum).
@@ -156,6 +158,9 @@ class Deal {
       versions: (json['versions'] as List? ?? const [])
           .map((e) => DealVersion.fromJson(e as Map<String, dynamic>))
           .toList(),
+      parties: (json['parties'] as List? ?? const [])
+          .map((e) => DealPartyInfo.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 
@@ -163,6 +168,11 @@ class Deal {
       value is String && value.isNotEmpty ? DateTime.tryParse(value) : null;
 
   String get statusLabel => status.label;
+
+  /// Human-friendly auto-generated reference derived from the deal id, e.g.
+  /// `DEAL-1A2B3C4D`. Stable for the life of the deal.
+  String get reference =>
+      'DEAL-${id.replaceAll('-', '').substring(0, 8).toUpperCase()}';
 
   /// Only a DRAFT deal can have its fields edited (matches DealsService).
   bool get isEditable => status == DealStatus.draft;
@@ -176,6 +186,56 @@ class Deal {
   /// Whether [profileId] owns this deal and may therefore change its status.
   bool isCreatedBy(String? profileId) =>
       profileId != null && profileId == creatorProfileId;
+
+  /// The party row belonging to [profileId], if the caller is a participant.
+  DealPartyInfo? partyFor(String? profileId) {
+    if (profileId == null) return null;
+    for (final party in parties) {
+      if (party.profileId == profileId) return party;
+    }
+    return null;
+  }
+
+  /// True once at least one invited party has accepted (chat can open).
+  bool get hasAcceptedParty =>
+      parties.any((p) => p.partyStatus == 'ACCEPTED');
+}
+
+/// A participant on a deal, as returned by the backend (`DealParty`).
+class DealPartyInfo {
+  final String id;
+  final String? profileId;
+  final String email;
+  final String role;
+
+  /// Wire value of the Postgres `party_status` enum: INVITED, ACCEPTED,
+  /// DECLINED, REMOVED, EXPIRED, REVOKED.
+  final String partyStatus;
+  final bool requiredApproval;
+
+  const DealPartyInfo({
+    required this.id,
+    this.profileId,
+    required this.email,
+    required this.role,
+    required this.partyStatus,
+    required this.requiredApproval,
+  });
+
+  factory DealPartyInfo.fromJson(Map<String, dynamic> json) {
+    return DealPartyInfo(
+      id: json['id'] as String,
+      profileId: json['profileId'] as String?,
+      email: json['email'] as String? ?? '',
+      role: json['role'] as String? ?? 'PARTICIPANT',
+      partyStatus: json['partyStatus'] as String? ?? 'INVITED',
+      requiredApproval: json['requiredApproval'] as bool? ?? true,
+    );
+  }
+
+  bool get isAccepted => partyStatus == 'ACCEPTED';
+  bool get isInvited => partyStatus == 'INVITED';
+  bool get isDeclined => partyStatus == 'DECLINED';
 }
 
 class DealVersion {

@@ -23,13 +23,35 @@ class ProfileService {
   /// rejected by the backend DTO, so they are not exposed here.
   static Future<AuthProfile> updateProfile({
     String? displayName,
+    String? username,
     String? avatarUrl,
+    bool? isPublic,
   }) async {
     final response = await _api.patch(
       '/profile',
-      data: {'displayName': ?displayName, 'avatarUrl': ?avatarUrl},
+      data: {
+        'displayName': ?displayName,
+        'username': ?username,
+        'avatarUrl': ?avatarUrl,
+        'isPublic': ?isPublic,
+      },
     );
     return AuthProfile.fromJson(_data(response));
+  }
+
+  /// GET /profiles/lookup?q= → resolves a public profile by username or id.
+  /// Used when scanning another user's QR code. Returns null when not found or
+  /// the profile is private.
+  static Future<AuthProfile?> lookup(String query) async {
+    try {
+      final response = await _api.get(
+        '/profiles/lookup',
+        queryParams: {'q': query},
+      );
+      return AuthProfile.fromJson(_data(response));
+    } catch (_) {
+      return null;
+    }
   }
 
   static Map<String, dynamic> _data(dynamic response) {

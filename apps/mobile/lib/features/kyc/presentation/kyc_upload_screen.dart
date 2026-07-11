@@ -55,6 +55,15 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
       );
       return;
     }
+    if (_selfieFile?.bytes == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please upload a selfie with your document.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
     await ref
         .read(kycProvider.notifier)
         .submitKyc(
@@ -63,8 +72,8 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
           frontFileName: _frontFile!.name,
           backBytes: _backFile?.bytes,
           backFileName: _backFile?.name,
-          selfieBytes: _selfieFile?.bytes,
-          selfieFileName: _selfieFile?.name,
+          selfieBytes: _selfieFile!.bytes!,
+          selfieFileName: _selfieFile!.name,
         );
   }
 
@@ -205,7 +214,7 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
                     _FileUploadCard(
                       label: 'Selfie with document',
                       subtitle: 'Hold your document next to your face',
-                      required: false,
+                      required: true,
                       file: _selfieFile,
                       onTap: () => _pickFile('selfie'),
                     ),

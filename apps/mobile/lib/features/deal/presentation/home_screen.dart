@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../auth/domain/auth_profile.dart';
 import '../../auth/domain/auth_provider.dart';
+import '../../profile/presentation/qr_scan_screen.dart';
 import '../domain/deal_model.dart';
 import '../domain/deal_provider.dart';
 import 'deal_status_ui.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/router/app_router.dart';
+import '../../../services/profile_service.dart';
 import '../../../shared/ideal_ui.dart';
+import '../../../shared/qr_display.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -34,11 +38,11 @@ class HomeScreen extends ConsumerWidget {
             await ref.read(authProvider.notifier).signOut();
           },
         ),
+        // Profile now lives here (top-right), replacing the old "Delete account".
         IconButton(
-          icon: const Icon(Icons.delete_forever_outlined),
-          color: AppColors.error,
-          tooltip: 'Delete account',
-          onPressed: () => _confirmDeleteAccount(context, ref),
+          icon: const Icon(Icons.person_outline),
+          tooltip: 'Profile',
+          onPressed: () => context.go(AppRoutes.editProfile),
         ),
       ],
       body: IdealGradientBackground(
@@ -54,12 +58,18 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 24),
+              if (authState?.profile != null)
+                FadeSlideIn(
+                  delay: const Duration(milliseconds: 120),
+                  child: _ProfileSection(profile: authState!.profile!),
+                ),
+              if (authState?.profile != null) const SizedBox(height: 24),
               _StatsGrid(deals: deals),
               const SizedBox(height: 24),
               FadeSlideIn(
                 delay: const Duration(milliseconds: 220),
                 child: _QuickActions(
-                  onCreate: () => context.go(AppRoutes.createDeal),
+                  onCreate: () => context.go(AppRoutes.dealCreateStart),
                   onDeals: () => context.go(AppRoutes.deals),
                 ),
               ),
@@ -138,38 +148,296 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _confirmDeleteAccount(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
-    final confirm = await showDialog<bool>(
+  void _comingSoon(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('This feature is still being built.')),
+    );
+  }
+}
+
+/// Home profile card: avatar, name, verification emoji, public/private toggle,
+/// the user's own profile QR, and a scanner for another user's profile QR.
+class _ProfileSection extends ConsumerStatefulWidget {
+  final AuthProfile profile;
+
+  const _ProfileSection({required this.profile});
+
+  @override
+  ConsumerState<_ProfileSection> createState() => _ProfileSectionState();
+}
+
+class _ProfileSectionState extends ConsumerState<_ProfileSection> {
+  bool _busy = false;
+
+  Future<void> _togglePublic(bool value) async {
+    setState(() => _busy = true);
+    final error = await ref
+        .read(authProvider.notifier)
+        .updateProfile(isPublic: value);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error), backgroundColor: AppColors.error),
+      );
+    }
+  }
+
+  Future<void> _scanProfile() async {
+    final payload = await Navigator.of(context).push<String>(
+      MaterialPageRoute(
+        builder: (_) => const QrScanScreen(title: 'Scan a profile'),
+      ),
+    );
+    if (payload == null || !mounted) return;
+
+    final query = _extractProfileQuery(payload);
+    if (query == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('That QR code is not an IDEAL profile.')),
+      );
+      return;
+    }
+
+    setState(() => _busy = true);
+    final found = await ProfileService.lookup(query);
+    if (!mounted) return;
+    setState(() => _busy = false);
+    _showScanResult(found);
+  }
+
+  /// Parses `ideal://profile/<handle>` or `ideal://profile/id/<uuid>`.
+  String? _extractProfileQuery(String payload) {
+    final value = payload.trim();
+    const prefix = 'ideal://profile/';
+    if (!value.startsWith(prefix)) return null;
+    var rest = value.substring(prefix.length);
+    if (rest.startsWith('id/')) rest = rest.substring(3);
+    return rest.isEmpty ? null : rest;
+  }
+
+  void _showScanResult(AuthProfile? profile) {
+    showModalBottomSheet<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete account'),
-        content: const Text(
-          'This will permanently delete your account and all your data. This action cannot be undone.',
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (profile == null) ...[
+              const Icon(Icons.person_off_outlined,
+                  size: 40, color: AppColors.warning),
+              const SizedBox(height: 12),
+              Text(
+                'Profile not found',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'This profile is private or does not exist.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+            ] else ...[
+              _ProfileAvatar(profile: profile, size: 64),
+              const SizedBox(height: 12),
+              Text(
+                '${profile.displayNameOrEmail} ${profile.verifiedEmoji}',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                profile.handleOrName,
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                profile.isKycVerified
+                    ? 'Verified account'
+                    : 'Not verified yet',
+                style: TextStyle(
+                  color: profile.isKycVerified
+                      ? AppColors.success
+                      : AppColors.warning,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Close'),
+              ),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = widget.profile;
+    return IdealCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              _ProfileAvatar(profile: profile, size: 56),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            profile.displayNameOrEmail,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(profile.verifiedEmoji,
+                            style: const TextStyle(fontSize: 16)),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      profile.handleOrName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    StatusPill(
+                      label: profile.isKycVerified
+                          ? 'Verified (KYC)'
+                          : 'Not verified',
+                      color: profile.isKycVerified
+                          ? AppColors.success
+                          : AppColors.warning,
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          TextButton(
-            style: TextButton.styleFrom(foregroundColor: AppColors.error),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+          const SizedBox(height: 16),
+          const Divider(height: 1),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Icon(
+                profile.isPublic ? Icons.public : Icons.lock_outline,
+                size: 20,
+                color: profile.isPublic ? AppColors.success : AppColors.textSecondary,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      profile.isPublic ? 'Public profile' : 'Private profile',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    Text(
+                      profile.isPublic
+                          ? 'Others can find you by scanning your QR.'
+                          : 'Only you can see this profile.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_busy)
+                const SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else
+                Switch(
+                  value: profile.isPublic,
+                  onChanged: _togglePublic,
+                ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Center(
+            child: QrDisplay(
+              data: profile.qrPayload,
+              size: 160,
+              caption: 'Your profile QR — let others scan it',
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _busy ? null : _scanProfile,
+              icon: const Icon(Icons.qr_code_scanner_outlined),
+              label: const Text('Scan another profile'),
+            ),
           ),
         ],
       ),
     );
-    if (confirm == true) {
-      await ref.read(authProvider.notifier).deleteAccount();
-    }
   }
+}
 
-  void _comingSoon(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('This feature is still being built.')),
+class _ProfileAvatar extends StatelessWidget {
+  final AuthProfile profile;
+  final double size;
+
+  const _ProfileAvatar({required this.profile, required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    final url = profile.avatarUrl?.trim();
+    if (url != null && url.isNotEmpty) {
+      return CircleAvatar(
+        radius: size / 2,
+        backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+        backgroundImage: NetworkImage(url),
+      );
+    }
+    final label = profile.displayNameOrEmail;
+    final initial = (label.isEmpty ? '?' : label.substring(0, 1)).toUpperCase();
+    return CircleAvatar(
+      radius: size / 2,
+      backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+      child: Text(
+        initial,
+        style: TextStyle(
+          fontSize: size * 0.4,
+          fontWeight: FontWeight.w900,
+          color: AppColors.primary,
+        ),
+      ),
     );
   }
 }

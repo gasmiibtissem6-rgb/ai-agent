@@ -18,6 +18,7 @@ class EditProfileScreen extends ConsumerStatefulWidget {
 class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _displayNameController;
+  late final TextEditingController _usernameController;
   late final TextEditingController _avatarUrlController;
   bool _isSaving = false;
 
@@ -30,12 +31,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     _displayNameController = TextEditingController(
       text: profile?.displayName ?? '',
     );
+    _usernameController = TextEditingController(text: profile?.username ?? '');
     _avatarUrlController = TextEditingController(text: profile?.avatarUrl ?? '');
   }
 
   @override
   void dispose() {
     _displayNameController.dispose();
+    _usernameController.dispose();
     _avatarUrlController.dispose();
     super.dispose();
   }
@@ -45,10 +48,12 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
     setState(() => _isSaving = true);
     final avatarUrl = _avatarUrlController.text.trim();
+    final username = _usernameController.text.trim();
     final error = await ref
         .read(authProvider.notifier)
         .updateProfile(
           displayName: _displayNameController.text.trim(),
+          username: username.isEmpty ? null : username,
           avatarUrl: avatarUrl.isEmpty ? null : avatarUrl,
         );
     if (!mounted) return;
@@ -129,6 +134,19 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                               validator: Validators.fullName,
                             ),
                             const SizedBox(height: 18),
+                            const FieldLabel('Username'),
+                            TextFormField(
+                              controller: _usernameController,
+                              textInputAction: TextInputAction.next,
+                              decoration: const InputDecoration(
+                                hintText: 'e.g., imen_bo',
+                                prefixIcon: Icon(Icons.alternate_email),
+                                helperText:
+                                    'Others can find you by this handle or your QR.',
+                              ),
+                              validator: _validateUsername,
+                            ),
+                            const SizedBox(height: 18),
                             const FieldLabel('Avatar URL'),
                             TextFormField(
                               controller: _avatarUrlController,
@@ -199,6 +217,19 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         ),
       ),
     );
+  }
+
+  /// Optional; must match the backend rule (3-30 letters/digits/underscore).
+  String? _validateUsername(String? value) {
+    final username = value?.trim() ?? '';
+    if (username.isEmpty) return null;
+    if (username.length < 3 || username.length > 30) {
+      return 'Username must be 3-30 characters.';
+    }
+    if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(username)) {
+      return 'Only letters, digits and underscores are allowed.';
+    }
+    return null;
   }
 
   /// Optional, but the backend rejects anything that is not an absolute URL.

@@ -206,6 +206,14 @@ class IdealAppScaffold extends StatelessWidget {
       appBar: AppBar(
         automaticallyImplyLeading: showBack,
         toolbarHeight: 56,
+        // Notifications live in the top-left of the app bar (not in the menu).
+        leading: showBack
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.notifications_outlined),
+                tooltip: 'Notifications',
+                onPressed: () => context.go(AppRoutes.notifications),
+              ),
         title: GestureDetector(
           onTap: () => context.go(AppRoutes.home),
           child: const IdealLogo(size: 30),
@@ -235,28 +243,13 @@ class IdealAppScaffold extends StatelessWidget {
   }
 }
 
+// Notifications, Documents, the AI assistant and Profile were intentionally
+// removed from the navigation. Notifications now live in the top-left app bar,
+// and Profile is reached from the home page. The AI assistant code/integration
+// is untouched — only its menu entry is gone.
 const _navItems = <_NavItem>[
   _NavItem('home', 'Home', Icons.home_outlined, AppRoutes.home),
   _NavItem('deals', 'Deals', Icons.business_center_outlined, AppRoutes.deals),
-  _NavItem(
-    'notifications',
-    'Notifications',
-    Icons.notifications_outlined,
-    AppRoutes.notifications,
-  ),
-  _NavItem(
-    'documents',
-    'Documents',
-    Icons.document_scanner_outlined,
-    AppRoutes.documents,
-  ),
-  _NavItem('chat', 'AI Assistant', Icons.smart_toy_outlined, AppRoutes.chat),
-  _NavItem(
-    'profile',
-    'Profile',
-    Icons.person_outline,
-    AppRoutes.editProfile,
-  ),
   _NavItem('settings', 'Settings', Icons.settings_outlined, AppRoutes.settings),
 ];
 
@@ -285,9 +278,23 @@ class _DesktopNav extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.all(20),
-            child: GestureDetector(
-              onTap: () => context.go(AppRoutes.home),
-              child: const IdealLogo(size: 34),
+            child: Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => context.go(AppRoutes.home),
+                    child: const IdealLogo(size: 34),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.notifications_outlined),
+                  tooltip: 'Notifications',
+                  color: activeRoute == 'notifications'
+                      ? AppColors.primary
+                      : AppColors.textSecondary,
+                  onPressed: () => context.go(AppRoutes.notifications),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 8),

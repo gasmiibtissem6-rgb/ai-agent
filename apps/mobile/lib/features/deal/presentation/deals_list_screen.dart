@@ -73,7 +73,8 @@ class _DealsListScreenState extends ConsumerState<DealsListScreen> {
                           child: Column(
                             children: [
                               _DealsHeader(
-                                onCreate: () => context.go(AppRoutes.createDeal),
+                                onCreate: () =>
+                                    context.go(AppRoutes.dealCreateStart),
                               ),
                               const SizedBox(height: 26),
                               _TabSwitcher(
@@ -117,7 +118,8 @@ class _DealsListScreenState extends ConsumerState<DealsListScreen> {
                             subtitle:
                                 'Create your first deal to start negotiating.',
                             actionLabel: 'Create deal',
-                            onAction: () => context.go(AppRoutes.createDeal),
+                            onAction: () =>
+                                context.go(AppRoutes.dealCreateStart),
                           ),
                         )
                       else if (filteredDeals.isEmpty)

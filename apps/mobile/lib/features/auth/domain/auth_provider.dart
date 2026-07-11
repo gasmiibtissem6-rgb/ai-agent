@@ -155,14 +155,21 @@ class AuthNotifier extends AsyncNotifier<AppAuthState> {
   /// Returns the backend's message on failure, or `null` on success. The state
   /// is never moved to `error` here: that would log the user out of the router's
   /// point of view for what is only a form failure.
-  Future<String?> updateProfile({String? displayName, String? avatarUrl}) async {
+  Future<String?> updateProfile({
+    String? displayName,
+    String? username,
+    String? avatarUrl,
+    bool? isPublic,
+  }) async {
     final previous = state.whenOrNull(data: (s) => s);
     if (previous?.profile == null) return 'You are not signed in.';
 
     try {
       final profile = await ProfileService.updateProfile(
         displayName: displayName,
+        username: username,
         avatarUrl: avatarUrl,
+        isPublic: isPublic,
       );
       state = AsyncData(AppAuthState.authenticated(profile));
       return null;

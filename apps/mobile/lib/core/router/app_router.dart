@@ -12,7 +12,10 @@ import '../../features/auth/presentation/reset_password_screen.dart';
 import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/deal/domain/deal_model.dart';
 import '../../features/deal/presentation/create_deal_screen.dart';
+import '../../features/deal/presentation/deal_chat_screen.dart';
+import '../../features/deal/presentation/deal_create_flow.dart';
 import '../../features/deal/presentation/deal_detail_screen.dart';
+import '../../features/deal/presentation/deal_share_screen.dart';
 import '../../features/deal/presentation/deals_list_screen.dart';
 import '../../features/deal/presentation/home_screen.dart';
 import '../../features/kyc/presentation/kyc_status_screen.dart';
@@ -38,7 +41,11 @@ class AppRoutes {
   static const kycStatus = '/kyc';
   static const kycUpload = '/kyc/upload';
   static const deals = '/deals';
+  static const dealCreateStart = '/deals/new';
+  static const dealAiAssistant = '/deals/ai';
   static const createDeal = '/deals/create';
+  static const dealShare = '/deals/share';
+  static const dealChat = '/deals/chat';
   static const dealDetail = '/deals/detail';
   static const templateForm = '/deals/templates/form';
   static const notifications = '/notifications';
@@ -163,11 +170,31 @@ final routerProvider = Provider<GoRouter>((ref) {
             _sectionPage(state, const DealsListScreen()),
       ),
       GoRoute(
+        path: AppRoutes.dealCreateStart,
+        pageBuilder: (context, state) =>
+            _flowPage(state, const DealCreateStartScreen()),
+      ),
+      GoRoute(
+        path: AppRoutes.dealAiAssistant,
+        pageBuilder: (context, state) =>
+            _flowPage(state, const AiDealAssistantScreen()),
+      ),
+      GoRoute(
         path: AppRoutes.createDeal,
         pageBuilder: (context, state) => _flowPage(
           state,
           CreateDealScreen(template: state.extra as DealTemplate?),
         ),
+      ),
+      GoRoute(
+        path: AppRoutes.dealShare,
+        pageBuilder: (context, state) =>
+            _flowPage(state, DealShareScreen(deal: state.extra as Deal)),
+      ),
+      GoRoute(
+        path: AppRoutes.dealChat,
+        pageBuilder: (context, state) =>
+            _flowPage(state, DealChatScreen(deal: state.extra as Deal)),
       ),
       GoRoute(
         path: AppRoutes.dealDetail,
