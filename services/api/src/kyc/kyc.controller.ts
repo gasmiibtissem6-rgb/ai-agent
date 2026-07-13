@@ -10,7 +10,7 @@ import {
   ValidationPipe,
   BadRequestException,
   Param,
-  Patch
+  Patch,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -41,7 +41,8 @@ export class KycController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'Authorize a single KYC document upload and return a signed upload URL.',
+    summary:
+      'Authorize a single KYC document upload and return a signed upload URL.',
   })
   @ApiResponse({ status: 201, description: 'Signed upload URL issued.' })
   async authorizeUpload(
@@ -56,16 +57,25 @@ export class KycController {
   @Post('submit')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Submit KYC documents for review (own profile only).' })
+  @ApiOperation({
+    summary: 'Submit KYC documents for review (own profile only).',
+  })
   @ApiResponse({ status: 201, description: 'Submission created.' })
-  @ApiResponse({ status: 409, description: 'A submission is already under review.' })
+  @ApiResponse({
+    status: 409,
+    description: 'A submission is already under review.',
+  })
   async submit(
     @CurrentUser('profileId') profileId: string,
     @Body() body: SubmitKycDto,
     @Ip() ipAddress: string,
     @Headers('user-agent') userAgent: string,
   ) {
-    return this.kycService.submit(profileId, body, this.audit(ipAddress, userAgent));
+    return this.kycService.submit(
+      profileId,
+      body,
+      this.audit(ipAddress, userAgent),
+    );
   }
 
   @Get('me/status')
@@ -91,7 +101,11 @@ export class KycController {
     @Ip() ipAddress: string,
     @Headers('user-agent') userAgent: string,
   ) {
-    return this.kycService.resubmit(profileId, body, this.audit(ipAddress, userAgent));
+    return this.kycService.resubmit(
+      profileId,
+      body,
+      this.audit(ipAddress, userAgent),
+    );
   }
 
   // --- Legacy manual + external-provider flow (unchanged) --------------------
@@ -134,7 +148,6 @@ export class KycController {
   private audit(ipAddress?: string, userAgent?: string): AuditContext {
     return { ipAddress, userAgent };
   }
-
 }
 @ApiTags('admin-kyc')
 @Controller('admin/kyc')
@@ -157,7 +170,9 @@ export class KycAdminController {
     @Body() dto: { status: KycStatus; rejectionReason?: string },
   ) {
     if (dto.status === KycStatus.REJECTED && !dto.rejectionReason?.trim()) {
-      throw new BadRequestException('A clear rejection reason must be provided.');
+      throw new BadRequestException(
+        'A clear rejection reason must be provided.',
+      );
     }
 
     if (dto.status !== KycStatus.APPROVED && dto.status !==KycStatus.REJECTED) {

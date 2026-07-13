@@ -1176,9 +1176,6 @@ export class DealsService {
     }));
   }
 
- // ---------------------------------------------------------------------------
-  // Admin dashboard (Next.js) — reintroduced from dev
-  // ---------------------------------------------------------------------------
 
   /** Global deals overview for the admin table (pagination + status/search filter). */
   async getGlobalDealsDashboard(filters: {

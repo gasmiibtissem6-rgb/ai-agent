@@ -313,15 +313,16 @@ Body:
    POST http://localhost:3001/api/v1/auth/login/admin
    Content-Type: application/json
 
-   {
-     "email": "admin@ideal.local",
-     "password": "ChangeMe123!"
-   }
+  {
+    "email": "admin@ideal.local",
+    "password": "<LOCAL_ADMIN_PASSWORD>"
+  }
    ```
 
 2. **Store Token**
    ```javascript
-   localStorage.setItem('admin_token', response.data.access_token);
+  // Server sets an HttpOnly cookie named 'admin_token' on successful login.
+  // Do NOT store tokens in localStorage in production.
    ```
 
 3. **Verify Token Works**

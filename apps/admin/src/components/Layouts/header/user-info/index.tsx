@@ -81,7 +81,7 @@ export function UserInfo() {
   const handleLogout = () => {
     localStorage.removeItem("admin_token");
     setIsOpen(false);
-    router.replace("/login"); 
+    router.replace('/login');
   };
 
   if (loading) {

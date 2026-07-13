@@ -54,7 +54,8 @@ export class SubmitKycDto {
   documentType!: string;
 
   @ApiProperty({
-    description: 'Storage path pre-authorized via /kyc/storage/authorize (front).',
+    description:
+      'Storage path pre-authorized via /kyc/storage/authorize (front).',
     maxLength: 1024,
   })
   @IsString()
@@ -63,7 +64,8 @@ export class SubmitKycDto {
   storagePathFront!: string;
 
   @ApiPropertyOptional({
-    description: 'Storage path pre-authorized via /kyc/storage/authorize (back).',
+    description:
+      'Storage path pre-authorized via /kyc/storage/authorize (back).',
     maxLength: 1024,
   })
   @IsOptional()
@@ -72,7 +74,8 @@ export class SubmitKycDto {
   storagePathBack?: string;
 
   @ApiProperty({
-    description: 'Storage path pre-authorized via /kyc/storage/authorize (selfie).',
+    description:
+      'Storage path pre-authorized via /kyc/storage/authorize (selfie).',
     maxLength: 1024,
   })
   @IsString()

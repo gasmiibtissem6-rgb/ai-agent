@@ -6,6 +6,7 @@ import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import cookieParser from 'cookie-parser';
 import { isExplicitDevelopment, isOriginAllowed } from './common/cors';
 
 const defaultDevOrigins = ['http://localhost:3000', 'http://localhost:3001'];
@@ -80,6 +81,9 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
 
+  // Enable cookie parsing middleware
+  app.use(cookieParser());
+
   // Préfixe global — une seule fois, au bon endroit
   app.setGlobalPrefix('api/v1');
 
@@ -117,8 +121,9 @@ async function bootstrap() {
 
       return callback(new Error(`Origin non autorisée : ${origin}`), false);
     },
+
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization','X-Requested-With', 'Accept'],
     credentials: true,
   });
 

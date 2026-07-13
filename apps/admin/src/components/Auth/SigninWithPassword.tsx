@@ -7,6 +7,8 @@ import React, { useState } from "react";
 import { toast } from "sonner";
 import InputGroup from "../FormElements/InputGroup";
 import { Checkbox } from "../FormElements/checkbox";
+// 1. IMPORT: Bring in your refactored network wrapper instance
+import { apiRequest } from "@/lib/api-client"; 
 
 export default function SigninWithPassword() {
   const router = useRouter();
@@ -35,18 +37,21 @@ export default function SigninWithPassword() {
     try {
       const callbackURL = searchParams.get("callbackUrl") || "/";
 
-      // TODO: Replace with NestJS API call for authentication
-      // const result = await signIn.email({
-      //   email: data.email,
-      //   password: data.password,
-      //   rememberMe: data.remember,
-      // });
+      // 2. CONNECTED: Fire request directly to your secure NestJS Admin Endpoint
+      const result = await apiRequest<{ success: boolean }>("/auth/login/admin", {
+        method: "POST",
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+          // If your NestJS auth pipeline evaluates rememberMe lifespans, leave this parameter mapped:
+          rememberMe: data.remember, 
+        }),
+      });
 
-      // Mock sign in - remove this when connecting to NestJS API
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      const result = { data: { user: { email: data.email } } };
+      // NOTE: We do NOT extract tokens or update localStorage here anymore.
+      // The browser intercept layers process 'Set-Cookie' dynamically behind the scenes.
 
-      if (!result.data) {
+      if (!result.success) {
         throw new Error("Failed to sign in");
       }
 
@@ -56,7 +61,7 @@ export default function SigninWithPassword() {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Sign in failed");
       toast.error(
-        `Error: ${err instanceof Error ? err.message : (err as { error?: { message?: string } }).error?.message}`,
+        `Error: ${err instanceof Error ? err.message : (err as { message?: string })?.message || "Sign in failed"}`,
       );
     } finally {
       setLoading(false);

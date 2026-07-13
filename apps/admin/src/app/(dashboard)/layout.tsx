@@ -21,12 +21,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function verifyAdminSession() {
       try {
-        const token = localStorage.getItem("admin_token");
-        if (!token || token === "undefined" || token === "null") {
-          router.replace("/login");
-          return;
-        }
-
         const profileResponse = await apiRequest<{ data?: AdminUser }>(
           "/auth/profile",
         );
@@ -42,12 +36,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           "FINANCE_REVIEWER",
         ];
 
-        if (
-          !profile ||
-          !profile.adminRole ||
-          !validRoles.includes(profile.adminRole)
-        ) {
-          localStorage.removeItem("admin_token");
+        if (!profile || !profile.adminRole || !validRoles.includes(profile.adminRole)) {
           router.replace("/login");
           return;
         }
@@ -55,7 +44,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         setAdmin(profile);
       } catch (err) {
         console.error("Session verification failed:", err);
-        localStorage.removeItem("admin_token");
         router.replace("/login");
       } finally {
         setLoading(false);

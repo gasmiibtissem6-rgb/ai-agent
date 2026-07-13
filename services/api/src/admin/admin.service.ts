@@ -177,5 +177,4 @@ export class AdminService {
       return updatedCounter;
     });
   }
-  
 }

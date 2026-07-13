@@ -1,5 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEnum, IsIn, IsInt, IsString, Max, MaxLength, Min } from 'class-validator';
+import {
+  IsEnum,
+  IsIn,
+  IsInt,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 /** MIME types accepted for KYC documents. */
 export const ALLOWED_KYC_MIME_TYPES = [

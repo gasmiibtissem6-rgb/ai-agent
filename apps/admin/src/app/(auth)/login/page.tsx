@@ -17,6 +17,8 @@ export default function LoginPage() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password }),
+          // Ensure the server can set an HttpOnly cookie on successful login
+          credentials: 'include',
           cache: "no-store",
         });
 

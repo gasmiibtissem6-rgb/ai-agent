@@ -43,25 +43,9 @@ export default function DisputeCenterPage() {
       setLoading(true);
       setError('');
 
-      const token = localStorage.getItem('admin_token');
-      if (!token || token === 'undefined' || token === 'null') {
-        throw new Error('Authentication required. Please sign in again.');
-      }
-
-      const res = await fetch(`${API_BASE_URL}/admin/dispute-center?search=${encodeURIComponent(searchQuery.trim())}`, {
-        method: "GET",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        cache: 'no-store',
-      });
-
-      if (!res.ok) {
-        throw new Error(`Server responded with status ${res.status}`);
-      }
-
-      const data = await res.json();
+      const data = await (await import("@/lib/api-client")).apiRequest<any>(
+        `/admin/dispute-center?search=${encodeURIComponent(searchQuery.trim())}`,
+      );
       const targetData = data?.data ? data.data : data;
       if (targetData && Array.isArray(targetData.items)) {
         setTickets(targetData.items);
@@ -80,22 +64,10 @@ export default function DisputeCenterPage() {
   const updateTicket = useCallback(async () => {
     if (!selectedTicket) return;
     try {
-      const token = localStorage.getItem('admin_token');
-      const res = await fetch(`${API_BASE_URL}/admin/dispute-center/${selectedTicket.id}/resolve`, {
-        method: "PATCH",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          status: newStatus,
-          resolution: resolution || undefined,
-        }),
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to update ticket');
-      }
+      await (await import("@/lib/api-client")).apiRequest<any>(
+        `/admin/dispute-center/${selectedTicket.id}/resolve`,
+        { method: 'PATCH', body: JSON.stringify({ status: newStatus, resolution: resolution || undefined }) },
+      );
 
       setSelectedTicket(null);
       setResolution('');
@@ -107,19 +79,10 @@ export default function DisputeCenterPage() {
 
   const pauseDeal = useCallback(async (dealId: string, reason: string) => {
     try {
-      const token = localStorage.getItem('admin_token');
-      const res = await fetch(`${API_BASE_URL}/admin/dispute-center/deal/${dealId}/pause`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ reason }),
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to pause deal');
-      }
+      await (await import("@/lib/api-client")).apiRequest<any>(
+        `/admin/dispute-center/deal/${dealId}/pause`,
+        { method: 'POST', body: JSON.stringify({ reason }) },
+      );
 
       loadTickets(search);
     } catch (err: unknown) {
@@ -129,19 +92,10 @@ export default function DisputeCenterPage() {
 
   const suspendUser = useCallback(async (profileId: string, reason: string) => {
     try {
-      const token = localStorage.getItem('admin_token');
-      const res = await fetch(`${API_BASE_URL}/admin/dispute-center/profile/${profileId}/suspend`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ reason }),
-      });
-
-      if (!res.ok) {
-        throw new Error('Failed to suspend user');
-      }
+      await (await import("@/lib/api-client")).apiRequest<any>(
+        `/admin/dispute-center/profile/${profileId}/suspend`,
+        { method: 'POST', body: JSON.stringify({ reason }) },
+      );
 
       loadTickets(search);
     } catch (err: unknown) {
