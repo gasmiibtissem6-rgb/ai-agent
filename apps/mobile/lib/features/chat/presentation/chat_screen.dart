@@ -72,7 +72,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
     setState(() => _isListening = true);
     await _speech.listen(
-      localeId: _currentLocale,
+      listenOptions: stt.SpeechListenOptions(localeId: _currentLocale),
       onResult: (result) {
         setState(() {
           _controller.text = result.recognizedWords;
@@ -189,7 +189,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             if (state.error != null)
               Container(
                 width: double.infinity,
-                color: Colors.red.shade900.withOpacity(0.3),
+                color: Colors.red.shade900.withValues(alpha: 0.3),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 8,
@@ -208,7 +208,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           Icon(
                             Icons.smart_toy_outlined,
                             size: 64,
-                            color: colorScheme.primary.withOpacity(0.5),
+                            color: colorScheme.primary.withValues(alpha: 0.5),
                           ),
                           const SizedBox(height: 16),
                           Text(
@@ -224,7 +224,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                             'Ask me about contracts or app features\nin English, French or Arabic',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: colorScheme.onSurface.withOpacity(0.6),
+                              color: colorScheme.onSurface.withValues(alpha: 0.6),
                             ),
                           ),
                         ],
@@ -337,7 +337,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   color: colorScheme.surface,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha: 0.1),
                       blurRadius: 8,
                       offset: const Offset(0, -2),
                     ),
@@ -360,7 +360,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         duration: const Duration(milliseconds: 200),
                         decoration: BoxDecoration(
                           color: _isListening
-                              ? Colors.red.withOpacity(0.15)
+                              ? Colors.red.withValues(alpha: 0.15)
                               : Colors.transparent,
                           shape: BoxShape.circle,
                         ),

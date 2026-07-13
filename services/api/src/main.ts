@@ -7,6 +7,7 @@ import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import cookieParser from 'cookie-parser';
+import { isExplicitDevelopment, isOriginAllowed } from './common/cors';
 
 const defaultDevOrigins = ['http://localhost:3000', 'http://localhost:3001'];
 const isLocalDevelopment = () =>
@@ -93,6 +94,15 @@ async function bootstrap() {
   //  CORS — une seule fois, allowlist stricte depuis ALLOWED_ORIGINS.
   //  En local, une fallback explicite autorise seulement les origines connues.
   const allowedOrigins = getAllowedOrigins();
+  const allowAnyLoopback = isExplicitDevelopment();
+
+  if (allowAnyLoopback) {
+    console.warn(
+      '[CORS] NODE_ENV=development : toute origine loopback (http://localhost:<port>) ' +
+        'est acceptée, en plus de ALLOWED_ORIGINS. Ne jamais activer en production.',
+    );
+  }
+
   app.enableCors({
     origin: (
       origin: string | undefined,
@@ -101,7 +111,11 @@ async function bootstrap() {
       // Autoriser les appels sans origin (mobile, Postman, curl)
       if (!origin) return callback(null, true);
 
-      if (allowedOrigins.includes(origin)) {
+      // `flutter run -d chrome` tire un port aléatoire à chaque lancement, donc
+      // aucune allowlist fixe ne peut le couvrir. La tolérance est restreinte au
+      // loopback ET au mode développement explicite : la production reste sur
+      // l'allowlist seule.
+      if (isOriginAllowed(origin, allowedOrigins, allowAnyLoopback)) {
         return callback(null, true);
       }
 

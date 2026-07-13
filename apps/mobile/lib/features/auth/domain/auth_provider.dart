@@ -6,6 +6,7 @@ import '../../../core/network/auth_session_events.dart';
 import '../../../core/network/token_storage.dart';
 import '../../../services/auth_api.dart';
 import '../../../services/auth_service.dart';
+import '../../../services/profile_service.dart';
 import 'auth_state.dart';
 
 class AuthNotifier extends AsyncNotifier<AppAuthState> {
@@ -145,6 +146,35 @@ class AuthNotifier extends AsyncNotifier<AppAuthState> {
     } catch (e) {
       state = AsyncData(AppAuthState.error(_formatError(e)));
       return false;
+    }
+  }
+
+  /// Updates the caller's own profile via NestJS and refreshes the auth state
+  /// so every screen reading `profile` re-renders with the new values.
+  ///
+  /// Returns the backend's message on failure, or `null` on success. The state
+  /// is never moved to `error` here: that would log the user out of the router's
+  /// point of view for what is only a form failure.
+  Future<String?> updateProfile({
+    String? displayName,
+    String? username,
+    String? avatarUrl,
+    bool? isPublic,
+  }) async {
+    final previous = state.whenOrNull(data: (s) => s);
+    if (previous?.profile == null) return 'You are not signed in.';
+
+    try {
+      final profile = await ProfileService.updateProfile(
+        displayName: displayName,
+        username: username,
+        avatarUrl: avatarUrl,
+        isPublic: isPublic,
+      );
+      state = AsyncData(AppAuthState.authenticated(profile));
+      return null;
+    } catch (e) {
+      return _formatError(e);
     }
   }
 

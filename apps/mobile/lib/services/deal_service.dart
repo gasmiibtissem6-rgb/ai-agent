@@ -1,231 +1,241 @@
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/network/api_client.dart';
 import '../features/deal/domain/deal_model.dart';
-import 'supabase_service.dart';
 
-/// Deal Service — handles deal CRUD via Supabase directly for now
-/// When NestJS backend is ready, this will go through ApiClient
+/// Deal Service — talks to the NestJS `/deals` endpoints.
+///
+/// Deals are never written through Supabase directly: RLS deliberately grants
+/// the client SELECT only, and NestJS owns authorization, status transitions
+/// and the audit trail. Every response uses the backend envelope
+/// `{ success, message, data, requestId }`; this reads `data`.
 class DealService {
   const DealService._();
 
-  static SupabaseClient get _client => SupabaseService.client!;
+  static final ApiClient _api = ApiClient.instance;
 
-  static String get _userId => _client.auth.currentUser?.id ?? '';
-
-  /// Get all deals for current user
-  static Future<List<Deal>> getMyDeals() async {
-    final response = await _client
-        .from('deals')
-        .select()
-        .eq('created_by', _userId)
-        .order('created_at', ascending: false);
-
-    return (response as List)
+  /// GET /deals → deals where the caller is creator or participant.
+  static Future<List<Deal>> getMyDeals({int limit = 100}) async {
+    final response = await _api.get('/deals', queryParams: {'limit': limit});
+    final items = _data(response)['items'] as List? ?? const [];
+    return items
         .map((json) => Deal.fromJson(json as Map<String, dynamic>))
         .toList();
   }
 
-  /// Get a single deal by ID
+  /// GET /deals/:id → full detail, including versions and parties.
   static Future<Deal> getDeal(String dealId) async {
-    final response = await _client
-        .from('deals')
-        .select()
-        .eq('id', dealId)
-        .single();
-
-    return Deal.fromJson(response);
+    final response = await _api.get('/deals/$dealId');
+    return Deal.fromJson(_data(response));
   }
 
-  /// Create a new deal with first version
+  /// POST /deals → creates the deal and its initial draft version.
+  ///
+  /// Requires an approved KYC (`KycVerifiedGuard` on the endpoint).
   static Future<Deal> createDeal({
     required String title,
     required String description,
-    required String content,
+    required Map<String, dynamic> terms,
+    DealContentType? contentType,
+    List<DealPartyInput> parties = const [],
   }) async {
-    // Create deal
-    final dealResponse = await _client
-        .from('deals')
-        .insert({
-          'title': title,
-          'description': description,
-          'status': 'draft',
-          'created_by': _userId,
-        })
-        .select()
-        .single();
-
-    final deal = Deal.fromJson(dealResponse);
-
-    // Create first version
-    await _client.from('deal_versions').insert({
-      'deal_id': deal.id,
-      'version_number': 1,
-      'content': content,
-      'created_by': _userId,
-      'is_final': false,
-    });
-
-    // Log audit
-    await _logAudit('deal_created', dealId: deal.id);
-
-    return deal;
+    final response = await _api.post(
+      '/deals',
+      data: {
+        'title': title,
+        if (description.isNotEmpty) 'description': description,
+        if (contentType != null) 'dealType': contentType.wireValue,
+        'terms': terms,
+        if (parties.isNotEmpty)
+          'parties': parties.map((p) => p.toJson()).toList(),
+      },
+    );
+    return Deal.fromJson(_data(response));
   }
 
-  /// Send deal to other party
-  static Future<Deal> sendDeal(String dealId) async {
-    final response = await _client
-        .from('deals')
-        .update({'status': 'sent'})
-        .eq('id', dealId)
-        .eq('created_by', _userId)
-        .select()
-        .single();
-
-    await _logAudit('deal_sent', dealId: dealId);
-    return Deal.fromJson(response);
+  /// POST /deals/:id/share → generates an invitation link + QR payload.
+  /// Grants VIEW + SIGN so whoever accepts becomes a required approver.
+  static Future<DealShareLink> shareDeal(String dealId) async {
+    final response = await _api.post(
+      '/deals/$dealId/share',
+      data: {
+        'permissions': ['VIEW', 'SIGN'],
+        'expiresInHours': 168,
+      },
+    );
+    return DealShareLink.fromJson(_data(response));
   }
 
-  /// Get all versions of a deal
+  /// POST /deals/:id/parties → attach a counterparty by username or email.
+  static Future<Deal> addParty({
+    required String dealId,
+    required String identifier,
+    String? role,
+  }) async {
+    final response = await _api.post(
+      '/deals/$dealId/parties',
+      data: {'identifier': identifier, 'role': ?role},
+    );
+    return Deal.fromJson(_data(response));
+  }
+
+  /// POST /deals/:id/respond → invited party accepts or refuses the deal.
+  static Future<Deal> respondToDeal({
+    required String dealId,
+    required bool accept,
+  }) async {
+    final response = await _api.post(
+      '/deals/$dealId/respond',
+      data: {'accept': accept},
+    );
+    return Deal.fromJson(_data(response));
+  }
+
+  /// POST /deals/:id/versions/:versionId/submit → creator submits a version
+  /// for the accepted parties to approve.
+  static Future<Deal> submitVersion({
+    required String dealId,
+    required String versionId,
+  }) async {
+    final response = await _api.post(
+      '/deals/$dealId/versions/$versionId/submit',
+    );
+    return Deal.fromJson(_data(response));
+  }
+
+  /// POST /deals/:id/versions/:versionId/decide → a required party approves or
+  /// rejects. When both parties approve, the version locks and the deal is
+  /// approved.
+  static Future<Deal> decideVersion({
+    required String dealId,
+    required String versionId,
+    required bool approve,
+    String? reason,
+  }) async {
+    final response = await _api.post(
+      '/deals/$dealId/versions/$versionId/decide',
+      data: {
+        'approve': approve,
+        if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+      },
+    );
+    return Deal.fromJson(_data(response));
+  }
+
+  /// POST /deals/:id/versions → new version (creator only, not approved/locked).
+  static Future<DealVersion> createVersion({
+    required String dealId,
+    required Map<String, dynamic> terms,
+    String? title,
+    String? summary,
+  }) async {
+    final response = await _api.post(
+      '/deals/$dealId/versions',
+      data: {'terms': terms, 'title': ?title, 'summary': ?summary},
+    );
+    return DealVersion.fromJson(_data(response));
+  }
+
+  /// Versions come embedded in GET /deals/:id — there is no standalone
+  /// versions endpoint (the deal-versions module is still a stub).
   static Future<List<DealVersion>> getDealVersions(String dealId) async {
-    final response = await _client
-        .from('deal_versions')
-        .select()
-        .eq('deal_id', dealId)
-        .order('version_number', ascending: false);
+    final deal = await getDeal(dealId);
+    return deal.versions.reversed.toList();
+  }
 
-    return (response as List)
-        .map((json) => DealVersion.fromJson(json as Map<String, dynamic>))
+  /// DELETE /deals/:id → only a DRAFT deal with no confirmed parties.
+  static Future<void> deleteDeal(String dealId) async {
+    await _api.delete('/deals/$dealId');
+  }
+
+  /// GET /deals/:id/messages → the deal's party discussion (participants only).
+  static Future<List<DealMessage>> getMessages(String dealId) async {
+    final response = await _api.get('/deals/$dealId/messages');
+    final items = (response as Map)['data'] as List? ?? const [];
+    return items
+        .map((e) => DealMessage.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
-  /// Create a new version of a deal (for modifications)
-  static Future<DealVersion> createNewVersion({
-    required String dealId,
-    required String content,
-    required int previousVersionNumber,
-  }) async {
-    final response = await _client
-        .from('deal_versions')
-        .insert({
-          'deal_id': dealId,
-          'version_number': previousVersionNumber + 1,
-          'content': content,
-          'created_by': _userId,
-          'is_final': false,
-        })
-        .select()
-        .single();
-
-    // Update deal status to negotiating
-    await _client
-        .from('deals')
-        .update({'status': 'negotiating'})
-        .eq('id', dealId);
-
-    await _logAudit('deal_version_created', dealId: dealId);
-    return DealVersion.fromJson(response);
+  /// POST /deals/:id/messages → post a discussion message.
+  static Future<DealMessage> sendMessage(String dealId, String body) async {
+    final response = await _api.post(
+      '/deals/$dealId/messages',
+      data: {'body': body},
+    );
+    return DealMessage.fromJson(_data(response));
   }
 
-  /// Approve a deal version
-  static Future<void> approveDeal({
-    required String dealId,
-    required String versionId,
-    String? comment,
-  }) async {
-    await _client.from('approvals').insert({
-      'deal_id': dealId,
-      'version_id': versionId,
-      'user_id': _userId,
-      'action': 'approved',
-      'comment': comment,
-    });
-
-    await _client
-        .from('deals')
-        .update({'status': 'approved'})
-        .eq('id', dealId);
-
-    await _logAudit('deal_approved', dealId: dealId);
+  static Map<String, dynamic> _data(dynamic response) {
+    final body = response as Map;
+    return Map<String, dynamic>.from(body['data'] as Map);
   }
+}
 
-  /// Reject a deal version
-  static Future<void> rejectDeal({
-    required String dealId,
-    required String versionId,
-    String? comment,
-  }) async {
-    await _client.from('approvals').insert({
-      'deal_id': dealId,
-      'version_id': versionId,
-      'user_id': _userId,
-      'action': 'rejected',
-      'comment': comment,
-    });
+/// A deal discussion message (party chat, not the AI assistant).
+class DealMessage {
+  final String id;
+  final String senderProfileId;
+  final String body;
+  final DateTime createdAt;
+  final String? senderName;
 
-    await _client
-        .from('deals')
-        .update({'status': 'rejected'})
-        .eq('id', dealId);
+  const DealMessage({
+    required this.id,
+    required this.senderProfileId,
+    required this.body,
+    required this.createdAt,
+    this.senderName,
+  });
 
-    await _logAudit('deal_rejected', dealId: dealId);
+  factory DealMessage.fromJson(Map<String, dynamic> json) {
+    final sender = json['sender'] as Map<String, dynamic>?;
+    return DealMessage(
+      id: json['id'] as String,
+      senderProfileId: json['senderProfileId'] as String? ?? '',
+      body: json['body'] as String? ?? '',
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      senderName:
+          sender?['displayName'] as String? ?? sender?['email'] as String?,
+    );
   }
+}
 
-  /// Request modification on a deal version
-  static Future<void> requestModification({
-    required String dealId,
-    required String versionId,
-    required String comment,
-  }) async {
-    await _client.from('approvals').insert({
-      'deal_id': dealId,
-      'version_id': versionId,
-      'user_id': _userId,
-      'action': 'modify_requested',
-      'comment': comment,
-    });
+/// Invitation link + QR payload returned by POST /deals/:id/share.
+class DealShareLink {
+  final String inviteUrl;
+  final String qrCodeData;
+  final String? token;
 
-    await _client
-        .from('deals')
-        .update({'status': 'negotiating'})
-        .eq('id', dealId);
+  const DealShareLink({
+    required this.inviteUrl,
+    required this.qrCodeData,
+    this.token,
+  });
 
-    await _logAudit('deal_modification_requested', dealId: dealId);
+  factory DealShareLink.fromJson(Map<String, dynamic> json) {
+    return DealShareLink(
+      inviteUrl: json['inviteUrl'] as String? ?? '',
+      qrCodeData:
+          json['qrCodeData'] as String? ?? json['inviteUrl'] as String? ?? '',
+      token: json['token'] as String?,
+    );
   }
+}
 
-  /// Finalize a deal — locks it permanently
-  static Future<Deal> finalizeDeal({
-    required String dealId,
-    required String versionId,
-  }) async {
-    // Lock the version
-    await _client
-        .from('deal_versions')
-        .update({'is_final': true})
-        .eq('id', versionId);
+/// A participant supplied when creating a deal (mirrors `DealPartyInputDto`).
+class DealPartyInput {
+  final String email;
+  final String role;
+  final bool requiredApproval;
 
-    // Finalize the deal
-    final response = await _client
-        .from('deals')
-        .update({
-          'status': 'finalized',
-          'finalized_at': DateTime.now().toIso8601String(),
-          'finalized_version_id': versionId,
-        })
-        .eq('id', dealId)
-        .select()
-        .single();
+  const DealPartyInput({
+    required this.email,
+    required this.role,
+    this.requiredApproval = true,
+  });
 
-    await _logAudit('deal_finalized', dealId: dealId);
-    return Deal.fromJson(response);
-  }
-
-  static Future<void> _logAudit(String eventType, {String? dealId}) async {
-    try {
-      await _client.from('audit_logs').insert({
-        'user_id': _userId,
-        'event_type': eventType,
-        'resource_type': 'deal',
-        'metadata': {'deal_id': dealId},
-      });
-    } catch (_) {}
-  }
+  Map<String, dynamic> toJson() => {
+    'email': email,
+    'role': role,
+    'requiredApproval': requiredApproval,
+  };
 }

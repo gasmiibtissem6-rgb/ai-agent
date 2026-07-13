@@ -48,8 +48,17 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
   Future<void> _submit() async {
     if (_frontFile?.bytes == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please upload the front of your document.'),
+        SnackBar(
+          content: const Text('Please upload the front of your document.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+    if (_selfieFile?.bytes == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please upload a selfie with your document.'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -63,8 +72,8 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
           frontFileName: _frontFile!.name,
           backBytes: _backFile?.bytes,
           backFileName: _backFile?.name,
-          selfieBytes: _selfieFile?.bytes,
-          selfieFileName: _selfieFile?.name,
+          selfieBytes: _selfieFile!.bytes!,
+          selfieFileName: _selfieFile!.name,
         );
   }
 
@@ -79,8 +88,8 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
       final state = next.whenOrNull(data: (s) => s);
       if (state?.isSuccess == true) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('KYC submitted! We will review it shortly.'),
+          SnackBar(
+            content: const Text('KYC submitted! We will review it shortly.'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -205,7 +214,7 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
                     _FileUploadCard(
                       label: 'Selfie with document',
                       subtitle: 'Hold your document next to your face',
-                      required: false,
+                      required: true,
                       file: _selfieFile,
                       onTap: () => _pickFile('selfie'),
                     ),
@@ -341,7 +350,7 @@ class _FileUploadCard extends StatelessWidget {
                       ),
                       if (required) ...[
                         const SizedBox(width: 4),
-                        const Text(
+                        Text(
                           '*',
                           style: TextStyle(color: AppColors.error),
                         ),

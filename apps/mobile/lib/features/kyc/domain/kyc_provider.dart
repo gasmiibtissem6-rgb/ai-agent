@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/errors/app_exception.dart';
 import '../../../services/kyc_service.dart';
-import '../../../services/supabase_service.dart';
 import 'kyc_model.dart';
 import 'kyc_state.dart';
 
@@ -18,67 +18,60 @@ class KycNotifier extends AsyncNotifier<KycState> {
       final submission = await KycService.getMyKyc();
       state = AsyncData(KycState.loaded(submission));
     } catch (e) {
-      state = AsyncData(KycState.error(e.toString()));
+      state = AsyncData(KycState.error(_message(e)));
     }
   }
 
+  /// Uploads each document through NestJS (authorize → signed PUT) then submits.
+  /// The selfie is required by the backend, so it is mandatory here too.
   Future<void> submitKyc({
     required KycDocumentType documentType,
     required Uint8List frontBytes,
     required String frontFileName,
     Uint8List? backBytes,
     String? backFileName,
-    Uint8List? selfieBytes,
-    String? selfieFileName,
+    required Uint8List selfieBytes,
+    required String selfieFileName,
   }) async {
     state = AsyncData(KycState.uploading(0));
     try {
-      final userId = SupabaseService.client?.auth.currentUser?.id ?? '';
       final docTypeStr = _documentTypeToString(documentType);
 
       state = AsyncData(KycState.uploading(0.2));
       final frontPath = await KycService.uploadDocument(
-        userId: userId,
         fileBytes: frontBytes,
         fileName: frontFileName,
-        fileType: 'front',
+        documentSide: 'front',
       );
 
       String? backPath;
       if (backBytes != null && backFileName != null) {
-        state = AsyncData(KycState.uploading(0.5));
+        state = AsyncData(KycState.uploading(0.45));
         backPath = await KycService.uploadDocument(
-          userId: userId,
           fileBytes: backBytes,
           fileName: backFileName,
-          fileType: 'back',
+          documentSide: 'back',
         );
       }
 
-      String? selfiePath;
-      if (selfieBytes != null && selfieFileName != null) {
-        state = AsyncData(KycState.uploading(0.75));
-        selfiePath = await KycService.uploadDocument(
-          userId: userId,
-          fileBytes: selfieBytes,
-          fileName: selfieFileName,
-          fileType: 'selfie',
-        );
-      }
+      state = AsyncData(KycState.uploading(0.7));
+      final selfiePath = await KycService.uploadDocument(
+        fileBytes: selfieBytes,
+        fileName: selfieFileName,
+        documentSide: 'selfie',
+      );
 
       state = AsyncData(KycState.uploading(0.9));
       final submission = await KycService.submitKyc(
         documentType: docTypeStr,
-        frontPath: frontPath,
-        backPath: backPath,
-        selfiePath: selfiePath,
+        storagePathFront: frontPath,
+        storagePathBack: backPath,
+        storagePathSelfie: selfiePath,
       );
 
       state = AsyncData(KycState.success(submission));
     } catch (e) {
-      state = AsyncData(
-        KycState.error('Failed to submit KYC. Please try again.'),
-      );
+      state = AsyncData(KycState.error(_message(e)));
     }
   }
 
@@ -92,6 +85,12 @@ class KycNotifier extends AsyncNotifier<KycState> {
         return 'driver_license';
     }
   }
+
+  /// Surfaces the backend's message (e.g. "A submission is already under
+  /// review") instead of a generic string.
+  String _message(Object error) => error is AppException
+      ? error.message
+      : 'Failed to submit KYC. Please try again.';
 }
 
 final kycProvider = AsyncNotifierProvider<KycNotifier, KycState>(
