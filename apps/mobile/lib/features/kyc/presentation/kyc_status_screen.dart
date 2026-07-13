@@ -173,7 +173,7 @@ class _StatusView extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Rejection reason',
                         style: TextStyle(
                           fontWeight: FontWeight.w800,

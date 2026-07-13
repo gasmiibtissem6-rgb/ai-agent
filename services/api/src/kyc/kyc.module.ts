@@ -1,5 +1,6 @@
 // kyc.module.ts
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { KycController, KycAdminController } from './kyc.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module'; // Provides JwtAuthGuard
@@ -10,7 +11,7 @@ import { KYC_PROVIDER } from './providers/kyc-provider.interface';
 import { KycService } from './kyc.service';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, AuthModule, ConfigModule],
   controllers: [KycController, KycAdminController],
   providers: [
     KycService,

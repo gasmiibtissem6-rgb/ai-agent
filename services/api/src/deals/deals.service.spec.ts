@@ -79,7 +79,12 @@ describe('DealsService', () => {
 
   beforeEach(() => {
     prisma = buildPrisma();
-    service = new DealsService(prisma as never);
+    // Notifications are a fire-and-forget side effect in these unit tests.
+    const notifications = {
+      create: jest.fn().mockResolvedValue({}),
+      createMany: jest.fn().mockResolvedValue(undefined),
+    };
+    service = new DealsService(prisma as never, notifications as never);
 
     // Default resolvable references.
     prisma.deal.create.mockResolvedValue({ id: DEAL_ID });

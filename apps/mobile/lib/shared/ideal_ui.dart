@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -62,6 +64,75 @@ class IdealGradientBackground extends StatelessWidget {
   }
 }
 
+/// Fades and slides its child in once, on first build.
+///
+/// [delay] staggers siblings so a grid or list resolves as a wave rather than
+/// all at once.
+class FadeSlideIn extends StatefulWidget {
+  final Widget child;
+  final Duration delay;
+  final Duration duration;
+  final double offsetY;
+
+  const FadeSlideIn({
+    super.key,
+    required this.child,
+    this.delay = Duration.zero,
+    this.duration = const Duration(milliseconds: 320),
+    this.offsetY = 12,
+  });
+
+  @override
+  State<FadeSlideIn> createState() => _FadeSlideInState();
+}
+
+class _FadeSlideInState extends State<FadeSlideIn>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: widget.duration,
+  );
+  late final Animation<double> _curve = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeOutCubic,
+  );
+  Timer? _startTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.delay == Duration.zero) {
+      _controller.forward();
+    } else {
+      _startTimer = Timer(widget.delay, () {
+        if (mounted) _controller.forward();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _startTimer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _curve,
+      builder: (context, child) => Opacity(
+        opacity: _curve.value,
+        child: Transform.translate(
+          offset: Offset(0, widget.offsetY * (1 - _curve.value)),
+          child: child,
+        ),
+      ),
+      child: widget.child,
+    );
+  }
+}
+
 class IdealCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -118,12 +189,26 @@ class IdealAppScaffold extends StatelessWidget {
         body: SafeArea(
           child: Row(
             children: [
-              _DesktopNav(
-                activeRoute: activeRoute,
-                items: navItems,
-                actions: actions,
+              _DesktopNav(activeRoute: activeRoute, items: navItems),
+              Expanded(
+                // Page actions (sign out, profile, theme toggle…) sit in the
+                // top-right corner of the page, mirroring the mobile app bar.
+                child: actions.isEmpty
+                    ? body
+                    : Column(
+                        children: [
+                          Container(
+                            color: AppColors.surface,
+                            padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: actions,
+                            ),
+                          ),
+                          Expanded(child: body),
+                        ],
+                      ),
               ),
-              Expanded(child: body),
             ],
           ),
         ),
@@ -135,6 +220,14 @@ class IdealAppScaffold extends StatelessWidget {
       appBar: AppBar(
         automaticallyImplyLeading: showBack,
         toolbarHeight: 56,
+        // Notifications live in the top-left of the app bar (not in the menu).
+        leading: showBack
+            ? null
+            : IconButton(
+                icon: const Icon(Icons.notifications_outlined),
+                tooltip: 'Notifications',
+                onPressed: () => context.go(AppRoutes.notifications),
+              ),
         title: GestureDetector(
           onTap: () => context.go(AppRoutes.home),
           child: const IdealLogo(size: 30),
@@ -164,36 +257,21 @@ class IdealAppScaffold extends StatelessWidget {
   }
 }
 
+// Notifications, Documents, the AI assistant and Profile were intentionally
+// removed from the navigation. Notifications now live in the top-left app bar,
+// and Profile is reached from the home page. The AI assistant code/integration
+// is untouched — only its menu entry is gone.
 const _navItems = <_NavItem>[
   _NavItem('home', 'Home', Icons.home_outlined, AppRoutes.home),
   _NavItem('deals', 'Deals', Icons.business_center_outlined, AppRoutes.deals),
-  _NavItem(
-    'contracts',
-    'Contracts',
-    Icons.description_outlined,
-    AppRoutes.contracts,
-  ),
-  _NavItem(
-    'notifications',
-    'Notifications',
-    Icons.notifications_outlined,
-    AppRoutes.notifications,
-  ),
-  _NavItem('documents', 'Documents', Icons.document_scanner, '/documents'),
-    _NavItem('chat', 'AI Assistant', Icons.smart_toy_outlined, AppRoutes.chat),
   _NavItem('settings', 'Settings', Icons.settings_outlined, AppRoutes.settings),
 ];
 
 class _DesktopNav extends StatelessWidget {
   final String activeRoute;
   final List<_NavItem> items;
-  final List<Widget> actions;
 
-  const _DesktopNav({
-    required this.activeRoute,
-    required this.items,
-    required this.actions,
-  });
+  const _DesktopNav({required this.activeRoute, required this.items});
 
   @override
   Widget build(BuildContext context) {
@@ -209,20 +287,28 @@ class _DesktopNav extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.all(20),
-            child: GestureDetector(
-              onTap: () => context.go(AppRoutes.home),
-              child: const IdealLogo(size: 34),
+            child: Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => context.go(AppRoutes.home),
+                    child: const IdealLogo(size: 34),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.notifications_outlined),
+                  tooltip: 'Notifications',
+                  color: activeRoute == 'notifications'
+                      ? AppColors.primary
+                      : AppColors.textSecondary,
+                  onPressed: () => context.go(AppRoutes.notifications),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 8),
           for (final item in items)
             _DesktopNavItem(item: item, selected: activeRoute == item.key),
-          const Spacer(),
-          if (actions.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Wrap(spacing: 4, runSpacing: 4, children: actions),
-            ),
         ],
       ),
     );
@@ -240,7 +326,9 @@ class _DesktopNavItem extends StatelessWidget {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => context.go(item.route),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
@@ -255,11 +343,15 @@ class _DesktopNavItem extends StatelessWidget {
               size: 20,
             ),
             const SizedBox(width: 12),
-            Text(
-              item.label,
-              style: TextStyle(
-                color: selected ? AppColors.primary : AppColors.textPrimary,
-                fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+            Expanded(
+              child: Text(
+                item.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: selected ? AppColors.primary : AppColors.textPrimary,
+                  fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+                ),
               ),
             ),
           ],
@@ -348,13 +440,32 @@ class SectionTitle extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             subtitle!,
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
           ),
         ],
       ],
+    );
+  }
+}
+
+class FieldLabel extends StatelessWidget {
+  final String text;
+
+  const FieldLabel(this.text, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontWeight: FontWeight.w800,
+          fontSize: 13,
+          letterSpacing: 0.2,
+          color: AppColors.textSecondary,
+        ),
+      ),
     );
   }
 }
@@ -428,10 +539,7 @@ class EmptyState extends StatelessWidget {
             Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                height: 1.45,
-              ),
+              style: TextStyle(color: AppColors.textSecondary, height: 1.45),
             ),
             const SizedBox(height: 28),
             ElevatedButton.icon(

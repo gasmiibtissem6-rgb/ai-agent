@@ -1,10 +1,11 @@
 // services/api/src/profiles/profiles.controller.ts
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { AuthenticatedUser } from '../auth/types/authenticated-user';
 import { ProfilesService } from './profiles.service';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @ApiTags('profiles')
 @ApiBearerAuth()
@@ -21,5 +22,19 @@ export class ProfilesController {
   @Get('profile')
   async getProfile(@CurrentUser('sub') sub: string) {
     return this.profilesService.getProfileByUserId(sub);
+  }
+
+  @Patch('profile')
+  async updateProfile(
+    @CurrentUser('sub') sub: string,
+    @Body() body: UpdateProfileDto,
+  ) {
+    return this.profilesService.updateProfileByUserId(sub, body);
+  }
+
+  /** Resolve a public profile by username or id (QR-scan discovery). */
+  @Get('profiles/lookup')
+  async lookup(@Query('q') q: string) {
+    return this.profilesService.lookupPublicProfile(q ?? '');
   }
 }

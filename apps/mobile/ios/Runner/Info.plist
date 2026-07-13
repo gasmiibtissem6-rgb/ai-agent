@@ -4,6 +4,9 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<!-- Camera is used to scan profile / deal QR codes (mobile_scanner). -->
+	<key>NSCameraUsageDescription</key>
+	<string>The camera is used to scan a profile or deal QR code.</string>
 	<!-- Supabase deep link URL scheme for email auth callbacks (e.g., password reset) -->
 	<key>CFBundleURLTypes</key>
 	<array>

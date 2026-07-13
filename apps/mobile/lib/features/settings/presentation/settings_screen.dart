@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
-import '../../../core/theme/theme_provider.dart';
+import '../../../core/router/app_router.dart';
 import '../../../features/auth/domain/auth_provider.dart';
 import '../../../shared/ideal_ui.dart';
 
@@ -58,7 +59,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 const _FieldLabel('Language'),
                 DropdownButtonFormField<String>(
                   initialValue: _language,
-                  items: const ['English', 'French', 'Arabic', 'Spanish']
+                  items: const ['English', 'French']
                       .map(
                         (value) =>
                             DropdownMenuItem(value: value, child: Text(value)),
@@ -68,26 +69,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     if (value != null) setState(() => _language = value);
                   },
                 ),
-                const SizedBox(height: 20),
-                const _FieldLabel('Theme Mode'),
-                SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment(
-                      value: false,
-                      label: Text('Light Mode'),
-                      icon: Icon(Icons.wb_sunny),
-                    ),
-                    ButtonSegment(
-                      value: true,
-                      label: Text('Dark Mode'),
-                      icon: Icon(Icons.nightlight_round),
-                    ),
-                  ],
-                  selected: {ref.watch(themeProvider) == ThemeMode.dark},
-                  onSelectionChanged: (selection) {
-                    ref.read(themeProvider.notifier).toggleTheme(selection.first);
-                  },
-                ),
+                // The dark/light mode toggle lives in the Home page header.
               ],
             ),
             const SizedBox(height: 20),
@@ -142,8 +124,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Edit Profile'),
+                  subtitle: const Text('Change your display name and avatar'),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _comingSoon(context),
+                  onTap: () => context.go(AppRoutes.editProfile),
                 ),
                 const Divider(),
                 ListTile(
@@ -181,10 +164,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
                       Icon(Icons.warning_amber_rounded, color: AppColors.error),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Text(
                         'Danger Zone',
                         style: TextStyle(

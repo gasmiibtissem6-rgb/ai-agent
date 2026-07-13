@@ -19,6 +19,24 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _logoController;
 
+  static const _features = [
+    (
+      Icons.shield_outlined,
+      'Secure Contract Management',
+      'Encrypt, verify, and co-sign legal agreements with complete assurance.',
+    ),
+    (
+      Icons.swap_horiz_outlined,
+      'Real-Time Collaboration',
+      'Instantly sync updates and co-author terms with partners on the fly.',
+    ),
+    (
+      Icons.edit_note_outlined,
+      'Built-in Negotiation Tools',
+      'Easily track document revisions, audits, and final consensus.',
+    ),
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -44,9 +62,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         status == AuthStatus.loading) {
       return const Scaffold(
         body: IdealGradientBackground(
-          child: Center(
-            child: CircularProgressIndicator(),
-          ),
+          child: Center(child: CircularProgressIndicator()),
         ),
       );
     }
@@ -54,141 +70,146 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     return Scaffold(
       body: IdealGradientBackground(
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-            child: Column(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        const SizedBox(height: 24),
-                        AnimatedBuilder(
-                          animation: _logoController,
-                          child: Image.asset(
-                            'assets/images/logo/ideal-logo.png',
-                            width: 86,
-                            height: 86,
-                            fit: BoxFit.contain,
-                          ),
-                          builder: (context, child) {
-                            final pulse = Curves.easeInOut.transform(
-                              _logoController.value,
-                            );
-                            final scale = 0.97 + (pulse * 0.06);
-                            final lift = (0.5 - (pulse - 0.5).abs()) * 6;
-
-                            return Transform.translate(
-                              offset: Offset(0, -lift),
-                              child: Transform.scale(
-                                scale: scale,
-                                child: Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: AppColors.accent.withValues(
-                                          alpha: 0.18,
-                                        ),
-                                        blurRadius: 24,
-                                        spreadRadius: 2,
-                                      ),
-                                    ],
-                                  ),
-                                  child: child,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 20,
+                ),
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 12),
+                            _PulsingLogo(controller: _logoController),
+                            const SizedBox(height: 20),
+                            FadeSlideIn(
+                              child: Text(
+                                'IDEAL',
+                                style: TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 34,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 2,
                                 ),
                               ),
-                            );
-                          },
+                            ),
+                            const SizedBox(height: 6),
+                            FadeSlideIn(
+                              delay: const Duration(milliseconds: 80),
+                              child: Text(
+                                'Secure Deal Management',
+                                style: TextStyle(
+                                  color: AppColors.accent,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 36),
+                            for (var i = 0; i < _features.length; i++) ...[
+                              FadeSlideIn(
+                                delay: Duration(milliseconds: 140 + 90 * i),
+                                child: _FeatureItem(
+                                  icon: _features[i].$1,
+                                  title: _features[i].$2,
+                                  description: _features[i].$3,
+                                ),
+                              ),
+                              if (i != _features.length - 1)
+                                const SizedBox(height: 14),
+                            ],
+                            const SizedBox(height: 28),
+                          ],
                         ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'IDEAL',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 32,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 1.5,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Secure Deal Management',
-                          style: TextStyle(
-                            color: AppColors.accent,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.15),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.shield_outlined,
-                            color: AppColors.accent,
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(height: 32),
-                        _FeatureItem(
-                          icon: Icons.shield_outlined,
-                          title: 'Secure Contract Management',
-                          description:
-                              'Encrypt, verify, and co-sign legal agreements with complete assurance.',
-                        ),
-                        const SizedBox(height: 28),
-                        _FeatureItem(
-                          icon: Icons.swap_horiz_outlined,
-                          title: 'Real-Time Collaboration',
-                          description:
-                              'Instantly sync updates and co-author terms with partners on the fly.',
-                        ),
-                        const SizedBox(height: 28),
-                        _FeatureItem(
-                          icon: Icons.edit_note_outlined,
-                          title: 'Built-in Negotiation Tools',
-                          description:
-                              'Easily track document revisions, audits, and final consensus.',
-                        ),
-                        const SizedBox(height: 32),
-                      ],
-                    ),
-                  ),
-                ),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => context.go(AppRoutes.login),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: AppColors.primary,
-                      minimumSize: const Size(double.infinity, 54),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      elevation: 2,
-                    ),
-                    child: const Text(
-                      'Get Started',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
                       ),
                     ),
-                  ),
+                    FadeSlideIn(
+                      delay: const Duration(milliseconds: 420),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => context.go(AppRoutes.login),
+                          style: ElevatedButton.styleFrom(
+                            minimumSize: const Size(double.infinity, 54),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: const Text(
+                            'Get Started',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
                 ),
-                const SizedBox(height: 10),
-              ],
+              ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _PulsingLogo extends StatelessWidget {
+  final AnimationController controller;
+
+  const _PulsingLogo({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      child: Image.asset(
+        'assets/images/logo/ideal-logo.png',
+        width: 92,
+        height: 92,
+        fit: BoxFit.contain,
+      ),
+      builder: (context, child) {
+        final pulse = Curves.easeInOut.transform(controller.value);
+        final scale = 0.97 + (pulse * 0.06);
+        final lift = (0.5 - (pulse - 0.5).abs()) * 6;
+
+        return Transform.translate(
+          offset: Offset(0, -lift),
+          child: Transform.scale(
+            scale: scale,
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.accent.withValues(alpha: 0.16),
+                    Colors.transparent,
+                  ],
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.accent.withValues(alpha: 0.22),
+                    blurRadius: 30,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: child,
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -206,46 +227,47 @@ class _FeatureItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceAlt,
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: AppColors.border.withValues(alpha: 0.5),
+    return IdealCard(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: AppColors.accent, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 12.5,
+                    height: 1.45,
+                  ),
+                ),
+              ],
             ),
           ),
-          child: Icon(
-            icon,
-            color: AppColors.accent,
-            size: 24,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          title,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Text(
-            description,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 13,
-              height: 1.45,
-            ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
