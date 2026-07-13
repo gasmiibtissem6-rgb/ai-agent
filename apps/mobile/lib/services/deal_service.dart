@@ -51,23 +51,6 @@ class DealService {
     return Deal.fromJson(_data(response));
   }
 
-  /// PATCH /deals/:id/status → creator-only transition to Approved,
-  /// Bridged (NEGOTIATION on the wire) or Cancelled.
-  static Future<Deal> updateStatus({
-    required String dealId,
-    required DealStatus status,
-    String? reason,
-  }) async {
-    final response = await _api.patch(
-      '/deals/$dealId/status',
-      data: {
-        'status': status.wireValue,
-        if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
-      },
-    );
-    return Deal.fromJson(_data(response));
-  }
-
   /// POST /deals/:id/share → generates an invitation link + QR payload.
   /// Grants VIEW + SIGN so whoever accepts becomes a required approver.
   static Future<DealShareLink> shareDeal(String dealId) async {
@@ -231,7 +214,8 @@ class DealShareLink {
   factory DealShareLink.fromJson(Map<String, dynamic> json) {
     return DealShareLink(
       inviteUrl: json['inviteUrl'] as String? ?? '',
-      qrCodeData: json['qrCodeData'] as String? ?? json['inviteUrl'] as String? ?? '',
+      qrCodeData:
+          json['qrCodeData'] as String? ?? json['inviteUrl'] as String? ?? '',
       token: json['token'] as String?,
     );
   }

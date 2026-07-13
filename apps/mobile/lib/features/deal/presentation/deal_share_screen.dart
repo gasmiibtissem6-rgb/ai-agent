@@ -74,8 +74,8 @@ class _DealShareScreenState extends ConsumerState<DealShareScreen> {
       setState(() => _partyAdded = true);
       _partyController.clear();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('The other party has been invited.'),
+        SnackBar(
+          content: const Text('The other party has been invited.'),
           backgroundColor: AppColors.success,
         ),
       );

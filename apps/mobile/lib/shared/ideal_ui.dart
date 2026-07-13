@@ -189,12 +189,26 @@ class IdealAppScaffold extends StatelessWidget {
         body: SafeArea(
           child: Row(
             children: [
-              _DesktopNav(
-                activeRoute: activeRoute,
-                items: navItems,
-                actions: actions,
+              _DesktopNav(activeRoute: activeRoute, items: navItems),
+              Expanded(
+                // Page actions (sign out, profile, theme toggle…) sit in the
+                // top-right corner of the page, mirroring the mobile app bar.
+                child: actions.isEmpty
+                    ? body
+                    : Column(
+                        children: [
+                          Container(
+                            color: AppColors.surface,
+                            padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: actions,
+                            ),
+                          ),
+                          Expanded(child: body),
+                        ],
+                      ),
               ),
-              Expanded(child: body),
             ],
           ),
         ),
@@ -256,13 +270,8 @@ const _navItems = <_NavItem>[
 class _DesktopNav extends StatelessWidget {
   final String activeRoute;
   final List<_NavItem> items;
-  final List<Widget> actions;
 
-  const _DesktopNav({
-    required this.activeRoute,
-    required this.items,
-    required this.actions,
-  });
+  const _DesktopNav({required this.activeRoute, required this.items});
 
   @override
   Widget build(BuildContext context) {
@@ -300,12 +309,6 @@ class _DesktopNav extends StatelessWidget {
           const SizedBox(height: 8),
           for (final item in items)
             _DesktopNavItem(item: item, selected: activeRoute == item.key),
-          const Spacer(),
-          if (actions.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Wrap(spacing: 4, runSpacing: 4, children: actions),
-            ),
         ],
       ),
     );
@@ -437,10 +440,7 @@ class SectionTitle extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             subtitle!,
-            style: TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
           ),
         ],
       ],
@@ -539,10 +539,7 @@ class EmptyState extends StatelessWidget {
             Text(
               subtitle,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppColors.textSecondary,
-                height: 1.45,
-              ),
+              style: TextStyle(color: AppColors.textSecondary, height: 1.45),
             ),
             const SizedBox(height: 28),
             ElevatedButton.icon(

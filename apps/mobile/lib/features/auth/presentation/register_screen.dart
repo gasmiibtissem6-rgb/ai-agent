@@ -39,8 +39,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (!_formKey.currentState!.validate()) return;
     if (!_agreeToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please accept the Terms of Service to continue.'),
+        SnackBar(
+          content: const Text('Please accept the Terms of Service to continue.'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -261,7 +261,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   TextSpan(
                     text: 'Already have an account? ',
                     style: TextStyle(color: AppColors.textSecondary),
-                    children: const [
+                    children: [
                       TextSpan(
                         text: 'Sign In',
                         style: TextStyle(

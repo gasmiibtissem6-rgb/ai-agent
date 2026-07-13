@@ -32,7 +32,7 @@ class AiAssistantPanel extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
+                  gradient: LinearGradient(
                     colors: [AppColors.accent, AppColors.primary],
                   ),
                   borderRadius: BorderRadius.circular(12),

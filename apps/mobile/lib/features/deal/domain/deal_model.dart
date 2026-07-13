@@ -84,14 +84,6 @@ extension DealStatusX on DealStatus {
   };
 }
 
-/// The statuses a deal creator may set on their own deal.
-/// Mirrors `CREATOR_SETTABLE_STATUSES` in the NestJS `UpdateDealStatusDto`.
-const kCreatorSettableStatuses = <DealStatus>[
-  DealStatus.approved,
-  DealStatus.negotiation,
-  DealStatus.cancelled,
-];
-
 /// Categories shared by the deal form and the template form.
 const kDealCategories = <String>[
   'Partnership',
@@ -183,7 +175,7 @@ class Deal {
 
   bool get isLocked => status == DealStatus.locked;
 
-  /// Whether [profileId] owns this deal and may therefore change its status.
+  /// Whether [profileId] created this deal.
   bool isCreatedBy(String? profileId) =>
       profileId != null && profileId == creatorProfileId;
 
@@ -197,8 +189,7 @@ class Deal {
   }
 
   /// True once at least one invited party has accepted (chat can open).
-  bool get hasAcceptedParty =>
-      parties.any((p) => p.partyStatus == 'ACCEPTED');
+  bool get hasAcceptedParty => parties.any((p) => p.partyStatus == 'ACCEPTED');
 }
 
 /// A participant on a deal, as returned by the backend (`DealParty`).

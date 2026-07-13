@@ -10,6 +10,8 @@ import '../domain/deal_provider.dart';
 import 'deal_status_ui.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/router/app_router.dart';
+import '../../../core/theme/theme_provider.dart';
+import '../../../core/theme/theme_toggle_button.dart';
 import '../../../services/profile_service.dart';
 import '../../../shared/ideal_ui.dart';
 import '../../../shared/qr_display.dart';
@@ -19,6 +21,10 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // The theme toggle lives in this screen's header. AppColors resolves
+    // against the current mode at build time, so the screen must rebuild in
+    // place when the theme flips (as the old Settings-hosted toggle did).
+    ref.watch(themeProvider);
     final authState = ref
         .watch(authProvider)
         .whenOrNull(data: (state) => state);
@@ -44,104 +50,114 @@ class HomeScreen extends ConsumerWidget {
           tooltip: 'Profile',
           onPressed: () => context.go(AppRoutes.editProfile),
         ),
+        // Theme toggle sits in the top-right corner of the Home page header.
+        const ThemeToggleButton(),
       ],
       body: IdealGradientBackground(
         child: RefreshIndicator(
           onRefresh: () => ref.read(dealProvider.notifier).loadDeals(),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
-            children: [
-              FadeSlideIn(
-                child: SectionTitle(
-                  title: 'Welcome back, $displayName',
-                  subtitle: "Here's what's happening with your deals today.",
-                ),
-              ),
-              const SizedBox(height: 24),
-              if (authState?.profile != null)
-                FadeSlideIn(
-                  delay: const Duration(milliseconds: 120),
-                  child: _ProfileSection(profile: authState!.profile!),
-                ),
-              if (authState?.profile != null) const SizedBox(height: 24),
-              _StatsGrid(deals: deals),
-              const SizedBox(height: 24),
-              FadeSlideIn(
-                delay: const Duration(milliseconds: 220),
-                child: _QuickActions(
-                  onCreate: () => context.go(AppRoutes.dealCreateStart),
-                  onDeals: () => context.go(AppRoutes.deals),
-                ),
-              ),
-              const SizedBox(height: 24),
-              FadeSlideIn(
-                delay: const Duration(milliseconds: 280),
-                child: _ActionGrid(
-                  onIdentity: () => context.go(AppRoutes.kycStatus),
-                  onDeals: () => context.go(AppRoutes.deals),
-                  onDocuments: () => context.go(AppRoutes.documents),
-                  onApprovals: () => _comingSoon(context),
-                ),
-              ),
-              const SizedBox(height: 30),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Center(
+            child: ConstrainedBox(
+              // Keeps cards and sections readable on tablets and desktops;
+              // narrower screens are unaffected (same cap as the deals list).
+              constraints: const BoxConstraints(maxWidth: 860),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
                 children: [
-                  Text(
-                    'Recent Deals',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary,
+                  FadeSlideIn(
+                    child: SectionTitle(
+                      title: 'Welcome back, $displayName',
+                      subtitle:
+                          "Here's what's happening with your deals today.",
                     ),
                   ),
-                  TextButton(
-                    onPressed: () => context.go(AppRoutes.deals),
-                    child: const Text('View All'),
+                  const SizedBox(height: 24),
+                  if (authState?.profile != null)
+                    FadeSlideIn(
+                      delay: const Duration(milliseconds: 120),
+                      child: _ProfileSection(profile: authState!.profile!),
+                    ),
+                  if (authState?.profile != null) const SizedBox(height: 24),
+                  _StatsGrid(deals: deals),
+                  const SizedBox(height: 24),
+                  FadeSlideIn(
+                    delay: const Duration(milliseconds: 220),
+                    child: _QuickActions(
+                      onCreate: () => context.go(AppRoutes.dealCreateStart),
+                      onDeals: () => context.go(AppRoutes.deals),
+                    ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              if (deals.isEmpty)
-                IdealCard(
-                  child: Row(
+                  const SizedBox(height: 24),
+                  FadeSlideIn(
+                    delay: const Duration(milliseconds: 280),
+                    child: _ActionGrid(
+                      onIdentity: () => context.go(AppRoutes.kycStatus),
+                      onDeals: () => context.go(AppRoutes.deals),
+                      onDocuments: () => context.go(AppRoutes.documents),
+                      onApprovals: () => _comingSoon(context),
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(
-                          Icons.handshake_outlined,
-                          color: AppColors.primary,
+                      Text(
+                        'Recent Deals',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
                         ),
                       ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Text(
-                          'Create your first deal to start tracking agreements.',
-                          style: TextStyle(color: AppColors.textSecondary),
-                        ),
+                      TextButton(
+                        onPressed: () => context.go(AppRoutes.deals),
+                        child: const Text('View All'),
                       ),
                     ],
                   ),
-                )
-              else
-                ...deals
-                    .take(4)
-                    .map(
-                      (deal) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _RecentDealTile(
-                          deal: deal,
-                          onTap: () =>
-                              context.go(AppRoutes.dealDetail, extra: deal),
-                        ),
+                  const SizedBox(height: 12),
+                  if (deals.isEmpty)
+                    IdealCard(
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              Icons.handshake_outlined,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Text(
+                              'Create your first deal to start tracking agreements.',
+                              style: TextStyle(color: AppColors.textSecondary),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-            ],
+                    )
+                  else
+                    ...deals
+                        .take(4)
+                        .map(
+                          (deal) => Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _RecentDealTile(
+                              deal: deal,
+                              onTap: () =>
+                                  context.go(AppRoutes.dealDetail, extra: deal),
+                            ),
+                          ),
+                        ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -229,8 +245,11 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (profile == null) ...[
-              const Icon(Icons.person_off_outlined,
-                  size: 40, color: AppColors.warning),
+              Icon(
+                Icons.person_off_outlined,
+                size: 40,
+                color: AppColors.warning,
+              ),
               const SizedBox(height: 12),
               Text(
                 'Profile not found',
@@ -256,9 +275,7 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
               ),
               const SizedBox(height: 4),
               Text(
-                profile.isKycVerified
-                    ? 'Verified account'
-                    : 'Not verified yet',
+                profile.isKycVerified ? 'Verified account' : 'Not verified yet',
                 style: TextStyle(
                   color: profile.isKycVerified
                       ? AppColors.success
@@ -311,8 +328,10 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
                           ),
                         ),
                         const SizedBox(width: 6),
-                        Text(profile.verifiedEmoji,
-                            style: const TextStyle(fontSize: 16)),
+                        Text(
+                          profile.verifiedEmoji,
+                          style: const TextStyle(fontSize: 16),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 2),
@@ -347,7 +366,9 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
               Icon(
                 profile.isPublic ? Icons.public : Icons.lock_outline,
                 size: 20,
-                color: profile.isPublic ? AppColors.success : AppColors.textSecondary,
+                color: profile.isPublic
+                    ? AppColors.success
+                    : AppColors.textSecondary,
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -380,10 +401,7 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               else
-                Switch(
-                  value: profile.isPublic,
-                  onChanged: _togglePublic,
-                ),
+                Switch(value: profile.isPublic, onChanged: _togglePublic),
             ],
           ),
           const SizedBox(height: 16),
@@ -475,7 +493,7 @@ class _StatsGrid extends StatelessWidget {
         'Successful Deals',
         successfulDeals.toString(),
         Icons.check_circle_outline,
-        const [Color(0xFF34D399), AppColors.success],
+        [const Color(0xFF34D399), AppColors.success],
       ),
       _StatItem(
         'Bridged Deals',
@@ -487,7 +505,7 @@ class _StatsGrid extends StatelessWidget {
         'Active Deals',
         activeDeals.toString(),
         Icons.insights_outlined,
-        const [AppColors.accent, AppColors.primary],
+        [AppColors.accent, AppColors.primary],
       ),
     ];
 

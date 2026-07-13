@@ -415,7 +415,7 @@ class _SectionEditor extends StatelessWidget {
                 IconButton(
                   onPressed: onRemove,
                   tooltip: 'Remove section',
-                  icon: const Icon(Icons.delete_outline, color: AppColors.error),
+                  icon: Icon(Icons.delete_outline, color: AppColors.error),
                 ),
               ],
             ],

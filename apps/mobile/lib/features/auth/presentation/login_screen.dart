@@ -194,7 +194,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   TextSpan(
                     text: "Don't have an account? ",
                     style: TextStyle(color: AppColors.textSecondary),
-                    children: const [
+                    children: [
                       TextSpan(
                         text: 'Sign Up',
                         style: TextStyle(

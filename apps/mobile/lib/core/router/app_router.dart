@@ -55,6 +55,15 @@ class AppRoutes {
   static const documents = '/documents';
 }
 
+/// Routes whose page depends on a [Deal] handed over through `state.extra`.
+/// If that object is lost on a router rebuild, we redirect to the deals list
+/// rather than let the unconditional `state.extra as Deal` cast throw.
+const _dealExtraRoutes = <String>[
+  AppRoutes.dealDetail,
+  AppRoutes.dealChat,
+  AppRoutes.dealShare,
+];
+
 final _authListenableProvider = Provider<ValueNotifier<AppAuthState?>>((ref) {
   final notifier = ValueNotifier<AppAuthState?>(null);
   ref.listen(authProvider, (_, next) {
@@ -109,6 +118,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (status == AuthStatus.authenticated) {
         if (isAuthRoute || state.matchedLocation == AppRoutes.splash) {
           return AppRoutes.home;
+        }
+        // go_router drops `state.extra` whenever the router rebuilds (e.g. the
+        // auth `refreshListenable` fires after an API call such as sending a
+        // deal message). Routes that depend on a Deal passed via `extra` would
+        // then evaluate `state.extra as Deal` against null and crash. Fall back
+        // to the deals list — which reloads fresh data — instead of throwing.
+        if (_dealExtraRoutes.contains(state.matchedLocation) &&
+            state.extra is! Deal) {
+          return AppRoutes.deals;
         }
         return null;
       }

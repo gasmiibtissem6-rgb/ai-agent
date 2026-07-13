@@ -118,7 +118,7 @@ class _KycRequiredCard extends StatelessWidget {
                   color: AppColors.warning.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Icon(Icons.verified_user_outlined,
+                child: Icon(Icons.verified_user_outlined,
                     color: AppColors.warning),
               ),
               const SizedBox(width: 12),

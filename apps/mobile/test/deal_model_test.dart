@@ -31,14 +31,6 @@ void main() {
       expect(DealStatusX.fromWire(null), DealStatus.draft);
       expect(DealStatusX.fromWire('BRIDGED'), DealStatus.draft);
     });
-
-    test('creator-settable statuses are exactly Approved, Bridged, Cancelled', () {
-      expect(kCreatorSettableStatuses.map((s) => s.label), [
-        'Approved',
-        'Bridged',
-        'Cancelled',
-      ]);
-    });
   });
 
   group('DealContentType wire mapping', () {

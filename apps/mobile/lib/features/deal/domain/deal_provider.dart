@@ -48,34 +48,6 @@ class DealNotifier extends AsyncNotifier<DealState> {
     }
   }
 
-  /// Creator-only transition to Approved, Bridged (NEGOTIATION) or Cancelled.
-  Future<Deal?> updateStatus({
-    required String dealId,
-    required DealStatus status,
-    String? reason,
-  }) async {
-    final previous = _current;
-    state = AsyncData(DealState.updating(previous));
-    try {
-      final updated = await DealService.updateStatus(
-        dealId: dealId,
-        status: status,
-        reason: reason,
-      );
-      final deals = await DealService.getMyDeals();
-      state = AsyncData(DealState.success(deals, selectedDeal: updated));
-      return updated;
-    } catch (e) {
-      state = AsyncData(
-        DealState.error(
-          _message(e, 'Failed to update the deal status.'),
-          deals: previous,
-        ),
-      );
-      return null;
-    }
-  }
-
   /// Creator attaches a counterparty by username or email.
   Future<Deal?> addParty({
     required String dealId,
@@ -171,6 +143,9 @@ final dealVersionsProvider = FutureProvider.family<List<DealVersion>, String>((
 });
 
 /// Full deal detail (parties + versions) used to drive the detail workflow UI.
-final dealByIdProvider = FutureProvider.family<Deal, String>((ref, dealId) async {
+final dealByIdProvider = FutureProvider.family<Deal, String>((
+  ref,
+  dealId,
+) async {
   return DealService.getDeal(dealId);
 });

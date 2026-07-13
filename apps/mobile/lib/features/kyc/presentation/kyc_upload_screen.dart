@@ -48,8 +48,8 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
   Future<void> _submit() async {
     if (_frontFile?.bytes == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please upload the front of your document.'),
+        SnackBar(
+          content: const Text('Please upload the front of your document.'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -57,8 +57,8 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
     }
     if (_selfieFile?.bytes == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please upload a selfie with your document.'),
+        SnackBar(
+          content: const Text('Please upload a selfie with your document.'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -88,8 +88,8 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
       final state = next.whenOrNull(data: (s) => s);
       if (state?.isSuccess == true) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('KYC submitted! We will review it shortly.'),
+          SnackBar(
+            content: const Text('KYC submitted! We will review it shortly.'),
             backgroundColor: AppColors.success,
           ),
         );
@@ -350,7 +350,7 @@ class _FileUploadCard extends StatelessWidget {
                       ),
                       if (required) ...[
                         const SizedBox(width: 4),
-                        const Text(
+                        Text(
                           '*',
                           style: TextStyle(color: AppColors.error),
                         ),

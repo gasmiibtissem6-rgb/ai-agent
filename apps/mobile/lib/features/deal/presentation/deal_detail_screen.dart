@@ -27,7 +27,8 @@ class DealDetailScreen extends ConsumerWidget {
 
     // Prefer the full deal (parties + versions). Fall back to the list, then to
     // the deal handed over by the router on first paint.
-    final current = fullDealAsync.whenOrNull(data: (d) => d) ??
+    final current =
+        fullDealAsync.whenOrNull(data: (d) => d) ??
         dealState?.deals.firstWhere(
           (d) => d.id == deal.id,
           orElse: () => deal,
@@ -37,8 +38,6 @@ class DealDetailScreen extends ConsumerWidget {
     final profileId = ref
         .watch(authProvider)
         .whenOrNull(data: (s) => s.profile?.id);
-    final isCreator = current.isCreatedBy(profileId);
-    final isUpdating = dealState?.isUpdating ?? false;
 
     ref.listen(dealProvider, (_, next) {
       final state = next.whenOrNull(data: (s) => s);
@@ -93,7 +92,7 @@ class DealDetailScreen extends ConsumerWidget {
                                 label: current.contentType!.label,
                               ),
                             if (current.isLocked)
-                              const _InlineMeta(
+                              _InlineMeta(
                                 icon: Icons.lock_outline,
                                 label: 'Locked official version',
                                 color: AppColors.success,
@@ -112,16 +111,6 @@ class DealDetailScreen extends ConsumerWidget {
                 child: _DealWorkflowCard(deal: current, profileId: profileId),
               ),
               const SizedBox(height: 22),
-              if (isCreator)
-                FadeSlideIn(
-                  child: _StatusChanger(
-                    deal: current,
-                    isUpdating: isUpdating,
-                    onChange: (status) =>
-                        _confirmStatusChange(context, ref, current, status),
-                  ),
-                ),
-              if (isCreator) const SizedBox(height: 22),
               IdealCard(
                 padding: EdgeInsets.zero,
                 child: Column(
@@ -158,81 +147,6 @@ class DealDetailScreen extends ConsumerWidget {
         ),
       ),
     );
-  }
-
-  Future<void> _confirmStatusChange(
-    BuildContext context,
-    WidgetRef ref,
-    Deal deal,
-    DealStatus target,
-  ) async {
-    final reasonController = TextEditingController();
-    final destructive = target == DealStatus.cancelled;
-
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Set status to ${target.label}'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              destructive
-                  ? 'Cancelling records a cancellation date on the deal. Participants will see it as Cancelled.'
-                  : 'This change is recorded in the deal audit trail.',
-              style: TextStyle(color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: reasonController,
-              maxLines: 2,
-              decoration: const InputDecoration(
-                labelText: 'Reason (optional)',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: destructive
-                ? ElevatedButton.styleFrom(backgroundColor: AppColors.error)
-                : null,
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(destructive ? 'Cancel deal' : 'Confirm'),
-          ),
-        ],
-      ),
-    );
-
-    final reason = reasonController.text;
-    reasonController.dispose();
-    if (confirm != true) return;
-
-    final updated = await ref
-        .read(dealProvider.notifier)
-        .updateStatus(
-          dealId: deal.id,
-          status: target,
-          reason: reason,
-        );
-
-    if (updated != null) {
-      ref.invalidate(dealByIdProvider(deal.id));
-      ref.invalidate(dealVersionsProvider(deal.id));
-    }
-    if (updated != null && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Deal is now ${updated.statusLabel}.'),
-          backgroundColor: AppColors.success,
-        ),
-      );
-    }
   }
 }
 
@@ -283,19 +197,22 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
   }
 
   Future<void> _accept(bool accept) => _run(
-        () => ref
-            .read(dealProvider.notifier)
-            .respondToDeal(dealId: deal.id, accept: accept),
-      );
+    () => ref
+        .read(dealProvider.notifier)
+        .respondToDeal(dealId: deal.id, accept: accept),
+  );
 
   Future<void> _submit(String versionId) => _run(
+    () => ref
+        .read(dealProvider.notifier)
+        .submitVersion(dealId: deal.id, versionId: versionId),
+  );
+
+  Future<void> _decide(String versionId, bool approve, {String? reason}) =>
+      _run(
         () => ref
             .read(dealProvider.notifier)
-            .submitVersion(dealId: deal.id, versionId: versionId),
-      );
-
-  Future<void> _decide(String versionId, bool approve, {String? reason}) => _run(
-        () => ref.read(dealProvider.notifier).decideVersion(
+            .decideVersion(
               dealId: deal.id,
               versionId: versionId,
               approve: approve,
@@ -318,8 +235,7 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
         builder: (context, controller) => Container(
           decoration: BoxDecoration(
             color: AppColors.surface,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(20)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
           ),
           child: ListView(
             controller: controller,
@@ -454,10 +370,7 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
 
     setState(() => _busy = true);
     try {
-      final terms = <String, dynamic>{
-        ...?base?.terms,
-        'document': document,
-      };
+      final terms = <String, dynamic>{...?base?.terms, 'document': document};
       await DealService.createVersion(
         dealId: deal.id,
         terms: terms,
@@ -467,8 +380,8 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
       ref.invalidate(dealByIdProvider(deal.id));
       ref.invalidate(dealVersionsProvider(deal.id));
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('New version created.'),
+        SnackBar(
+          content: const Text('New version created.'),
           backgroundColor: AppColors.success,
         ),
       );
@@ -489,7 +402,8 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
     final myParty = deal.partyFor(widget.profileId);
     final version = _currentVersion;
     final versionPending = version?.status == DealStatus.pendingApproval;
-    final versionOpen = version != null &&
+    final versionOpen =
+        version != null &&
         !version.isFinal &&
         (version.status == DealStatus.draft ||
             version.status == DealStatus.changesRequested);
@@ -537,7 +451,8 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
             Expanded(
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.error),
+                  backgroundColor: AppColors.error,
+                ),
                 onPressed: _busy ? null : () => _accept(false),
                 icon: const Icon(Icons.close),
                 label: const Text('Refuse'),
@@ -550,118 +465,140 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
 
     // Accepted party.
     if (!isCreator && myParty != null && myParty.isAccepted) {
-      children.add(Text(
-        'You accepted this deal. Discuss changes in the chat; the creator '
-        'turns the outcome into new versions.',
-        style: TextStyle(color: AppColors.textSecondary, height: 1.5),
-      ));
-      children.add(const SizedBox(height: 14));
-      children.add(SizedBox(
-        width: double.infinity,
-        child: OutlinedButton.icon(
-          onPressed: _openChat,
-          icon: const Icon(Icons.forum_outlined),
-          label: const Text('Open discussion'),
+      children.add(
+        Text(
+          'You accepted this deal. Discuss changes in the chat; the creator '
+          'turns the outcome into new versions.',
+          style: TextStyle(color: AppColors.textSecondary, height: 1.5),
         ),
-      ));
-      if (versionPending && myParty.requiredApproval && version != null) {
-        children.add(const SizedBox(height: 10));
-        children.add(Row(
-          children: [
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: _busy ? null : () => _decide(version.id, true),
-                icon: const Icon(Icons.verified_outlined),
-                label: const Text('Approve version'),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: _busy ? null : () => _rejectWithReason(version.id),
-                icon: const Icon(Icons.edit_outlined),
-                label: const Text('Request changes'),
-              ),
-            ),
-          ],
-        ));
-      }
-    }
-
-    // Refused party.
-    if (!isCreator && myParty != null && myParty.isDeclined) {
-      children.add(Text(
-        'You refused this deal.',
-        style: TextStyle(color: AppColors.textSecondary),
-      ));
-    }
-
-    // Creator view.
-    if (isCreator) {
-      if (!deal.hasAcceptedParty) {
-        children.add(Text(
-          'Waiting for the other party to accept. Share the deal link/QR or '
-          'add them by username/email.',
-          style: TextStyle(color: AppColors.textSecondary, height: 1.5),
-        ));
-        children.add(const SizedBox(height: 12));
-        children.add(SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: () => context.go(AppRoutes.dealShare, extra: deal),
-            icon: const Icon(Icons.ios_share_outlined),
-            label: const Text('Share / add party'),
-          ),
-        ));
-      } else {
-        children.add(Text(
-          'A party has accepted. Discuss changes, submit a version for approval, '
-          'or propose a new version.',
-          style: TextStyle(color: AppColors.textSecondary, height: 1.5),
-        ));
-        children.add(const SizedBox(height: 12));
-        children.add(SizedBox(
+      );
+      children.add(const SizedBox(height: 14));
+      children.add(
+        SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
             onPressed: _openChat,
             icon: const Icon(Icons.forum_outlined),
             label: const Text('Open discussion'),
           ),
-        ));
+        ),
+      );
+      if (versionPending && myParty.requiredApproval && version != null) {
+        children.add(const SizedBox(height: 10));
+        children.add(
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _busy ? null : () => _decide(version.id, true),
+                  icon: const Icon(Icons.verified_outlined),
+                  label: const Text('Approve version'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _busy ? null : () => _rejectWithReason(version.id),
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Request changes'),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+
+    // Refused party.
+    if (!isCreator && myParty != null && myParty.isDeclined) {
+      children.add(
+        Text(
+          'You refused this deal.',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+      );
+    }
+
+    // Creator view.
+    if (isCreator) {
+      if (!deal.hasAcceptedParty) {
+        children.add(
+          Text(
+            'Waiting for the other party to accept. Share the deal link/QR or '
+            'add them by username/email.',
+            style: TextStyle(color: AppColors.textSecondary, height: 1.5),
+          ),
+        );
+        children.add(const SizedBox(height: 12));
+        children.add(
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () => context.go(AppRoutes.dealShare, extra: deal),
+              icon: const Icon(Icons.ios_share_outlined),
+              label: const Text('Share / add party'),
+            ),
+          ),
+        );
+      } else {
+        children.add(
+          Text(
+            'A party has accepted. Discuss changes, submit a version for approval, '
+            'or propose a new version.',
+            style: TextStyle(color: AppColors.textSecondary, height: 1.5),
+          ),
+        );
+        children.add(const SizedBox(height: 12));
+        children.add(
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _openChat,
+              icon: const Icon(Icons.forum_outlined),
+              label: const Text('Open discussion'),
+            ),
+          ),
+        );
         if (versionOpen) {
           children.add(const SizedBox(height: 10));
-          children.add(SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _busy ? null : () => _submit(version.id),
-              icon: const Icon(Icons.how_to_reg_outlined),
-              label: Text(
-                'Submit V${version.versionNumber - 1} for approval',
+          children.add(
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _busy ? null : () => _submit(version.id),
+                icon: const Icon(Icons.how_to_reg_outlined),
+                label: Text(
+                  'Submit V${version.versionNumber - 1} for approval',
+                ),
               ),
             ),
-          ));
+          );
         }
         if (versionPending) {
           children.add(const SizedBox(height: 10));
           children.add(_InlinePendingNote());
         }
         children.add(const SizedBox(height: 10));
-        children.add(SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: _busy ? null : _proposeNewVersion,
-            icon: const Icon(Icons.add_box_outlined),
-            label: const Text('Propose new version'),
+        children.add(
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _busy ? null : _proposeNewVersion,
+              icon: const Icon(Icons.add_box_outlined),
+              label: const Text('Propose new version'),
+            ),
           ),
-        ));
+        );
       }
     }
 
     if (children.isEmpty) {
-      children.add(Text(
-        'No actions available for you on this deal right now.',
-        style: TextStyle(color: AppColors.textSecondary),
-      ));
+      children.add(
+        Text(
+          'No actions available for you on this deal right now.',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
+      );
     }
 
     return IdealCard(
@@ -709,8 +646,11 @@ class _InlinePendingNote extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.hourglass_bottom_outlined,
-              size: 16, color: AppColors.warning),
+          Icon(
+            Icons.hourglass_bottom_outlined,
+            size: 16,
+            color: AppColors.warning,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -719,138 +659,6 @@ class _InlinePendingNote extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// Creator-only control to move the deal between Approved, Bridged and Cancelled.
-class _StatusChanger extends StatelessWidget {
-  final Deal deal;
-  final bool isUpdating;
-  final ValueChanged<DealStatus> onChange;
-
-  const _StatusChanger({
-    required this.deal,
-    required this.isUpdating,
-    required this.onChange,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final terminal = deal.isTerminal;
-
-    return IdealCard(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.flag_outlined, size: 18, color: AppColors.primary),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Deal status',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 15,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-              if (isUpdating)
-                const SizedBox(
-                  height: 16,
-                  width: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            terminal
-                ? 'A ${deal.statusLabel.toLowerCase()} deal can no longer change status.'
-                : 'As the creator, you can move this deal between these states.',
-            style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final status in kCreatorSettableStatuses)
-                _StatusChoice(
-                  status: status,
-                  selected: deal.status == status,
-                  enabled: !terminal && !isUpdating && deal.status != status,
-                  onTap: () => onChange(status),
-                ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatusChoice extends StatelessWidget {
-  final DealStatus status;
-  final bool selected;
-  final bool enabled;
-  final VoidCallback onTap;
-
-  const _StatusChoice({
-    required this.status,
-    required this.selected,
-    required this.enabled,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = dealStatusColor(status);
-    final foreground = selected
-        ? Colors.white
-        : enabled
-        ? color
-        : AppColors.textSecondary;
-
-    return Opacity(
-      opacity: enabled || selected ? 1 : 0.5,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: enabled ? onTap : null,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: selected ? color : color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: selected ? color : color.withValues(alpha: 0.35),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(dealStatusIcon(status), size: 16, color: foreground),
-              const SizedBox(width: 8),
-              Text(
-                status.label,
-                style: TextStyle(
-                  color: foreground,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 13,
-                ),
-              ),
-              if (selected) ...[
-                const SizedBox(width: 6),
-                const Icon(Icons.check, size: 14, color: Colors.white),
-              ],
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -1110,9 +918,7 @@ class _DocumentTabState extends ConsumerState<_DocumentTab> {
                           ),
                         )
                       : const Icon(Icons.download_outlined),
-                  label: Text(
-                    _isGenerating ? 'Generating…' : 'Download PDF',
-                  ),
+                  label: Text(_isGenerating ? 'Generating…' : 'Download PDF'),
                 ),
               ),
             ),
@@ -1152,8 +958,7 @@ class _VersionCard extends StatelessWidget {
           Row(
             children: [
               if (version.isFinal) ...[
-                const Icon(Icons.lock_outline,
-                    size: 16, color: AppColors.success),
+                Icon(Icons.lock_outline, size: 16, color: AppColors.success),
                 const SizedBox(width: 6),
               ],
               Expanded(
@@ -1167,7 +972,7 @@ class _VersionCard extends StatelessWidget {
                 ),
               ),
               if (version.isFinal)
-                const StatusPill(label: 'Locked', color: AppColors.success)
+                StatusPill(label: 'Locked', color: AppColors.success)
               else
                 StatusPill(
                   label: version.status.label,

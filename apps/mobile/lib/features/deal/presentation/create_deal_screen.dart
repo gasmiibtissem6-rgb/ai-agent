@@ -121,11 +121,12 @@ class _CreateDealScreenState extends ConsumerState<CreateDealScreen> {
   }
 
   Future<void> _selectDate() async {
+    final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now().add(const Duration(days: 30)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+      initialDate: now,
+      firstDate: now.subtract(const Duration(days: 365 * 5)),
+      lastDate: now,
     );
     if (picked != null) {
       setState(() {
@@ -187,7 +188,7 @@ class _CreateDealScreenState extends ConsumerState<CreateDealScreen> {
       ..writeln('Category: $_category')
       ..writeln('Content type: ${_contentType.label}')
       ..writeln(
-        'Expiration date: '
+        'Creation date: '
         '${_dateController.text.isEmpty ? 'Not set' : _dateController.text}',
       );
 
@@ -241,9 +242,7 @@ class _CreateDealScreenState extends ConsumerState<CreateDealScreen> {
   Map<String, dynamic> _buildTerms() => {
     'category': _category,
     'contentType': _contentType.wireValue,
-    'expirationDate': _dateController.text.isEmpty
-        ? null
-        : _dateController.text,
+    'creationDate': _dateController.text.isEmpty ? null : _dateController.text,
     'description': _descriptionController.text.trim(),
     'sections': [
       for (final section in _sections)
@@ -267,7 +266,10 @@ class _CreateDealScreenState extends ConsumerState<CreateDealScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_contentType != DealContentType.document && _attachment == null) {
-      _snack('Attach a ${_contentType.label.toLowerCase()} first.', AppColors.warning);
+      _snack(
+        'Attach a ${_contentType.label.toLowerCase()} first.',
+        AppColors.warning,
+      );
       return;
     }
 
@@ -313,9 +315,9 @@ class _CreateDealScreenState extends ConsumerState<CreateDealScreen> {
   }
 
   void _snack(String message, Color color) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: color),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
   }
 
   @override
@@ -327,7 +329,10 @@ class _CreateDealScreenState extends ConsumerState<CreateDealScreen> {
     ref.listen(dealProvider, (_, next) {
       final state = next.whenOrNull(data: (s) => s);
       if (state?.hasError == true) {
-        _snack(state!.errorMessage ?? 'Failed to create deal.', AppColors.error);
+        _snack(
+          state!.errorMessage ?? 'Failed to create deal.',
+          AppColors.error,
+        );
       }
     });
 
@@ -435,7 +440,7 @@ class _CreateDealScreenState extends ConsumerState<CreateDealScreen> {
                               },
                             ),
                             const SizedBox(height: 18),
-                            const FieldLabel('Expiration Date'),
+                            const FieldLabel('Creation Date'),
                             TextFormField(
                               controller: _dateController,
                               readOnly: true,
@@ -659,11 +664,7 @@ class _ContentTypeTile extends StatelessWidget {
               ),
             ),
             if (selected)
-              const Icon(
-                Icons.check_circle,
-                size: 20,
-                color: AppColors.primary,
-              ),
+              Icon(Icons.check_circle, size: 20, color: AppColors.primary),
           ],
         ),
       ),
@@ -727,10 +728,7 @@ class _AttachmentPicker extends StatelessWidget {
                 IconButton(
                   onPressed: onClear,
                   tooltip: 'Remove attachment',
-                  icon: const Icon(
-                    Icons.delete_outline,
-                    color: AppColors.error,
-                  ),
+                  icon: Icon(Icons.delete_outline, color: AppColors.error),
                 ),
               TextButton.icon(
                 onPressed: onPick,
@@ -800,7 +798,11 @@ class _DocumentNotice extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.picture_as_pdf_outlined, size: 18, color: AppColors.primary),
+          Icon(
+            Icons.picture_as_pdf_outlined,
+            size: 18,
+            color: AppColors.primary,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -937,7 +939,7 @@ class _ParticipantRow extends StatelessWidget {
           IconButton(
             onPressed: onRemove,
             tooltip: 'Remove participant',
-            icon: const Icon(Icons.delete_outline, color: AppColors.error),
+            icon: Icon(Icons.delete_outline, color: AppColors.error),
           ),
         ],
       ],
@@ -1004,7 +1006,7 @@ class _DealSectionEditor extends StatelessWidget {
               IconButton(
                 onPressed: onRemove,
                 tooltip: 'Remove section',
-                icon: const Icon(Icons.delete_outline, color: AppColors.error),
+                icon: Icon(Icons.delete_outline, color: AppColors.error),
               ),
             ],
           ),
