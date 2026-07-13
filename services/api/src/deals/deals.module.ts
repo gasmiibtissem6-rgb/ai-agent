@@ -5,6 +5,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module'; // Provides JwtAuthGuard
 import { DealsService } from './deals.service';
 
+
 @Module({
   imports: [PrismaModule, AuthModule],
   controllers: [DealsController, DealsAdminController],

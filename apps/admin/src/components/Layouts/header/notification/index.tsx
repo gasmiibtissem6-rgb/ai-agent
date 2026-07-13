@@ -11,32 +11,52 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { BellIcon } from "./icons";
+import user03 from "../../../../../images/user/user-03.png";
+import user15 from "../../../../../images/user/user-15.png";
+import user26 from "../../../../../images/user/user-26.png";
+import user27 from "../../../../../images/user/user-27.png";
+import user28 from "../../../../../images/user/user-28.png";
 
-const notificationList = [
+export const notificationList = [
   {
-    image: "/images/user/user-15.png",
-    title: "Piter Joined the Team!",
-    subTitle: "Congratulate him",
+    image: user15,
+    title: "New admin profile created",
+    subTitle: "Piter was added to the operations team",
+    category: "Account",
+    time: "8 min ago",
+    unread: true,
   },
   {
-    image: "/images/user/user-03.png",
-    title: "New message",
-    subTitle: "Devid sent a new message",
+    image: user03,
+    title: "KYC queue requires review",
+    subTitle: "3 identity files are waiting for approval",
+    category: "KYC",
+    time: "22 min ago",
+    unread: true,
   },
   {
-    image: "/images/user/user-26.png",
-    title: "New Payment received",
-    subTitle: "Check your earnings",
+    image: user26,
+    title: "Contract version locked",
+    subTitle: "A deal moved into archive history",
+    category: "Contracts",
+    time: "1 hr ago",
+    unread: true,
   },
   {
-    image: "/images/user/user-28.png",
-    title: "Jolly completed tasks",
-    subTitle: "Assign new task",
+    image: user28,
+    title: "Dispute status updated",
+    subTitle: "A ticket was marked under review",
+    category: "Risk",
+    time: "2 hrs ago",
+    unread: true,
   },
   {
-    image: "/images/user/user-27.png",
-    title: "Roman Joined the Team!",
-    subTitle: "Congratulate him",
+    image: user27,
+    title: "Trust metrics adjusted",
+    subTitle: "Manual override recorded in audit log",
+    category: "Audit",
+    time: "Today",
+    unread: true,
   },
 ];
 
@@ -75,13 +95,18 @@ export function Notification() {
 
       <DropdownContent
         align={isMobile ? "end" : "center"}
-        className="border border-stroke bg-white px-3.5 py-3 shadow-md min-[350px]:min-w-[20rem] dark:border-dark-3 dark:bg-gray-dark"
+        className="border border-stroke bg-white p-3 shadow-xl min-[350px]:min-w-[24rem] dark:border-dark-3 dark:bg-gray-dark"
       >
-        <div className="mb-1 flex items-center justify-between px-2 py-1.5">
-          <span className="text-lg font-medium text-dark dark:text-white">
+        <div className="mb-2 flex items-start justify-between gap-4 px-2 py-1.5">
+          <div>
+          <span className="text-lg font-semibold text-dark dark:text-white">
             Notifications
           </span>
-          <span className="rounded-md bg-primary px-2.25 py-0.5 text-xs font-medium text-white">
+            <p className="mt-1 text-xs text-dark-5 dark:text-dark-6">
+              Operational alerts from the admin workspace
+            </p>
+          </div>
+          <span className="rounded-full bg-primary px-2.5 py-1 text-xs font-semibold text-white">
             5 new
           </span>
         </div>
@@ -90,25 +115,33 @@ export function Notification() {
           {notificationList.map((item, index) => (
             <li key={index} role="menuitem">
               <Link
-                href="#"
+                href="/notifications"
                 onClick={() => setIsOpen(false)}
-                className="flex items-center gap-4 rounded-lg px-2 py-1.5 outline-none hover:bg-gray-2 focus-visible:bg-gray-2 dark:hover:bg-dark-3 dark:focus-visible:bg-dark-3"
+                className="group flex items-start gap-3 rounded-xl px-2 py-2.5 outline-none transition hover:bg-gray-2 focus-visible:bg-gray-2 dark:hover:bg-dark-3 dark:focus-visible:bg-dark-3"
               >
                 <Image
                   src={item.image}
-                  className="size-14 rounded-full object-cover"
+                  className="size-11 rounded-full object-cover ring-1 ring-stroke dark:ring-dark-3"
                   width={200}
                   height={200}
                   alt="User"
                 />
 
-                <div>
-                  <strong className="block text-sm font-medium text-dark dark:text-white">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-3">
+                  <strong className="block truncate text-sm font-semibold text-dark dark:text-white">
                     {item.title}
                   </strong>
+                    <span className="shrink-0 text-[11px] font-medium text-dark-5 dark:text-dark-6">
+                      {item.time}
+                    </span>
+                  </div>
 
-                  <span className="truncate text-sm font-medium text-dark-5 dark:text-dark-6">
+                  <span className="mt-0.5 block truncate text-sm text-dark-5 dark:text-dark-6">
                     {item.subTitle}
+                  </span>
+                  <span className="mt-2 inline-flex rounded-full bg-gray-2 px-2 py-0.5 text-[11px] font-semibold text-dark-5 dark:bg-dark dark:text-dark-6">
+                    {item.category}
                   </span>
                 </div>
               </Link>
@@ -117,9 +150,9 @@ export function Notification() {
         </ul>
 
         <Link
-          href="#"
+          href="/notifications"
           onClick={() => setIsOpen(false)}
-          className="block rounded-lg border border-primary p-2 text-center text-sm font-medium tracking-wide text-primary transition-colors outline-none hover:bg-blue-light-5 focus:bg-blue-light-5 focus:text-primary focus-visible:border-primary dark:border-dark-3 dark:text-dark-6 dark:hover:border-dark-5 dark:hover:bg-dark-3 dark:hover:text-dark-7 dark:focus-visible:border-dark-5 dark:focus-visible:bg-dark-3 dark:focus-visible:text-dark-7"
+          className="block rounded-xl border border-primary/30 bg-primary/5 p-2.5 text-center text-sm font-semibold tracking-wide text-primary transition-colors outline-none hover:bg-primary hover:text-white focus:bg-primary focus:text-white focus-visible:border-primary dark:border-primary/40 dark:bg-primary/10"
         >
           See all notifications
         </Link>

@@ -17,6 +17,7 @@
   --color-primary: #5750f1;
   --color-stroke: #e6ebf1;
   --color-stroke-dark: #27303e;
+  --color-strokedark: #27303e;
 
   --color-dark-2: #1f2a37;
   --color-dark-3: #374151;
@@ -36,6 +37,10 @@
   --color-gray-7: #374151;
   --color-gray: #eff4fb;
   --color-gray-dark: #122031;
+  --color-boxdark: #122031;
+  --color-meta-4: #1f2a37;
+  --color-form-strokedark: #374151;
+  --color-form-input: #1f2a37;
 
   --color-green: #22ad5c;
   --color-green-dark: #1a8245;

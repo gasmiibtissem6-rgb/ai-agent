@@ -25,21 +25,25 @@ export function Sidebar() {
   };
 
   useEffect(() => {
-    // Keep collapsible open, when it's subpage is active
-    NAV_DATA.some((section) => {
-      return section.items.some((item) => {
-        return item.items.some((subItem) => {
-          if (subItem.url === pathname) {
-            if (!expandedItems.includes(item.title)) {
-              toggleExpanded(item.title);
-            }
+    const activeParent = NAV_DATA.flatMap((section) => section.items).find(
+      (item) => item.items.some((subItem) => subItem.url === pathname),
+    )?.title;
 
-            // Break the loop
-            return true;
-          }
-        });
+    if (!activeParent) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      setExpandedItems((prev) => {
+        if (prev.includes(activeParent)) {
+          return prev;
+        }
+
+        return [activeParent];
       });
-    });
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
   }, [pathname]);
 
   return (
@@ -55,7 +59,7 @@ export function Sidebar() {
 
       <aside
         className={cn(
-          "max-w-[290px] overflow-hidden border-r border-gray-200 bg-white transition-width duration-200 ease-linear dark:border-gray-800 dark:bg-gray-dark",
+          "max-w-[290px] overflow-hidden border-r border-slate-200 bg-white transition-width duration-200 ease-linear dark:border-dark-3 dark:bg-gray-dark",
           isMobile ? "fixed bottom-0 top-0 z-50" : "sticky top-0 h-screen",
           isOpen ? "w-full" : "w-0",
         )}
@@ -63,7 +67,7 @@ export function Sidebar() {
         aria-hidden={!isOpen}
         inert={!isOpen}
       >
-        <div className="flex h-full flex-col py-10 pl-[25px] pr-[7px]">
+        <div className="flex h-full flex-col py-8 pl-[19px] pr-[11px]">
           <div className="relative pr-4.5">
             <Link
               href={"/"}
@@ -86,10 +90,10 @@ export function Sidebar() {
           </div>
 
           {/* Navigation */}
-          <div className="custom-scrollbar mt-6 flex-1 overflow-y-auto pr-3 min-[850px]:mt-10">
+          <div className="custom-scrollbar mt-6 flex-1 overflow-y-auto pr-2 min-[850px]:mt-9">
             {NAV_DATA.map((section) => (
               <div key={section.label} className="mb-6">
-                <h2 className="mb-5 text-sm font-medium text-dark-4 dark:text-dark-6">
+                <h2 className="mb-3 px-3 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400 dark:text-dark-6">
                   {section.label}
                 </h2>
 
@@ -114,7 +118,7 @@ export function Sidebar() {
 
                               <ChevronUp
                                 className={cn(
-                                  "ml-auto rotate-180 transition-transform duration-200",
+                                  "ml-auto size-4 rotate-180 transition-transform duration-200",
                                   expandedItems.includes(item.title) &&
                                     "rotate-0",
                                 )}
@@ -124,7 +128,7 @@ export function Sidebar() {
 
                             {expandedItems.includes(item.title) && (
                               <ul
-                                className="ml-9 mr-0 space-y-1.5 pb-[15px] pr-0 pt-2"
+                                className="ml-4 mt-2 space-y-1 border-l border-slate-200 pb-2 pl-3 dark:border-dark-3"
                                 role="menu"
                               >
                                 {item.items.map((subItem) => (

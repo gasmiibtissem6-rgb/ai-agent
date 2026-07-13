@@ -15,6 +15,7 @@ type DropdownContextType = {
   isOpen: boolean;
   handleOpen: () => void;
   handleClose: () => void;
+  handleToggle: () => void;
 };
 
 const DropdownContext = createContext<DropdownContextType | null>(null);
@@ -64,8 +65,12 @@ export function Dropdown({ children, isOpen, setIsOpen }: DropdownProps) {
     setIsOpen(true);
   }
 
+  function handleToggle() {
+    setIsOpen((open) => !open);
+  }
+
   return (
-    <DropdownContext.Provider value={{ isOpen, handleOpen, handleClose }}>
+    <DropdownContext.Provider value={{ isOpen, handleOpen, handleClose, handleToggle }}>
       <div className="relative" onKeyDown={handleKeyDown}>
         {children}
       </div>
@@ -116,13 +121,14 @@ type DropdownTriggerProps = React.HTMLAttributes<HTMLButtonElement> & {
   children: React.ReactNode;
 };
 
-export function DropdownTrigger({ children, className }: DropdownTriggerProps) {
-  const { handleOpen, isOpen } = useDropdownContext();
+export function DropdownTrigger({ children, className, ...props }: DropdownTriggerProps) {
+  const { handleToggle, isOpen } = useDropdownContext();
 
   return (
     <button
+      {...props}
       className={className}
-      onClick={handleOpen}
+      onClick={handleToggle}
       aria-expanded={isOpen}
       aria-haspopup="menu"
       data-state={isOpen ? "open" : "closed"}

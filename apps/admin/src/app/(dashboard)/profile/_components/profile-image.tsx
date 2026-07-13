@@ -19,7 +19,11 @@ export function ProfileImageUploader({
   const [imageSrc, setImageSrc] = useState(initialImage);
 
   useEffect(() => {
-    setImageSrc(initialImage);
+    const timeout = window.setTimeout(() => {
+      setImageSrc(initialImage);
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
   }, [initialImage]);
 
   async function handleImageChange(e: ChangeEvent<HTMLInputElement>) {

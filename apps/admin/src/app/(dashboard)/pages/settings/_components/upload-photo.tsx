@@ -50,7 +50,11 @@ export function UploadPhotoForm({ initialImage }: UploadPhotoFormProps) {
   const [imageSrc, setImageSrc] = useState(initialImage);
 
   useEffect(() => {
-    setImageSrc(initialImage);
+    const timeout = window.setTimeout(() => {
+      setImageSrc(initialImage);
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
   }, [initialImage]);
 
   function resetInput() {

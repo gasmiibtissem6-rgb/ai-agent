@@ -11,14 +11,24 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { LogOutIcon, SettingsIcon, UserIcon } from "./icons";
-import { apiRequest } from "@/lib/api-client"; 
+import { apiRequest } from "@/lib/api-client";
 import { useRouter } from "next/navigation";
 
-// Define the User structure expected from your NestJS backend
 interface UserData {
   name: string;
   email: string;
   img?: string | null;
+}
+
+interface ProfileResponse {
+  data?: {
+    displayName?: string | null;
+    name?: string | null;
+    adminRole?: string | null;
+    email?: string;
+    avatarUrl?: string | null;
+    img?: string | null;
+  };
 }
 
 export function UserInfo() {
@@ -29,36 +39,47 @@ export function UserInfo() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Always attempt to load profile via cookie-based session; apiRequest includes credentials.
-    // Note: If you renamed this endpoint to /auth/me in your NestJS controller, change this path to match.
-    apiRequest<any>("/auth/profile")
-      .then((response) => {
-        if (!response) return;
-        const userData = response?.data || response; // Fallback handle if your interceptor unwraps the object cleanly
+    let cancelled = false;
 
-        if (userData) {
-          setUser({
-            name: userData.displayName || userData.name || userData.adminRole || "Admin", 
-            email: userData.email,
-            img: userData.avatarUrl || userData.img || null,
-          });
-        }
-      })
-      .catch((err) => {
-        console.error("Failed to load user info:", err);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+    const timeout = window.setTimeout(() => {
+      const token = localStorage.getItem("admin_token");
+      if (!token || token === "undefined" || token === "null") {
+        if (!cancelled) setLoading(false);
+        return;
+      }
+
+      apiRequest<ProfileResponse>("/auth/profile")
+        .then((response) => {
+          const userData = response?.data;
+
+          if (userData && !cancelled) {
+            setUser({
+              name:
+                userData.displayName ||
+                userData.name ||
+                userData.adminRole ||
+                "Admin",
+              email: userData.email || "admin@ideal.local",
+              img: userData.avatarUrl || userData.img || null,
+            });
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to load user info:", err);
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
   }, []);
 
-  const handleLogout = async () => {
-    try {
-      // 🚀 FIXED: Point to your exact NestJS secure admin logout route
-      await apiRequest('/auth/logout/admin', { method: 'POST' });
-    } catch (e) {
-      // ignore errors during logout
-    }
+  const handleLogout = () => {
+    localStorage.removeItem("admin_token");
     setIsOpen(false);
     router.replace('/login');
   };
@@ -87,8 +108,8 @@ export function UserInfo() {
           ) : (
             <UserAvatar />
           )}
-          <figcaption className="flex items-center gap-1 font-medium text-dark max-[1024px]:sr-only dark:text-dark-6">
-            <span className="max-w-24 truncate">{activeUser.name}</span>
+          <figcaption className="flex items-center gap-1 font-medium text-dark max-[1450px]:sr-only dark:text-dark-6">
+            <span className="max-w-32 truncate">{activeUser.name}</span>
 
             <ChevronUpIcon
               aria-hidden

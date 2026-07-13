@@ -91,17 +91,10 @@ export class KycController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({
-    summary:
-      'Resubmit KYC documents after a rejection or resubmission request.',
+    summary: 'Resubmit KYC documents after a rejection or resubmission request.',
   })
-  @ApiResponse({
-    status: 201,
-    description: 'Submission updated and re-queued.',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Current status does not allow resubmission.',
-  })
+  @ApiResponse({ status: 201, description: 'Submission updated and re-queued.' })
+  @ApiResponse({ status: 400, description: 'Current status does not allow resubmission.' })
   async resubmit(
     @CurrentUser('profileId') profileId: string,
     @Body() body: ResubmitKycDto,
@@ -120,17 +113,12 @@ export class KycController {
   @Post('initiate')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({
-    summary: 'Start a KYC verification submission for the caller.',
-  })
+  @ApiOperation({ summary: 'Start a KYC verification submission for the caller.' })
   async startVerification(
     @CurrentUser('profileId') profileId: string,
     @Body() body: InitiateKycDto,
   ) {
-    return this.kycService.initiateSubmission(
-      profileId,
-      body.providerReference,
-    );
+    return this.kycService.initiateSubmission(profileId, body.providerReference);
   }
 
   @Post('webhooks/provider')
@@ -187,10 +175,7 @@ export class KycAdminController {
       );
     }
 
-    if (
-      dto.status !== KycStatus.APPROVED &&
-      dto.status !== KycStatus.REJECTED
-    ) {
+    if (dto.status !== KycStatus.APPROVED && dto.status !==KycStatus.REJECTED) {
       throw new BadRequestException('Invalid target review status.');
     }
 

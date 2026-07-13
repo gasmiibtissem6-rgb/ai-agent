@@ -344,9 +344,7 @@ export class DealsAdminController {
     if (!status)
       throw new BadRequestException('Target status override state missing.');
     if (!reason?.trim())
-      throw new BadRequestException(
-        'An audit justification reason is required.',
-      );
+      throw new BadRequestException('An audit justification reason is required.');
 
     return this.dealsService.overrideDealStatus(id, status, reason);
   }

@@ -74,6 +74,12 @@ export const NAV_DATA = [
         items: [],
       },
       {
+        title: "Notifications",
+        url: "/notifications",
+        icon: Icons.Alphabet,
+        items: [],
+      },
+      {
         title: "Settings",
         icon: Icons.Alphabet,
         items: [

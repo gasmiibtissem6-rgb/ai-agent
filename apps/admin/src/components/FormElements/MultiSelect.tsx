@@ -16,8 +16,8 @@ const MultiSelect: React.FC<DropdownProps> = ({ id }) => {
   const [options, setOptions] = useState<Option[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
   const [show, setShow] = useState(false);
-  const dropdownRef = useRef<any>(null);
-  const trigger = useRef<any>(null);
+  const dropdownRef = useRef<HTMLDivElement | null>(null);
+  const trigger = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const loadOptions = () => {
@@ -82,10 +82,11 @@ const MultiSelect: React.FC<DropdownProps> = ({ id }) => {
   useEffect(() => {
     const clickHandler = ({ target }: MouseEvent) => {
       if (!dropdownRef.current) return;
+      if (!(target instanceof Node)) return;
       if (
         !show ||
         dropdownRef.current.contains(target) ||
-        trigger.current.contains(target)
+        trigger.current?.contains(target)
       )
         return;
       setShow(false);

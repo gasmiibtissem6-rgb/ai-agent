@@ -4,6 +4,7 @@ import { SearchIcon } from "@/assets/icons";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import idealLogo from "../../../../images/ideal-logo.png";
 import { useSidebarContext } from "../sidebar/sidebar-context";
 import { MenuIcon } from "./icons";
 import { Notification } from "./notification";
@@ -39,11 +40,11 @@ export function Header() {
       {isMobile && (
         <Link href={"/"} className="2xsm:ml-4 ml-2 max-[430px]:hidden">
           <Image
-            src={"/images/logo/logo-icon.svg"}
+            src={idealLogo}
             width={32}
             height={32}
-            alt=""
-            role="presentation"
+            alt="IDEAL"
+            className="rounded-lg"
           />
         </Link>
       )}
@@ -55,8 +56,8 @@ export function Header() {
         <p className="font-medium">IDEAL Administrative Control Center</p>
       </div>
 
-      <div className="2xsm:gap-4 flex flex-1 items-center justify-end gap-2">
-        <div className="relative w-full max-w-75">
+      <div className="2xsm:gap-4 flex min-w-0 flex-1 items-center justify-end gap-2">
+        <div className="relative hidden w-full max-w-75 lg:block">
           <input
             type="search"
             placeholder="Search"

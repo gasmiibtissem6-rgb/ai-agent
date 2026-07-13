@@ -1,5 +1,6 @@
 'use client';
 
+import { AdminPageHeader } from '@/components/Layouts/admin-page-header';
 import React, { useEffect, useState, useCallback } from 'react';
 import { getApiBaseUrl } from '@/lib/api-base';
 import { Button } from '@/components/ui-elements/button';
@@ -18,6 +19,10 @@ interface DisputeTicket {
   reviewedAt?: string;
 }
 
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 const API_BASE_URL = getApiBaseUrl(
   process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL,
 );
@@ -27,6 +32,8 @@ export default function DisputeCenterPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ACTIVE');
+  const [resourceFilter, setResourceFilter] = useState('ALL');
   const [selectedTicket, setSelectedTicket] = useState<DisputeTicket | null>(null);
   const [resolution, setResolution] = useState('');
   const [newStatus, setNewStatus] = useState<'RESOLVED' | 'DISMISSED' | 'UNDER_REVIEW'>('UNDER_REVIEW');
@@ -47,8 +54,8 @@ export default function DisputeCenterPage() {
       } else {
         setTickets([]);
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred loading dispute tickets.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'An error occurred loading dispute tickets.'));
     } finally {
       setLoading(false);
     }
@@ -65,8 +72,8 @@ export default function DisputeCenterPage() {
       setSelectedTicket(null);
       setResolution('');
       loadTickets(search);
-    } catch (err: any) {
-      setError(err.message || 'Failed to update ticket');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to update ticket'));
     }
   }, [selectedTicket, newStatus, resolution, search, loadTickets]);
 
@@ -78,8 +85,8 @@ export default function DisputeCenterPage() {
       );
 
       loadTickets(search);
-    } catch (err: any) {
-      setError(err.message || 'Failed to pause deal');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to pause deal'));
     }
   }, [search, loadTickets]);
 
@@ -91,8 +98,8 @@ export default function DisputeCenterPage() {
       );
 
       loadTickets(search);
-    } catch (err: any) {
-      setError(err.message || 'Failed to suspend user');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to suspend user'));
     }
   }, [search, loadTickets]);
 
@@ -119,23 +126,118 @@ export default function DisputeCenterPage() {
     }
   };
 
+  const openCount = tickets.filter((ticket) => ticket.status?.toUpperCase() === 'OPEN').length;
+  const reviewCount = tickets.filter(
+    (ticket) => ticket.status?.toUpperCase() === 'UNDER_REVIEW',
+  ).length;
+  const resolvedCount = tickets.filter(
+    (ticket) => ['RESOLVED', 'DISMISSED'].includes(ticket.status?.toUpperCase()),
+  ).length;
+  const actionLoad = openCount + reviewCount;
+  const resourceTypes = Array.from(new Set(tickets.map((ticket) => ticket.resourceType))).sort();
+  const filteredTickets = tickets.filter((ticket) => {
+    const normalizedStatus = ticket.status?.toUpperCase();
+    const matchesStatus =
+      statusFilter === 'ALL' ||
+      (statusFilter === 'ACTIVE' && !['RESOLVED', 'DISMISSED'].includes(normalizedStatus)) ||
+      normalizedStatus === statusFilter;
+    const matchesResource = resourceFilter === 'ALL' || ticket.resourceType === resourceFilter;
+
+    return matchesStatus && matchesResource;
+  });
+
   return (
-    <div className="rounded-sm border border-stroke bg-gray-1 px-5 pt-6 pb-2.5 shadow-default dark:border-strokedark dark:bg-boxdark sm:px-7.5 xl:pb-1">
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-7">
+      <AdminPageHeader
+        eyebrow="RISK RESPONSE"
+        title="Dispute Center"
+        description="Track fraud reports and contract disputes, review context quickly, and apply platform actions with clear operational priority."
+        panelLabel="Response Load"
+        panelValue={loading ? '...' : actionLoad}
+        panelNote="Needs handling"
+        panelSubtext={`${resolvedCount} ticket${resolvedCount === 1 ? '' : 's'} already resolved or dismissed in this view.`}
+        panelBarValue={tickets.length ? Math.min((actionLoad / tickets.length) * 100, 100) : 12}
+        metrics={[
+          {
+            label: 'Tickets',
+            value: loading ? '...' : tickets.length,
+            note: 'Loaded reports',
+            accent: 'from-slate-900 to-slate-700',
+          },
+          {
+            label: 'Open',
+            value: loading ? '...' : openCount,
+            note: 'New reports',
+            accent: 'from-rose-700 to-rose-500',
+          },
+          {
+            label: 'Review',
+            value: loading ? '...' : reviewCount,
+            note: 'Under investigation',
+            accent: 'from-amber-600 to-amber-500',
+          },
+          {
+            label: 'Closed',
+            value: loading ? '...' : resolvedCount,
+            note: 'Resolved or dismissed',
+            accent: 'from-emerald-600 to-teal-500',
+          },
+        ]}
+        tone="rose"
+        compact
+      />
+
+      <div className="rounded-[20px] border border-stroke bg-white px-5 pb-3 pt-6 shadow-card-2 dark:border-dark-3 dark:bg-dark-2 sm:px-7.5">
+      <div className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <h4 className="text-xl font-bold text-black dark:text-white">Platform Dispute Center</h4>
-          <p className="text-sm font-medium mt-1 text-gray-500">
+          <p className="mt-1 text-sm font-medium text-gray-500 dark:text-dark-6">
             Centralized ticketing area for fraud reports and contract disputes
           </p>
         </div>
-        <div>
+        <div className="grid gap-2 sm:grid-cols-2 xl:flex xl:items-center">
           <input
             type="text"
             placeholder="Search tickets..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full max-w-xs rounded-lg border border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary dark:border-strokedark dark:bg-meta-4 dark:text-white"
+            className="w-full max-w-xs rounded-xl border border-stroke bg-gray-1 px-4 py-2.5 text-black outline-none transition focus:border-primary dark:border-dark-3 dark:bg-dark dark:text-white"
           />
+          <select
+            value={statusFilter}
+            onChange={(event) => setStatusFilter(event.target.value)}
+            className="rounded-xl border border-stroke bg-gray-1 px-4 py-2.5 text-sm text-black outline-none transition focus:border-primary dark:border-dark-3 dark:bg-dark dark:text-white"
+          >
+            <option value="ACTIVE">Active tickets</option>
+            <option value="ALL">All statuses</option>
+            <option value="OPEN">Open</option>
+            <option value="UNDER_REVIEW">Under review</option>
+            <option value="RESOLVED">Resolved</option>
+            <option value="DISMISSED">Dismissed</option>
+          </select>
+          <select
+            value={resourceFilter}
+            onChange={(event) => setResourceFilter(event.target.value)}
+            className="rounded-xl border border-stroke bg-gray-1 px-4 py-2.5 text-sm text-black outline-none transition focus:border-primary dark:border-dark-3 dark:bg-dark dark:text-white"
+          >
+            <option value="ALL">All resources</option>
+            {resourceTypes.map((type) => (
+              <option key={type} value={type}>
+                {type}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => {
+              setSearch('');
+              setStatusFilter('ACTIVE');
+              setResourceFilter('ALL');
+            }}
+            className="rounded-xl border border-stroke px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-gray-100 dark:border-dark-3 dark:text-white dark:hover:bg-dark"
+          >
+            Reset
+          </button>
         </div>
       </div>
 
@@ -148,7 +250,7 @@ export default function DisputeCenterPage() {
       <div className="max-w-full overflow-x-auto">
         <table className="w-full table-auto">
           <thead>
-            <tr className="bg-gray-2 text-left dark:bg-meta-4">
+            <tr className="bg-gray-2 text-left dark:bg-dark">
               <th className="py-4 px-4 font-medium text-black dark:text-white pl-6">Ticket</th>
               <th className="py-4 px-4 font-medium text-black dark:text-white">Resource Type</th>
               <th className="py-4 px-4 font-medium text-black dark:text-white">Reporter</th>
@@ -163,20 +265,20 @@ export default function DisputeCenterPage() {
                   Loading dispute tickets...
                 </td>
               </tr>
-            ) : tickets.length === 0 ? (
+            ) : filteredTickets.length === 0 ? (
               <tr>
                 <td colSpan={5} className="py-10 text-center text-gray-500">
-                  No dispute tickets found
+                  No dispute tickets match the selected filters.
                 </td>
               </tr>
             ) : (
-              tickets.map((ticket) => (
-                <tr key={ticket.id} className="border-b border-[#eee] dark:border-strokedark">
+              filteredTickets.map((ticket) => (
+                <tr key={ticket.id} className="border-b border-stroke/80 dark:border-dark-3">
                   <td className="py-5 px-4 pl-6">
                     <h5 className="font-medium text-black dark:text-white">
                       Report #{ticket.id.slice(0, 8)}
                     </h5>
-                    <p className="text-sm text-gray-500 mt-1 line-clamp-2">
+                    <p className="mt-1 line-clamp-2 text-sm text-gray-500 dark:text-dark-6">
                       {ticket.reason}
                     </p>
                   </td>
@@ -226,14 +328,14 @@ export default function DisputeCenterPage() {
       </div>
 
       {selectedTicket && (
-        <div className="mt-8 border-t border-stroke pt-6">
-          <h5 className="text-lg font-bold text-black dark:text-white mb-4">
+        <div className="mt-8 border-t border-stroke pt-6 dark:border-dark-3">
+          <h5 className="mb-4 text-lg font-bold text-black dark:text-white">
             Reviewing Ticket #{selectedTicket.id.slice(0, 8)}
           </h5>
           <div className="space-y-4">
             <div>
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Reason</p>
-              <p className="text-gray-600 dark:text-gray-400 mt-1">{selectedTicket.reason}</p>
+              <p className="mt-1 text-gray-600 dark:text-dark-6">{selectedTicket.reason}</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -242,8 +344,12 @@ export default function DisputeCenterPage() {
                 </label>
                 <select
                   value={newStatus}
-                  onChange={(e) => setNewStatus(e.target.value as any)}
-                  className="w-full rounded-lg border border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                  onChange={(e) =>
+                    setNewStatus(
+                      e.target.value as 'RESOLVED' | 'DISMISSED' | 'UNDER_REVIEW',
+                    )
+                  }
+                  className="w-full rounded-lg border border-stroke bg-gray-1 px-4 py-2 text-black outline-none transition focus:border-primary dark:border-dark-3 dark:bg-dark dark:text-white"
                 >
                   <option value="UNDER_REVIEW">Under Review</option>
                   <option value="RESOLVED">Resolved</option>
@@ -258,7 +364,7 @@ export default function DisputeCenterPage() {
               <textarea
                 value={resolution}
                 onChange={(e) => setResolution(e.target.value)}
-                className="w-full rounded-lg border border-stroke bg-transparent px-4 py-2 text-black outline-none transition focus:border-primary dark:border-strokedark dark:bg-meta-4 dark:text-white"
+                className="w-full rounded-lg border border-stroke bg-gray-1 px-4 py-2 text-black outline-none transition focus:border-primary dark:border-dark-3 dark:bg-dark dark:text-white"
                 rows={4}
                 placeholder="Add resolution notes..."
               />
@@ -283,6 +389,7 @@ export default function DisputeCenterPage() {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }
