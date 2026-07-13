@@ -6,6 +6,7 @@ import '../domain/kyc_model.dart';
 import '../domain/kyc_provider.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/ideal_ui.dart';
 
@@ -49,7 +50,7 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
     if (_frontFile?.bytes == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Please upload the front of your document.'),
+          content: Text(context.l10n.tr('kyc.needFront')),
           backgroundColor: AppColors.error,
         ),
       );
@@ -58,7 +59,7 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
     if (_selfieFile?.bytes == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Please upload a selfie with your document.'),
+          content: Text(context.l10n.tr('kyc.needSelfie')),
           backgroundColor: AppColors.error,
         ),
       );
@@ -89,7 +90,7 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
       if (state?.isSuccess == true) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('KYC submitted! We will review it shortly.'),
+            content: Text(context.l10n.tr('kyc.submitted')),
             backgroundColor: AppColors.success,
           ),
         );
@@ -98,7 +99,9 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
       if (state?.hasError == true) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(state!.errorMessage ?? 'Upload failed.'),
+            content: Text(
+              state!.errorMessage ?? context.l10n.tr('kyc.uploadFailed'),
+            ),
             backgroundColor: AppColors.error,
           ),
         );
@@ -121,10 +124,10 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
                     icon: const Icon(Icons.arrow_back),
                   ),
                   const SizedBox(width: 8),
-                  const Expanded(
+                  Expanded(
                     child: SectionTitle(
-                      title: 'Upload Documents',
-                      subtitle: 'Submit identity files for secure review.',
+                      title: context.l10n.tr('kyc.uploadTitle'),
+                      subtitle: context.l10n.tr('kyc.uploadSubtitle'),
                     ),
                   ),
                 ],
@@ -136,7 +139,7 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Select document type',
+                      context.l10n.tr('kyc.selectType'),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -148,10 +151,10 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
                       children: KycDocumentType.values.map((type) {
                         final isSelected = type == _selectedType;
                         final label = type == KycDocumentType.nationalId
-                            ? 'National ID'
+                            ? context.l10n.tr('kycDoc.nationalId')
                             : type == KycDocumentType.passport
-                            ? 'Passport'
-                            : 'Driver License';
+                            ? context.l10n.tr('kycDoc.passport')
+                            : context.l10n.tr('kycDoc.driverLicense');
                         return Expanded(
                           child: GestureDetector(
                             onTap: () => setState(() => _selectedType = type),
@@ -187,7 +190,7 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
                     ),
                     const SizedBox(height: 32),
                     Text(
-                      'Upload documents',
+                      context.l10n.tr('kyc.uploadDocs'),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -196,24 +199,24 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
                     ),
                     const SizedBox(height: 12),
                     _FileUploadCard(
-                      label: 'Front of document',
-                      subtitle: 'Clear photo of the front side',
+                      label: context.l10n.tr('kyc.frontLabel'),
+                      subtitle: context.l10n.tr('kyc.frontSub'),
                       required: true,
                       file: _frontFile,
                       onTap: () => _pickFile('front'),
                     ),
                     const SizedBox(height: 12),
                     _FileUploadCard(
-                      label: 'Back of document',
-                      subtitle: 'Clear photo of the back side',
+                      label: context.l10n.tr('kyc.backLabel'),
+                      subtitle: context.l10n.tr('kyc.backSub'),
                       required: false,
                       file: _backFile,
                       onTap: () => _pickFile('back'),
                     ),
                     const SizedBox(height: 12),
                     _FileUploadCard(
-                      label: 'Selfie with document',
-                      subtitle: 'Hold your document next to your face',
+                      label: context.l10n.tr('kyc.selfieLabel'),
+                      subtitle: context.l10n.tr('kyc.selfieSub'),
                       required: true,
                       file: _selfieFile,
                       onTap: () => _pickFile('selfie'),
@@ -232,7 +235,7 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Security notice',
+                            context.l10n.tr('kyc.securityNotice'),
                             style: TextStyle(
                               fontWeight: FontWeight.w700,
                               color: AppColors.primary,
@@ -240,7 +243,7 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Your documents are encrypted and stored in a private secure bucket. Only authorized reviewers can access them.',
+                            context.l10n.tr('kyc.securityText'),
                             style: TextStyle(
                               fontSize: 13,
                               color: AppColors.textSecondary,
@@ -253,7 +256,8 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
                     const SizedBox(height: 32),
                     if (isUploading) ...[
                       Text(
-                        'Uploading... ${(progress * 100).toInt()}%',
+                        context.l10n.trp('kyc.uploading',
+                            {'percent': '${(progress * 100).toInt()}'}),
                         style: TextStyle(color: AppColors.textSecondary),
                       ),
                       const SizedBox(height: 8),
@@ -271,7 +275,7 @@ class _KycUploadScreenState extends ConsumerState<KycUploadScreen> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text('Submit for verification'),
+                          : Text(context.l10n.tr('kyc.submit')),
                     ),
                   ],
                 ),

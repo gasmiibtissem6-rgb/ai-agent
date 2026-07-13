@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../services/notification_service.dart';
 import '../../../shared/ideal_ui.dart';
 
@@ -74,10 +75,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const _PageTitle('Notifications'),
+                            _PageTitle(context.l10n.tr('nav.notifications')),
                             const SizedBox(height: 4),
                             Text(
-                              'You have ${unread.length} unread notifications',
+                              context.l10n.trp('notif.unread',
+                                  {'count': '${unread.length}'}),
                               style: TextStyle(
                                 color: AppColors.textSecondary,
                                 fontSize: 14,
@@ -88,7 +90,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         if (unread.isNotEmpty)
                           TextButton(
                             onPressed: _markAllRead,
-                            child: const Text('Mark all as read'),
+                            child: Text(context.l10n.tr('notif.markAll')),
                           ),
                       ],
                     ),
@@ -99,7 +101,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                       _EmptyNote()
                     else ...[
                       if (unread.isNotEmpty) ...[
-                        const _SectionLabel('UNREAD'),
+                        _SectionLabel(context.l10n.tr('notif.unreadLabel')),
                         const SizedBox(height: 10),
                         for (final item in unread) ...[
                           _NotificationCard(
@@ -112,7 +114,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         const SizedBox(height: 18),
                       ],
                       if (earlier.isNotEmpty) ...[
-                        const _SectionLabel('EARLIER'),
+                        _SectionLabel(context.l10n.tr('notif.earlierLabel')),
                         const SizedBox(height: 10),
                         for (final item in earlier) ...[
                           _NotificationCard(item: item),
@@ -184,7 +186,7 @@ class _NotificationCard extends StatelessWidget {
                   ],
                   const SizedBox(height: 6),
                   Text(
-                    _relativeTime(item.createdAt),
+                    _relativeTime(context, item.createdAt),
                     style: TextStyle(
                       fontSize: 11,
                       color: AppColors.textSecondary,
@@ -206,12 +208,17 @@ class _NotificationCard extends StatelessWidget {
   }
 }
 
-String _relativeTime(DateTime date) {
+String _relativeTime(BuildContext context, DateTime date) {
+  final l10n = context.l10n;
   final diff = DateTime.now().difference(date);
-  if (diff.inMinutes < 1) return 'Just now';
-  if (diff.inMinutes < 60) return '${diff.inMinutes} min ago';
-  if (diff.inHours < 24) return '${diff.inHours} h ago';
-  return '${diff.inDays} d ago';
+  if (diff.inMinutes < 1) return l10n.tr('time.justNow');
+  if (diff.inMinutes < 60) {
+    return l10n.trp('time.minAgo', {'n': '${diff.inMinutes}'});
+  }
+  if (diff.inHours < 24) {
+    return l10n.trp('time.hourAgo', {'n': '${diff.inHours}'});
+  }
+  return l10n.trp('time.dayAgo', {'n': '${diff.inDays}'});
 }
 
 class _EmptyNote extends StatelessWidget {
@@ -225,7 +232,7 @@ class _EmptyNote extends StatelessWidget {
               size: 48, color: AppColors.textSecondary),
           const SizedBox(height: 12),
           Text(
-            'No notifications yet',
+            context.l10n.tr('notif.empty'),
             style: TextStyle(color: AppColors.textSecondary),
           ),
         ],
@@ -247,7 +254,7 @@ class _ErrorNote extends StatelessWidget {
       child: Column(
         children: [
           Text(
-            'Could not load notifications.\n$error',
+            context.l10n.trp('notif.loadError', {'error': error}),
             textAlign: TextAlign.center,
             style: TextStyle(color: AppColors.textSecondary),
           ),
@@ -255,7 +262,7 @@ class _ErrorNote extends StatelessWidget {
           OutlinedButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh),
-            label: const Text('Retry'),
+            label: Text(context.l10n.tr('common.retry')),
           ),
         ],
       ),

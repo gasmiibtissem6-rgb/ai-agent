@@ -8,6 +8,7 @@ import '../domain/deal_provider.dart';
 import 'deal_status_ui.dart';
 import '../../template/domain/template_model.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/utils/validators.dart';
 import '../../../services/deal_service.dart';
@@ -160,7 +161,7 @@ class _CreateDealScreenState extends ConsumerState<CreateDealScreen> {
       if (!mounted) return;
       setState(() => _ocrText = text);
       if (text.isEmpty) {
-        _snack('No text was detected in that image.', AppColors.warning);
+        _snack(context.l10n.tr('cd.noTextDetected'), AppColors.warning);
       }
     } catch (e) {
       if (mounted) _snack('$e', AppColors.error);
@@ -267,7 +268,9 @@ class _CreateDealScreenState extends ConsumerState<CreateDealScreen> {
 
     if (_contentType != DealContentType.document && _attachment == null) {
       _snack(
-        'Attach a ${_contentType.label.toLowerCase()} first.',
+        context.l10n.trp('cd.attachFirst', {
+          'type': dealContentTypeLabel(context, _contentType).toLowerCase(),
+        }),
         AppColors.warning,
       );
       return;
@@ -309,7 +312,10 @@ class _CreateDealScreenState extends ConsumerState<CreateDealScreen> {
       await savePdfBytes(bytes, '${_fileSafe(title)}.pdf');
     } catch (e) {
       if (mounted) {
-        _snack('Deal created, but the document failed: $e', AppColors.warning);
+        _snack(
+          context.l10n.trp('cd.docFailed', {'error': '$e'}),
+          AppColors.warning,
+        );
       }
     }
   }
@@ -330,7 +336,7 @@ class _CreateDealScreenState extends ConsumerState<CreateDealScreen> {
       final state = next.whenOrNull(data: (s) => s);
       if (state?.hasError == true) {
         _snack(
-          state!.errorMessage ?? 'Failed to create deal.',
+          state!.errorMessage ?? context.l10n.tr('cd.createFailed'),
           AppColors.error,
         );
       }
@@ -356,11 +362,10 @@ class _CreateDealScreenState extends ConsumerState<CreateDealScreen> {
                           icon: const Icon(Icons.arrow_back),
                         ),
                         const SizedBox(width: 8),
-                        const Expanded(
+                        Expanded(
                           child: SectionTitle(
-                            title: 'Create New Deal',
-                            subtitle:
-                                'Set up a new agreement with participants',
+                            title: context.l10n.tr('cd.title'),
+                            subtitle: context.l10n.tr('cd.subtitle'),
                           ),
                         ),
                       ],
@@ -377,7 +382,7 @@ class _CreateDealScreenState extends ConsumerState<CreateDealScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const FieldLabel('Content Type *'),
+                            FieldLabel(context.l10n.tr('cd.contentType')),
                             _ContentTypePicker(
                               selected: _contentType,
                               onChanged: _selectContentType,
@@ -399,31 +404,34 @@ class _CreateDealScreenState extends ConsumerState<CreateDealScreen> {
                               ),
                             ],
                             const SizedBox(height: 20),
-                            const FieldLabel('Deal Title *'),
+                            FieldLabel(context.l10n.tr('cd.dealTitle')),
                             TextFormField(
                               controller: _titleController,
-                              decoration: const InputDecoration(
-                                hintText:
-                                    'e.g., Partnership Agreement with ABC Corp',
+                              decoration: InputDecoration(
+                                hintText: context.l10n.tr('cd.dealTitleHint'),
                               ),
-                              validator: (value) =>
-                                  Validators.required(value, field: 'Title'),
+                              validator: (value) => Validators.required(
+                                context,
+                                value,
+                                field: context.l10n.tr('field.title'),
+                              ),
                             ),
                             const SizedBox(height: 18),
-                            const FieldLabel('Description *'),
+                            FieldLabel(context.l10n.tr('cd.descLabel')),
                             TextFormField(
                               controller: _descriptionController,
                               maxLines: 4,
-                              decoration: const InputDecoration(
-                                hintText: 'Provide details about this deal...',
+                              decoration: InputDecoration(
+                                hintText: context.l10n.tr('cd.descHint'),
                               ),
                               validator: (value) => Validators.required(
+                                context,
                                 value,
-                                field: 'Description',
+                                field: context.l10n.tr('field.description'),
                               ),
                             ),
                             const SizedBox(height: 18),
-                            const FieldLabel('Category *'),
+                            FieldLabel(context.l10n.tr('cd.category')),
                             DropdownButtonFormField<String>(
                               initialValue: _category,
                               items: [
@@ -440,26 +448,26 @@ class _CreateDealScreenState extends ConsumerState<CreateDealScreen> {
                               },
                             ),
                             const SizedBox(height: 18),
-                            const FieldLabel('Creation Date'),
+                            FieldLabel(context.l10n.tr('cd.creationDate')),
                             TextFormField(
                               controller: _dateController,
                               readOnly: true,
                               onTap: _selectDate,
-                              decoration: const InputDecoration(
-                                hintText: 'Select date',
-                                suffixIcon: Icon(Icons.calendar_today),
+                              decoration: InputDecoration(
+                                hintText: context.l10n.tr('cd.selectDate'),
+                                suffixIcon: const Icon(Icons.calendar_today),
                               ),
                             ),
                             const SizedBox(height: 24),
                             const Divider(),
                             const SizedBox(height: 16),
                             _SubHeading(
-                              title: 'Participants',
+                              title: context.l10n.tr('cd.participants'),
                               count: _buildParties().length,
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Optional. Leave blank to invite people later.',
+                              context.l10n.tr('cd.participantsHelp'),
                               style: TextStyle(
                                 color: AppColors.textSecondary,
                                 fontSize: 12,
@@ -489,19 +497,19 @@ class _CreateDealScreenState extends ConsumerState<CreateDealScreen> {
                               child: TextButton.icon(
                                 onPressed: _addParticipant,
                                 icon: const Icon(Icons.add),
-                                label: const Text('Add Participant'),
+                                label: Text(context.l10n.tr('cd.addParticipant')),
                               ),
                             ),
                             const SizedBox(height: 20),
                             const Divider(),
                             const SizedBox(height: 16),
                             _SubHeading(
-                              title: 'Additional Sections',
+                              title: context.l10n.tr('cd.additionalSections'),
                               count: _sections.length,
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Add as many titled blocks as the agreement needs.',
+                              context.l10n.tr('cd.sectionsHelp'),
                               style: TextStyle(
                                 color: AppColors.textSecondary,
                                 fontSize: 12,
@@ -526,7 +534,7 @@ class _CreateDealScreenState extends ConsumerState<CreateDealScreen> {
                                 child: TextButton.icon(
                                   onPressed: _addSection,
                                   icon: const Icon(Icons.add),
-                                  label: const Text('Add section'),
+                                  label: Text(context.l10n.tr('cd.addSection')),
                                 ),
                               ),
                             const SizedBox(height: 20),
@@ -539,7 +547,7 @@ class _CreateDealScreenState extends ConsumerState<CreateDealScreen> {
                                     onPressed: busy
                                         ? null
                                         : () => context.go(AppRoutes.deals),
-                                    child: const Text('Cancel'),
+                                    child: Text(context.l10n.tr('common.cancel')),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -555,7 +563,7 @@ class _CreateDealScreenState extends ConsumerState<CreateDealScreen> {
                                               color: Colors.white,
                                             ),
                                           )
-                                        : const Text('Create Deal'),
+                                        : Text(context.l10n.tr('cd.createBtn')),
                                   ),
                                 ),
                               ],
@@ -645,7 +653,7 @@ class _ContentTypeTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    type.label,
+                    dealContentTypeLabel(context, type),
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 14,
@@ -654,7 +662,7 @@ class _ContentTypeTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    type.description,
+                    dealContentTypeDescription(context, type),
                     style: TextStyle(
                       fontSize: 12,
                       color: AppColors.textSecondary,
@@ -712,7 +720,10 @@ class _AttachmentPicker extends StatelessWidget {
               Expanded(
                 child: Text(
                   attachment?.name ??
-                      'No ${contentType.label.toLowerCase()} attached',
+                      context.l10n.trp('cd.noAttached', {
+                        'type': dealContentTypeLabel(context, contentType)
+                            .toLowerCase(),
+                      }),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -727,13 +738,17 @@ class _AttachmentPicker extends StatelessWidget {
               if (attachment != null && onClear != null)
                 IconButton(
                   onPressed: onClear,
-                  tooltip: 'Remove attachment',
+                  tooltip: context.l10n.tr('cd.removeAttachment'),
                   icon: Icon(Icons.delete_outline, color: AppColors.error),
                 ),
               TextButton.icon(
                 onPressed: onPick,
                 icon: const Icon(Icons.upload_file_outlined, size: 18),
-                label: Text(attachment == null ? 'Attach' : 'Replace'),
+                label: Text(
+                  attachment == null
+                      ? context.l10n.tr('cd.attach')
+                      : context.l10n.tr('cd.replace'),
+                ),
               ),
             ],
           ),
@@ -748,7 +763,7 @@ class _AttachmentPicker extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 Text(
-                  'Reading the document with OCR…',
+                  context.l10n.tr('cd.ocrReading'),
                   style: TextStyle(
                     fontSize: 12,
                     color: AppColors.textSecondary,
@@ -759,7 +774,7 @@ class _AttachmentPicker extends StatelessWidget {
           ] else if (ocrText.isNotEmpty) ...[
             const SizedBox(height: 10),
             Text(
-              'Extracted text',
+              context.l10n.tr('cd.extractedText'),
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
@@ -806,7 +821,7 @@ class _DocumentNotice extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'A PDF document with everything you entered is generated once the deal is created.',
+              context.l10n.tr('cd.pdfNotice'),
               style: TextStyle(
                 fontSize: 12,
                 height: 1.4,
@@ -872,7 +887,7 @@ class _TemplateBanner extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'Prefilled from template "$name"',
+              context.l10n.trp('cd.templateBanner', {'name': name}),
               style: TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 13,
@@ -909,14 +924,14 @@ class _ParticipantRow extends StatelessWidget {
           child: TextFormField(
             controller: emailController,
             keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(
-              hintText: 'participant@example.com',
+            decoration: InputDecoration(
+              hintText: context.l10n.tr('cd.participantHint'),
               isDense: true,
             ),
             // Participants are optional; only a non-empty value must be valid.
             validator: (value) => (value == null || value.trim().isEmpty)
                 ? null
-                : Validators.email(value),
+                : Validators.email(context, value),
           ),
         ),
         const SizedBox(width: 8),
@@ -938,7 +953,7 @@ class _ParticipantRow extends StatelessWidget {
           const SizedBox(width: 4),
           IconButton(
             onPressed: onRemove,
-            tooltip: 'Remove participant',
+            tooltip: context.l10n.tr('cd.removeParticipant'),
             icon: Icon(Icons.delete_outline, color: AppColors.error),
           ),
         ],
@@ -994,18 +1009,21 @@ class _DealSectionEditor extends StatelessWidget {
                 child: TextFormField(
                   controller: controllers.title,
                   textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    hintText: 'Section title, e.g., Payment Terms',
+                  decoration: InputDecoration(
+                    hintText: context.l10n.tr('tplForm.sectionTitleHint'),
                     isDense: true,
                   ),
-                  validator: (value) =>
-                      Validators.required(value, field: 'Section title'),
+                  validator: (value) => Validators.required(
+                    context,
+                    value,
+                    field: context.l10n.tr('field.sectionTitle'),
+                  ),
                 ),
               ),
               const SizedBox(width: 6),
               IconButton(
                 onPressed: onRemove,
-                tooltip: 'Remove section',
+                tooltip: context.l10n.tr('tplForm.removeSection'),
                 icon: Icon(Icons.delete_outline, color: AppColors.error),
               ),
             ],
@@ -1014,11 +1032,14 @@ class _DealSectionEditor extends StatelessWidget {
           TextFormField(
             controller: controllers.body,
             maxLines: 3,
-            decoration: const InputDecoration(
-              hintText: 'What this section should say...',
+            decoration: InputDecoration(
+              hintText: context.l10n.tr('tplForm.sectionBodyHint'),
             ),
-            validator: (value) =>
-                Validators.required(value, field: 'Section content'),
+            validator: (value) => Validators.required(
+              context,
+              value,
+              field: context.l10n.tr('field.sectionContent'),
+            ),
           ),
         ],
       ),
@@ -1049,7 +1070,7 @@ class _NoSectionsHint extends StatelessWidget {
             Icon(Icons.add_circle_outline, color: AppColors.primary, size: 26),
             const SizedBox(height: 8),
             Text(
-              'Add a section',
+              context.l10n.tr('cd.noSectionsAdd'),
               style: TextStyle(
                 color: AppColors.textPrimary,
                 fontWeight: FontWeight.w800,
@@ -1058,7 +1079,7 @@ class _NoSectionsHint extends StatelessWidget {
             ),
             const SizedBox(height: 3),
             Text(
-              'Payment terms, deliverables, exit clauses…',
+              context.l10n.tr('cd.noSectionsSub'),
               style: TextStyle(color: AppColors.textSecondary, fontSize: 11.5),
             ),
           ],

@@ -7,6 +7,7 @@ import '../domain/deal_provider.dart';
 import 'deal_status_ui.dart';
 import '../../template/presentation/templates_section.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/ideal_ui.dart';
 
@@ -24,7 +25,9 @@ class _DealsListScreenState extends ConsumerState<DealsListScreen> {
   String _activeFilter = 'all';
   _DealsTab _tab = _DealsTab.deals;
 
-  static const _filters = ['All', 'Draft', 'Bridged', 'Approved', 'Cancelled'];
+  // Internal filter keys (stable, drive the logic). Labels are localized at
+  // display time in [_FilterBar].
+  static const _filterKeys = ['all', 'draft', 'bridged', 'approved', 'cancelled'];
 
   @override
   void initState() {
@@ -42,7 +45,9 @@ class _DealsListScreenState extends ConsumerState<DealsListScreen> {
       body: IdealGradientBackground(
         child: dealAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Error: $e')),
+          error: (e, _) => Center(
+            child: Text(context.l10n.trp('deals.errorPrefix', {'message': '$e'})),
+          ),
           data: (state) {
             if (state.isLoading && !showingTemplates) {
               return const Center(child: CircularProgressIndicator());
@@ -86,14 +91,14 @@ class _DealsListScreenState extends ConsumerState<DealsListScreen> {
                                 TextField(
                                   onChanged: (value) =>
                                       setState(() => _searchTerm = value),
-                                  decoration: const InputDecoration(
-                                    hintText: 'Search deals...',
-                                    prefixIcon: Icon(Icons.search),
+                                  decoration: InputDecoration(
+                                    hintText: context.l10n.tr('deals.search'),
+                                    prefixIcon: const Icon(Icons.search),
                                   ),
                                 ),
                                 const SizedBox(height: 16),
                                 _FilterBar(
-                                  filters: _filters,
+                                  filters: _filterKeys,
                                   activeFilter: _activeFilter,
                                   onSelected: (filter) =>
                                       setState(() => _activeFilter = filter),
@@ -114,10 +119,9 @@ class _DealsListScreenState extends ConsumerState<DealsListScreen> {
                           hasScrollBody: false,
                           child: EmptyState(
                             icon: Icons.handshake_outlined,
-                            title: 'No deals yet',
-                            subtitle:
-                                'Create your first deal to start negotiating.',
-                            actionLabel: 'Create deal',
+                            title: context.l10n.tr('deals.emptyTitle'),
+                            subtitle: context.l10n.tr('deals.emptySubtitle'),
+                            actionLabel: context.l10n.tr('deals.emptyAction'),
                             onAction: () =>
                                 context.go(AppRoutes.dealCreateStart),
                           ),
@@ -127,7 +131,7 @@ class _DealsListScreenState extends ConsumerState<DealsListScreen> {
                           hasScrollBody: false,
                           child: Center(
                             child: Text(
-                              'No deals found',
+                              context.l10n.tr('deals.noneFound'),
                               style: TextStyle(
                                 fontSize: 16,
                                 color: AppColors.textSecondary,
@@ -194,7 +198,7 @@ class _DealsHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Text(
-          'Deals',
+          context.l10n.tr('deals.title'),
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 26,
@@ -205,7 +209,7 @@ class _DealsHeader extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          'Manage and track all your deals',
+          context.l10n.tr('deals.subtitle'),
           textAlign: TextAlign.center,
           style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
         ),
@@ -217,7 +221,7 @@ class _DealsHeader extends StatelessWidget {
             child: ElevatedButton.icon(
               onPressed: onCreate,
               icon: const Icon(Icons.add, size: 20),
-              label: const Text('Create Deal'),
+              label: Text(context.l10n.tr('deals.createButton')),
               style: ElevatedButton.styleFrom(
                 minimumSize: const Size(0, 52),
                 textStyle: const TextStyle(
@@ -253,14 +257,14 @@ class _TabSwitcher extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             _TabButton(
-              label: 'Deals',
+              label: context.l10n.tr('deals.tabDeals'),
               icon: Icons.handshake_outlined,
               selected: active == _DealsTab.deals,
               onTap: () => onChanged(_DealsTab.deals),
             ),
             const SizedBox(width: 4),
             _TabButton(
-              label: 'Templates',
+              label: context.l10n.tr('deals.tabTemplates'),
               icon: Icons.dashboard_customize_outlined,
               selected: active == _DealsTab.templates,
               onTap: () => onChanged(_DealsTab.templates),
@@ -341,9 +345,11 @@ class _FilterBar extends StatelessWidget {
         children: [
           for (final filter in filters) ...[
             _FilterButton(
-              label: filter,
-              selected: activeFilter == filter.toLowerCase(),
-              onTap: () => onSelected(filter.toLowerCase()),
+              label: context.l10n.tr(
+                'deals.filter${filter[0].toUpperCase()}${filter.substring(1)}',
+              ),
+              selected: activeFilter == filter,
+              onTap: () => onSelected(filter),
             ),
             const SizedBox(width: 8),
           ],
@@ -451,7 +457,7 @@ class _DealRow extends StatelessWidget {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          deal.contentType!.label,
+                          dealContentTypeLabel(context, deal.contentType!),
                           style: TextStyle(
                             fontSize: 12,
                             color: AppColors.textSecondary,
@@ -464,7 +470,10 @@ class _DealRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 16),
-            StatusPill(label: deal.statusLabel, color: statusColor),
+            StatusPill(
+              label: dealStatusLabel(context, deal.status),
+              color: statusColor,
+            ),
           ],
         ),
       ),

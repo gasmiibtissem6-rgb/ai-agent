@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../domain/auth_provider.dart';
 import '../domain/auth_state.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../shared/ideal_ui.dart';
@@ -48,9 +49,10 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
       data: (s) => s.hasError ? s.errorMessage : null,
     );
 
+    final l10n = context.l10n;
     return AuthShell(
-      title: 'New password',
-      subtitle: 'Choose a strong password for your account.',
+      title: l10n.tr('reset.title'),
+      subtitle: l10n.tr('reset.subtitle'),
       child: Form(
         key: _formKey,
         child: Column(
@@ -92,13 +94,13 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
               const SizedBox(height: 20),
             ],
 
-            _FieldLabel('New Password'),
+            _FieldLabel(l10n.tr('reset.newPassword')),
             TextFormField(
               controller: _passwordController,
               obscureText: _obscurePassword,
               textInputAction: TextInputAction.next,
               decoration: InputDecoration(
-                hintText: 'At least 8 characters',
+                hintText: l10n.tr('reset.newPasswordHint'),
                 prefixIcon: const Icon(Icons.lock_outline),
                 suffixIcon: IconButton(
                   icon: Icon(
@@ -111,21 +113,23 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                 ),
               ),
               validator: (v) {
-                if (v == null || v.isEmpty) return 'Password is required';
-                if (v.length < 8) return 'Must be at least 8 characters';
+                if (v == null || v.isEmpty) {
+                  return l10n.tr('validation.passwordRequired');
+                }
+                if (v.length < 8) return l10n.tr('validation.passwordShort');
                 return null;
               },
             ),
             const SizedBox(height: 16),
 
-            _FieldLabel('Confirm New Password'),
+            _FieldLabel(l10n.tr('reset.confirmNew')),
             TextFormField(
               controller: _confirmController,
               obscureText: _obscureConfirm,
               textInputAction: TextInputAction.done,
               onFieldSubmitted: (_) => _submit(),
               decoration: InputDecoration(
-                hintText: 'Re-enter your password',
+                hintText: l10n.tr('reset.confirmNewHint'),
                 prefixIcon: const Icon(Icons.lock_outline),
                 suffixIcon: IconButton(
                   icon: Icon(
@@ -138,8 +142,12 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                 ),
               ),
               validator: (v) {
-                if (v == null || v.isEmpty) return 'Please confirm your password';
-                if (v != _passwordController.text) return 'Passwords do not match';
+                if (v == null || v.isEmpty) {
+                  return l10n.tr('validation.confirmPassword');
+                }
+                if (v != _passwordController.text) {
+                  return l10n.tr('validation.passwordsNoMatch');
+                }
                 return null;
               },
             ),
@@ -149,7 +157,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
             Padding(
               padding: const EdgeInsets.only(bottom: 16),
               child: Text(
-                'Use a mix of letters, numbers, and symbols for a strong password.',
+                l10n.tr('reset.strengthHint'),
                 style: TextStyle(
                   fontSize: 12,
                   color: AppColors.textSecondary,
@@ -171,14 +179,14 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                           color: Colors.white,
                         ),
                       )
-                    : const Text('Update password'),
+                    : Text(l10n.tr('reset.update')),
               ),
             ),
             const SizedBox(height: 16),
             Center(
               child: TextButton(
                 onPressed: () => context.go(AppRoutes.login),
-                child: const Text('Back to sign in'),
+                child: Text(l10n.tr('auth.backToSignIn')),
               ),
             ),
           ],

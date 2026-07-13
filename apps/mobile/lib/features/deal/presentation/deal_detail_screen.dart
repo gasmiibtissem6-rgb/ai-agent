@@ -8,6 +8,7 @@ import 'ai_placeholder.dart';
 import 'deal_status_ui.dart';
 import '../../auth/domain/auth_provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/router/app_router.dart';
 import '../../../services/deal_service.dart';
 import '../../../services/document_service.dart';
@@ -44,7 +45,7 @@ class DealDetailScreen extends ConsumerWidget {
       if (state?.hasError == true) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(state!.errorMessage ?? 'Something went wrong.'),
+            content: Text(state!.errorMessage ?? context.l10n.tr('common.error')),
             backgroundColor: AppColors.error,
           ),
         );
@@ -83,18 +84,19 @@ class DealDetailScreen extends ConsumerWidget {
                           crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             StatusPill(
-                              label: current.statusLabel,
+                              label: dealStatusLabel(context, current.status),
                               color: dealStatusColor(current.status),
                             ),
                             if (current.contentType != null)
                               _InlineMeta(
                                 icon: dealContentTypeIcon(current.contentType!),
-                                label: current.contentType!.label,
+                                label: dealContentTypeLabel(
+                                    context, current.contentType!),
                               ),
                             if (current.isLocked)
                               _InlineMeta(
                                 icon: Icons.lock_outline,
-                                label: 'Locked official version',
+                                label: context.l10n.tr('dd.lockedOfficial'),
                                 color: AppColors.success,
                               ),
                           ],
@@ -119,10 +121,10 @@ class DealDetailScreen extends ConsumerWidget {
                       labelColor: AppColors.primary,
                       unselectedLabelColor: AppColors.textSecondary,
                       indicatorColor: AppColors.primary,
-                      tabs: const [
-                        Tab(text: 'Overview'),
-                        Tab(text: 'Versions'),
-                        Tab(text: 'Document'),
+                      tabs: [
+                        Tab(text: context.l10n.tr('dd.tabOverview')),
+                        Tab(text: context.l10n.tr('dd.tabVersions')),
+                        Tab(text: context.l10n.tr('dd.tabDocument')),
                       ],
                     ),
                     const Divider(height: 1),
@@ -189,7 +191,7 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
       final state = ref.read(dealProvider).whenOrNull(data: (s) => s);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(state?.errorMessage ?? 'Something went wrong.'),
+          content: Text(state?.errorMessage ?? context.l10n.tr('common.error')),
           backgroundColor: AppColors.error,
         ),
       );
@@ -240,17 +242,14 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
           child: ListView(
             controller: controller,
             padding: const EdgeInsets.all(20),
-            children: const [
+            children: [
               AiAssistantPanel(
-                title: 'Read this deal with AI',
-                description:
-                    'The assistant will summarise the deal and flag clauses '
-                    'you should pay attention to before deciding. This is a '
-                    'placeholder — no AI is running yet.',
+                title: context.l10n.tr('dd.readAiTitle'),
+                description: context.l10n.tr('dd.readAiDesc'),
                 bullets: [
-                  'Plain-language summary of each section.',
-                  'Highlights of risky or unusual clauses.',
-                  'Suggested questions to raise in the discussion.',
+                  context.l10n.tr('dd.readAiBullet1'),
+                  context.l10n.tr('dd.readAiBullet2'),
+                  context.l10n.tr('dd.readAiBullet3'),
                 ],
               ),
             ],
@@ -265,12 +264,12 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Deal document'),
+        title: Text(context.l10n.tr('dd.dealDocument')),
         content: SizedBox(
           width: double.maxFinite,
           child: SingleChildScrollView(
             child: Text(
-              document.isEmpty ? 'No document content.' : document,
+              document.isEmpty ? context.l10n.tr('dd.noDocContent') : document,
               style: TextStyle(color: AppColors.textPrimary, height: 1.5),
             ),
           ),
@@ -278,7 +277,7 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
+            child: Text(context.l10n.tr('common.close')),
           ),
         ],
       ),
@@ -290,22 +289,22 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Request changes'),
+        title: Text(context.l10n.tr('dd.requestChanges')),
         content: TextField(
           controller: controller,
           maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: 'What should change? (optional)',
+          decoration: InputDecoration(
+            labelText: context.l10n.tr('dd.whatChange'),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.tr('common.cancel')),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Send'),
+            child: Text(context.l10n.tr('dd.send')),
           ),
         ],
       ),
@@ -324,7 +323,7 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Propose a new version'),
+        title: Text(context.l10n.tr('dd.proposeTitle')),
         content: SizedBox(
           width: double.maxFinite,
           child: Column(
@@ -332,8 +331,8 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
             children: [
               TextField(
                 controller: summaryController,
-                decoration: const InputDecoration(
-                  labelText: 'What changed (summary)',
+                decoration: InputDecoration(
+                  labelText: context.l10n.tr('dd.whatChanged'),
                 ),
               ),
               const SizedBox(height: 12),
@@ -341,8 +340,8 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
                 controller: controller,
                 maxLines: 8,
                 minLines: 4,
-                decoration: const InputDecoration(
-                  labelText: 'Updated document',
+                decoration: InputDecoration(
+                  labelText: context.l10n.tr('dd.updatedDoc'),
                   alignLabelWithHint: true,
                 ),
               ),
@@ -352,11 +351,11 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.tr('common.cancel')),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Create version'),
+            child: Text(context.l10n.tr('dd.createVersion')),
           ),
         ],
       ),
@@ -381,7 +380,7 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
       ref.invalidate(dealVersionsProvider(deal.id));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('New version created.'),
+          content: Text(context.l10n.tr('dd.versionCreated')),
           backgroundColor: AppColors.success,
         ),
       );
@@ -414,7 +413,7 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
     if (!isCreator && myParty != null && myParty.isInvited) {
       children.addAll([
         Text(
-          'You have been invited to this deal. Read it, then accept or refuse.',
+          context.l10n.tr('dd.invitedBody'),
           style: TextStyle(color: AppColors.textSecondary, height: 1.5),
         ),
         const SizedBox(height: 14),
@@ -424,7 +423,7 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
               child: OutlinedButton.icon(
                 onPressed: _busy ? null : _readWithAi,
                 icon: const Icon(Icons.smart_toy_outlined),
-                label: const Text('Read with AI'),
+                label: Text(context.l10n.tr('dd.readAi')),
               ),
             ),
             const SizedBox(width: 10),
@@ -432,7 +431,7 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
               child: OutlinedButton.icon(
                 onPressed: _busy ? null : _readManually,
                 icon: const Icon(Icons.menu_book_outlined),
-                label: const Text('Read manually'),
+                label: Text(context.l10n.tr('dd.readManually')),
               ),
             ),
           ],
@@ -444,7 +443,7 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
               child: ElevatedButton.icon(
                 onPressed: _busy ? null : () => _accept(true),
                 icon: const Icon(Icons.check),
-                label: const Text('Accept'),
+                label: Text(context.l10n.tr('dd.accept')),
               ),
             ),
             const SizedBox(width: 10),
@@ -455,7 +454,7 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
                 ),
                 onPressed: _busy ? null : () => _accept(false),
                 icon: const Icon(Icons.close),
-                label: const Text('Refuse'),
+                label: Text(context.l10n.tr('dd.refuse')),
               ),
             ),
           ],
@@ -467,8 +466,7 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
     if (!isCreator && myParty != null && myParty.isAccepted) {
       children.add(
         Text(
-          'You accepted this deal. Discuss changes in the chat; the creator '
-          'turns the outcome into new versions.',
+          context.l10n.tr('dd.acceptedBody'),
           style: TextStyle(color: AppColors.textSecondary, height: 1.5),
         ),
       );
@@ -479,7 +477,7 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
           child: OutlinedButton.icon(
             onPressed: _openChat,
             icon: const Icon(Icons.forum_outlined),
-            label: const Text('Open discussion'),
+            label: Text(context.l10n.tr('dd.openDiscussion')),
           ),
         ),
       );
@@ -492,7 +490,7 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
                 child: ElevatedButton.icon(
                   onPressed: _busy ? null : () => _decide(version.id, true),
                   icon: const Icon(Icons.verified_outlined),
-                  label: const Text('Approve version'),
+                  label: Text(context.l10n.tr('dd.approveVersion')),
                 ),
               ),
               const SizedBox(width: 10),
@@ -500,7 +498,7 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
                 child: OutlinedButton.icon(
                   onPressed: _busy ? null : () => _rejectWithReason(version.id),
                   icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Request changes'),
+                  label: Text(context.l10n.tr('dd.requestChanges')),
                 ),
               ),
             ],
@@ -513,7 +511,7 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
     if (!isCreator && myParty != null && myParty.isDeclined) {
       children.add(
         Text(
-          'You refused this deal.',
+          context.l10n.tr('dd.refusedBody'),
           style: TextStyle(color: AppColors.textSecondary),
         ),
       );
@@ -524,8 +522,7 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
       if (!deal.hasAcceptedParty) {
         children.add(
           Text(
-            'Waiting for the other party to accept. Share the deal link/QR or '
-            'add them by username/email.',
+            context.l10n.tr('dd.waitingAccept'),
             style: TextStyle(color: AppColors.textSecondary, height: 1.5),
           ),
         );
@@ -536,15 +533,14 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
             child: OutlinedButton.icon(
               onPressed: () => context.go(AppRoutes.dealShare, extra: deal),
               icon: const Icon(Icons.ios_share_outlined),
-              label: const Text('Share / add party'),
+              label: Text(context.l10n.tr('dd.shareAddParty')),
             ),
           ),
         );
       } else {
         children.add(
           Text(
-            'A party has accepted. Discuss changes, submit a version for approval, '
-            'or propose a new version.',
+            context.l10n.tr('dd.partyAcceptedBody'),
             style: TextStyle(color: AppColors.textSecondary, height: 1.5),
           ),
         );
@@ -555,7 +551,7 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
             child: OutlinedButton.icon(
               onPressed: _openChat,
               icon: const Icon(Icons.forum_outlined),
-              label: const Text('Open discussion'),
+              label: Text(context.l10n.tr('dd.openDiscussion')),
             ),
           ),
         );
@@ -568,7 +564,8 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
                 onPressed: _busy ? null : () => _submit(version.id),
                 icon: const Icon(Icons.how_to_reg_outlined),
                 label: Text(
-                  'Submit V${version.versionNumber - 1} for approval',
+                  context.l10n.trp('dd.submitVersion',
+                      {'n': '${version.versionNumber - 1}'}),
                 ),
               ),
             ),
@@ -585,7 +582,7 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
             child: OutlinedButton.icon(
               onPressed: _busy ? null : _proposeNewVersion,
               icon: const Icon(Icons.add_box_outlined),
-              label: const Text('Propose new version'),
+              label: Text(context.l10n.tr('dd.proposeNewVersion')),
             ),
           ),
         );
@@ -595,7 +592,7 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
     if (children.isEmpty) {
       children.add(
         Text(
-          'No actions available for you on this deal right now.',
+          context.l10n.tr('dd.noActions'),
           style: TextStyle(color: AppColors.textSecondary),
         ),
       );
@@ -611,7 +608,7 @@ class _DealWorkflowCardState extends ConsumerState<_DealWorkflowCard> {
               Icon(Icons.route_outlined, size: 18, color: AppColors.primary),
               const SizedBox(width: 8),
               Text(
-                'Workflow',
+                context.l10n.tr('dd.workflow'),
                 style: TextStyle(
                   fontWeight: FontWeight.w900,
                   fontSize: 15,
@@ -654,7 +651,7 @@ class _InlinePendingNote extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Submitted — waiting for the other party to approve.',
+              context.l10n.tr('dd.pendingNote'),
               style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
             ),
           ),
@@ -672,18 +669,30 @@ class _InfoGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      _InfoItem('Status', deal.statusLabel, dealStatusIcon(deal.status)),
-      _InfoItem('Created', _formatDate(deal.createdAt), Icons.event_outlined),
       _InfoItem(
-        'Type',
-        deal.contentType?.label ?? 'Document',
+        context.l10n.tr('dd.infoStatus'),
+        dealStatusLabel(context, deal.status),
+        dealStatusIcon(deal.status),
+      ),
+      _InfoItem(
+        context.l10n.tr('dd.infoCreated'),
+        _formatDate(deal.createdAt),
+        Icons.event_outlined,
+      ),
+      _InfoItem(
+        context.l10n.tr('dd.infoType'),
+        deal.contentType == null
+            ? context.l10n.tr('dealType.document')
+            : dealContentTypeLabel(context, deal.contentType!),
         deal.contentType == null
             ? Icons.description_outlined
             : dealContentTypeIcon(deal.contentType!),
       ),
       _InfoItem(
-        'Lock',
-        deal.isLocked ? 'Final' : 'Open',
+        context.l10n.tr('dd.infoLock'),
+        deal.isLocked
+            ? context.l10n.tr('dd.final')
+            : context.l10n.tr('dd.open'),
         deal.isLocked ? Icons.lock_outline : Icons.lock_open_outlined,
       ),
     ];
@@ -757,7 +766,7 @@ class _OverviewTab extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Description',
+            context.l10n.tr('dd.description'),
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w900,
@@ -768,12 +777,12 @@ class _OverviewTab extends StatelessWidget {
           Text(
             deal.description?.isNotEmpty == true
                 ? deal.description!
-                : 'No description provided.',
+                : context.l10n.tr('dd.noDescription'),
             style: TextStyle(color: AppColors.textSecondary, height: 1.5),
           ),
           const SizedBox(height: 24),
           Text(
-            'Workflow',
+            context.l10n.tr('dd.workflow'),
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w900,
@@ -781,20 +790,20 @@ class _OverviewTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          const _WorkflowStep(
+          _WorkflowStep(
             icon: Icons.edit_note_outlined,
-            title: 'Draft',
-            subtitle: 'Terms remain editable while the deal is a draft.',
+            title: context.l10n.tr('dealStatus.draft'),
+            subtitle: context.l10n.tr('dd.stepDraftSub'),
           ),
-          const _WorkflowStep(
+          _WorkflowStep(
             icon: Icons.compare_arrows_outlined,
-            title: 'Bridged',
-            subtitle: 'The deal is in flight between the parties.',
+            title: context.l10n.tr('dealStatus.negotiation'),
+            subtitle: context.l10n.tr('dd.stepBridgedSub'),
           ),
-          const _WorkflowStep(
+          _WorkflowStep(
             icon: Icons.check_circle_outline,
-            title: 'Approved',
-            subtitle: 'All parties agree on the current version.',
+            title: context.l10n.tr('dealStatus.approved'),
+            subtitle: context.l10n.tr('dd.stepApprovedSub'),
           ),
         ],
       ),
@@ -811,12 +820,16 @@ class _VersionsTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return versionsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error loading versions: $e')),
+      error: (e, _) => Center(
+        child: Text(
+          context.l10n.trp('dd.versionsError', {'error': '$e'}),
+        ),
+      ),
       data: (versions) {
         if (versions.isEmpty) {
           return Center(
             child: Text(
-              'No versions yet.',
+              context.l10n.tr('dd.noVersions'),
               style: TextStyle(color: AppColors.textSecondary),
             ),
           );
@@ -870,7 +883,11 @@ class _DocumentTabState extends ConsumerState<_DocumentTab> {
   Widget build(BuildContext context) {
     return widget.versionsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error loading document: $e')),
+      error: (e, _) => Center(
+        child: Text(
+          context.l10n.trp('dd.documentError', {'error': '$e'}),
+        ),
+      ),
       data: (versions) {
         final document = versions.isEmpty ? '' : versions.first.document;
         if (document.isEmpty) {
@@ -878,7 +895,7 @@ class _DocumentTabState extends ConsumerState<_DocumentTab> {
             child: Padding(
               padding: const EdgeInsets.all(24),
               child: Text(
-                'This deal has no generated document.',
+                context.l10n.tr('dd.noGeneratedDoc'),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.textSecondary),
               ),
@@ -918,7 +935,11 @@ class _DocumentTabState extends ConsumerState<_DocumentTab> {
                           ),
                         )
                       : const Icon(Icons.download_outlined),
-                  label: Text(_isGenerating ? 'Generating…' : 'Download PDF'),
+                  label: Text(
+                    _isGenerating
+                        ? context.l10n.tr('dd.generating')
+                        : context.l10n.tr('dd.downloadPdf'),
+                  ),
                 ),
               ),
             ),
@@ -942,7 +963,7 @@ class _VersionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final preview = version.document.isEmpty
-        ? (version.summary ?? 'No content.')
+        ? (version.summary ?? context.l10n.tr('dd.noContent'))
         : version.document;
 
     return Container(
@@ -972,10 +993,13 @@ class _VersionCard extends StatelessWidget {
                 ),
               ),
               if (version.isFinal)
-                StatusPill(label: 'Locked', color: AppColors.success)
+                StatusPill(
+                  label: context.l10n.tr('dealStatus.locked'),
+                  color: AppColors.success,
+                )
               else
                 StatusPill(
-                  label: version.status.label,
+                  label: dealStatusLabel(context, version.status),
                   color: dealStatusColor(version.status),
                 ),
             ],

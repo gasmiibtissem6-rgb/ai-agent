@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/ideal_ui.dart';
 import '../domain/auth_provider.dart';
@@ -19,22 +20,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _logoController;
 
+  // Icon + (title key, description key) — labels resolved at build time.
   static const _features = [
-    (
-      Icons.shield_outlined,
-      'Secure Contract Management',
-      'Encrypt, verify, and co-sign legal agreements with complete assurance.',
-    ),
-    (
-      Icons.swap_horiz_outlined,
-      'Real-Time Collaboration',
-      'Instantly sync updates and co-author terms with partners on the fly.',
-    ),
-    (
-      Icons.edit_note_outlined,
-      'Built-in Negotiation Tools',
-      'Easily track document revisions, audits, and final consensus.',
-    ),
+    (Icons.shield_outlined, 'splash.feat1Title', 'splash.feat1Desc'),
+    (Icons.swap_horiz_outlined, 'splash.feat2Title', 'splash.feat2Desc'),
+    (Icons.edit_note_outlined, 'splash.feat3Title', 'splash.feat3Desc'),
   ];
 
   @override
@@ -102,7 +92,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                             FadeSlideIn(
                               delay: const Duration(milliseconds: 80),
                               child: Text(
-                                'Secure Deal Management',
+                                context.l10n.tr('splash.tagline'),
                                 style: TextStyle(
                                   color: AppColors.accent,
                                   fontSize: 13,
@@ -117,8 +107,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                                 delay: Duration(milliseconds: 140 + 90 * i),
                                 child: _FeatureItem(
                                   icon: _features[i].$1,
-                                  title: _features[i].$2,
-                                  description: _features[i].$3,
+                                  title: context.l10n.tr(_features[i].$2),
+                                  description: context.l10n.tr(_features[i].$3),
                                 ),
                               ),
                               if (i != _features.length - 1)
@@ -141,9 +131,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                               borderRadius: BorderRadius.circular(16),
                             ),
                           ),
-                          child: const Text(
-                            'Get Started',
-                            style: TextStyle(
+                          child: Text(
+                            context.l10n.tr('splash.getStarted'),
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w900,
                             ),
