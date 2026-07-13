@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../shared/ideal_ui.dart';
 
 /// Front-only placeholder for the (not-yet-integrated) AI assistant.
@@ -54,8 +55,8 @@ class AiAssistantPanel extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 2),
-                    const StatusPill(
-                      label: 'Coming soon',
+                    StatusPill(
+                      label: context.l10n.tr('aiPanel.comingSoon'),
                       color: AppColors.accent,
                     ),
                   ],
@@ -113,7 +114,7 @@ class AiAssistantPanel extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    'AI assistant will plug in here. No AI is running yet.',
+                    context.l10n.tr('aiPanel.placeholder'),
                     style: TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 12.5,

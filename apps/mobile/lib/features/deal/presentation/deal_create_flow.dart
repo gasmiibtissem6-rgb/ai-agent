@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../auth/domain/auth_provider.dart';
 import 'ai_placeholder.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/ideal_ui.dart';
 
@@ -43,10 +44,10 @@ class DealCreateStartScreen extends ConsumerWidget {
                           icon: const Icon(Icons.arrow_back),
                         ),
                         const SizedBox(width: 8),
-                        const Expanded(
+                        Expanded(
                           child: SectionTitle(
-                            title: 'New Deal',
-                            subtitle: 'Start a new agreement',
+                            title: context.l10n.tr('dcs.title'),
+                            subtitle: context.l10n.tr('dcs.subtitle'),
                           ),
                         ),
                       ],
@@ -58,11 +59,12 @@ class DealCreateStartScreen extends ConsumerWidget {
                       )
                     else ...[
                       _NewDealMeta(
-                        ownerName: profile?.displayNameOrEmail ?? 'You',
+                        ownerName: profile?.displayNameOrEmail ??
+                            context.l10n.tr('dcs.ownerYou'),
                       ),
                       const SizedBox(height: 20),
                       Text(
-                        'How do you want to build it?',
+                        context.l10n.tr('dcs.howBuild'),
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w900,
@@ -72,18 +74,16 @@ class DealCreateStartScreen extends ConsumerWidget {
                       const SizedBox(height: 12),
                       _ModeCard(
                         icon: Icons.edit_note_outlined,
-                        title: 'Manual editing',
-                        subtitle:
-                            'Fill in the form with sections you can add yourself.',
+                        title: context.l10n.tr('dcs.manual'),
+                        subtitle: context.l10n.tr('dcs.manualSub'),
                         primary: true,
                         onTap: () => context.go(AppRoutes.createDeal),
                       ),
                       const SizedBox(height: 12),
                       _ModeCard(
                         icon: Icons.smart_toy_outlined,
-                        title: 'AI assistant',
-                        subtitle:
-                            'Let the assistant draft the deal for you (coming soon).',
+                        title: context.l10n.tr('dcs.ai'),
+                        subtitle: context.l10n.tr('dcs.aiSub'),
                         onTap: () => context.go(AppRoutes.dealAiAssistant),
                       ),
                     ],
@@ -124,7 +124,7 @@ class _KycRequiredCard extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Identity verification required',
+                  context.l10n.tr('dcs.kycRequired'),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w900,
@@ -136,8 +136,7 @@ class _KycRequiredCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'You must complete your KYC before you can create a deal. '
-            'Verify your identity, then come back to start a new deal.',
+            context.l10n.tr('dcs.kycBody'),
             style: TextStyle(color: AppColors.textSecondary, height: 1.5),
           ),
           const SizedBox(height: 18),
@@ -146,7 +145,7 @@ class _KycRequiredCard extends StatelessWidget {
             child: ElevatedButton.icon(
               onPressed: onStartKyc,
               icon: const Icon(Icons.badge_outlined),
-              label: const Text('Complete KYC'),
+              label: Text(context.l10n.tr('dcs.completeKyc')),
             ),
           ),
         ],
@@ -168,13 +167,13 @@ class _NewDealMeta extends StatelessWidget {
         children: [
           _MetaRow(
             icon: Icons.tag,
-            label: 'Reference',
-            value: 'Generated automatically on creation',
+            label: context.l10n.tr('dcs.reference'),
+            value: context.l10n.tr('dcs.referenceValue'),
           ),
           const SizedBox(height: 12),
           _MetaRow(
             icon: Icons.person_outline,
-            label: 'Owner',
+            label: context.l10n.tr('dcs.owner'),
             value: ownerName,
           ),
         ],
@@ -316,25 +315,22 @@ class AiDealAssistantScreen extends StatelessWidget {
                           icon: const Icon(Icons.arrow_back),
                         ),
                         const SizedBox(width: 8),
-                        const Expanded(
+                        Expanded(
                           child: SectionTitle(
-                            title: 'AI assistant',
-                            subtitle: 'Draft your deal with help (placeholder)',
+                            title: context.l10n.tr('aia.title'),
+                            subtitle: context.l10n.tr('aia.subtitle'),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 20),
-                    const AiAssistantPanel(
-                      title: 'Draft a deal with AI',
-                      description:
-                          'The assistant will interview you and generate a first '
-                          'draft of the deal, including suggested sections and '
-                          'clauses. This is a placeholder — nothing is generated yet.',
+                    AiAssistantPanel(
+                      title: context.l10n.tr('aia.panelTitle'),
+                      description: context.l10n.tr('aia.panelDesc'),
                       bullets: [
-                        'Describe the deal in plain language.',
-                        'Get a structured draft with sections.',
-                        'Review and edit before creating.',
+                        context.l10n.tr('aia.bullet1'),
+                        context.l10n.tr('aia.bullet2'),
+                        context.l10n.tr('aia.bullet3'),
                       ],
                     ),
                     const SizedBox(height: 20),
@@ -343,7 +339,7 @@ class AiDealAssistantScreen extends StatelessWidget {
                       child: OutlinedButton.icon(
                         onPressed: () => context.go(AppRoutes.createDeal),
                         icon: const Icon(Icons.edit_note_outlined),
-                        label: const Text('Switch to manual editing'),
+                        label: Text(context.l10n.tr('aia.switchManual')),
                       ),
                     ),
                   ],

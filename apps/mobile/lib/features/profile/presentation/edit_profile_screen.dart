@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/utils/validators.dart';
 import '../../../shared/ideal_ui.dart';
@@ -68,7 +69,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Profile updated.'),
+        content: Text(context.l10n.tr('profile.updated')),
         backgroundColor: AppColors.success,
       ),
     );
@@ -99,10 +100,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                           icon: const Icon(Icons.arrow_back),
                         ),
                         const SizedBox(width: 8),
-                        const Expanded(
+                        Expanded(
                           child: SectionTitle(
-                            title: 'Edit Profile',
-                            subtitle: 'Update how you appear across IDEAL.',
+                            title: context.l10n.tr('profile.title'),
+                            subtitle: context.l10n.tr('profile.subtitle'),
                           ),
                         ),
                       ],
@@ -123,58 +124,60 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                               ),
                             ),
                             const SizedBox(height: 24),
-                            const FieldLabel('Display Name *'),
+                            FieldLabel(context.l10n.tr('profile.displayName')),
                             TextFormField(
                               controller: _displayNameController,
                               textInputAction: TextInputAction.next,
-                              decoration: const InputDecoration(
-                                hintText: 'e.g., Imen Ben Ouaghrem',
-                                prefixIcon: Icon(Icons.person_outline),
+                              decoration: InputDecoration(
+                                hintText:
+                                    context.l10n.tr('profile.displayNameHint'),
+                                prefixIcon: const Icon(Icons.person_outline),
                               ),
-                              validator: Validators.fullName,
+                              validator: (v) => Validators.fullName(context, v),
                             ),
                             const SizedBox(height: 18),
-                            const FieldLabel('Username'),
+                            FieldLabel(context.l10n.tr('profile.username')),
                             TextFormField(
                               controller: _usernameController,
                               textInputAction: TextInputAction.next,
-                              decoration: const InputDecoration(
-                                hintText: 'e.g., imen_bo',
-                                prefixIcon: Icon(Icons.alternate_email),
+                              decoration: InputDecoration(
+                                hintText: context.l10n.tr('profile.usernameHint'),
+                                prefixIcon: const Icon(Icons.alternate_email),
                                 helperText:
-                                    'Others can find you by this handle or your QR.',
+                                    context.l10n.tr('profile.usernameHelper'),
                               ),
                               validator: _validateUsername,
                             ),
                             const SizedBox(height: 18),
-                            const FieldLabel('Avatar URL'),
+                            FieldLabel(context.l10n.tr('profile.avatarUrl')),
                             TextFormField(
                               controller: _avatarUrlController,
                               keyboardType: TextInputType.url,
                               onChanged: (_) => setState(() {}),
-                              decoration: const InputDecoration(
-                                hintText: 'https://example.com/avatar.png',
-                                prefixIcon: Icon(Icons.image_outlined),
+                              decoration: InputDecoration(
+                                hintText: context.l10n.tr('profile.avatarHint'),
+                                prefixIcon: const Icon(Icons.image_outlined),
                               ),
                               validator: _validateAvatarUrl,
                             ),
                             const SizedBox(height: 18),
-                            const FieldLabel('Email'),
+                            FieldLabel(context.l10n.tr('profile.email')),
                             TextFormField(
                               initialValue: profile?.email ?? '',
                               readOnly: true,
                               enabled: false,
-                              decoration: const InputDecoration(
-                                prefixIcon: Icon(Icons.alternate_email),
+                              decoration: InputDecoration(
+                                prefixIcon: const Icon(Icons.alternate_email),
                                 helperText:
-                                    'Your email is your sign-in identity and cannot be changed here.',
+                                    context.l10n.tr('profile.emailHelper'),
                               ),
                             ),
                             const SizedBox(height: 18),
                             _ReadOnlyRow(
                               icon: Icons.verified_user_outlined,
-                              label: 'Identity verification',
-                              value: _kycLabel(profile?.kycStatus),
+                              label: context.l10n
+                                  .tr('profile.identityVerification'),
+                              value: _kycLabel(context, profile?.kycStatus),
                             ),
                             const SizedBox(height: 26),
                             Row(
@@ -184,7 +187,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                                     onPressed: _isSaving
                                         ? null
                                         : () => context.go(AppRoutes.home),
-                                    child: const Text('Cancel'),
+                                    child: Text(context.l10n.tr('common.cancel')),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -200,7 +203,8 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                                               color: Colors.white,
                                             ),
                                           )
-                                        : const Text('Save changes'),
+                                        : Text(context.l10n
+                                            .tr('profile.saveChanges')),
                                   ),
                                 ),
                               ],
@@ -224,10 +228,10 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     final username = value?.trim() ?? '';
     if (username.isEmpty) return null;
     if (username.length < 3 || username.length > 30) {
-      return 'Username must be 3-30 characters.';
+      return context.l10n.tr('validation.usernameLength');
     }
     if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(username)) {
-      return 'Only letters, digits and underscores are allowed.';
+      return context.l10n.tr('validation.usernameChars');
     }
     return null;
   }
@@ -238,23 +242,23 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
     if (url.isEmpty) return null;
     final uri = Uri.tryParse(url);
     if (uri == null || !uri.hasScheme || !uri.isAbsolute) {
-      return 'Enter a full URL, including https://';
+      return context.l10n.tr('validation.urlFull');
     }
     if (uri.scheme != 'http' && uri.scheme != 'https') {
-      return 'Only http and https URLs are allowed.';
+      return context.l10n.tr('validation.urlScheme');
     }
     return null;
   }
 }
 
-String _kycLabel(String? status) => switch (status) {
-  'APPROVED' => 'Approved',
-  'SUBMITTED' => 'Submitted',
-  'UNDER_REVIEW' => 'Under review',
-  'REJECTED' => 'Rejected',
-  'RESUBMISSION_REQUIRED' => 'Resubmission required',
-  'REVOKED' => 'Revoked',
-  _ => 'Not started',
+String _kycLabel(BuildContext context, String? status) => switch (status) {
+  'APPROVED' => context.l10n.tr('kycProfile.approved'),
+  'SUBMITTED' => context.l10n.tr('kycProfile.submitted'),
+  'UNDER_REVIEW' => context.l10n.tr('kycProfile.underReview'),
+  'REJECTED' => context.l10n.tr('kycProfile.rejected'),
+  'RESUBMISSION_REQUIRED' => context.l10n.tr('kycProfile.resubmission'),
+  'REVOKED' => context.l10n.tr('kycProfile.revoked'),
+  _ => context.l10n.tr('kycProfile.notStarted'),
 };
 
 class _AvatarPreview extends StatelessWidget {

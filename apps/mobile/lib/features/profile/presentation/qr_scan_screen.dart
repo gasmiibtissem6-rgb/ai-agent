@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/l10n/app_localizations.dart';
 
 /// Full-screen camera QR scanner. Pops with the first decoded string value
 /// (e.g. `ideal://profile/<handle>` or a deal invite URL), or `null` if the
@@ -47,7 +48,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
         title: Text(widget.title),
         actions: [
           IconButton(
-            tooltip: 'Toggle torch',
+            tooltip: context.l10n.tr('qr.torch'),
             icon: const Icon(Icons.flash_on_outlined),
             onPressed: () => _controller.toggleTorch(),
           ),
@@ -71,7 +72,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
             left: 24,
             right: 24,
             child: Text(
-              'Point the camera at a profile or deal QR code.',
+              context.l10n.tr('qr.hint'),
               textAlign: TextAlign.center,
               style: const TextStyle(color: Colors.white, fontSize: 14),
             ),

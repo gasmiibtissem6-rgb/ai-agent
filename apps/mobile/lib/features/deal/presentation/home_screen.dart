@@ -9,6 +9,7 @@ import '../domain/deal_model.dart';
 import '../domain/deal_provider.dart';
 import 'deal_status_ui.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/theme/theme_provider.dart';
 import '../../../core/theme/theme_toggle_button.dart';
@@ -32,14 +33,16 @@ class HomeScreen extends ConsumerWidget {
         .watch(dealProvider)
         .whenOrNull(data: (state) => state);
     final deals = dealState?.deals ?? const <Deal>[];
-    final displayName = authState?.profile?.displayNameOrEmail ?? 'there';
+    final l10n = context.l10n;
+    final displayName =
+        authState?.profile?.displayNameOrEmail ?? l10n.tr('home.there');
 
     return IdealAppScaffold(
       activeRoute: 'home',
       actions: [
         IconButton(
           icon: const Icon(Icons.logout_outlined),
-          tooltip: 'Sign out',
+          tooltip: l10n.tr('home.signOut'),
           onPressed: () async {
             await ref.read(authProvider.notifier).signOut();
           },
@@ -47,7 +50,7 @@ class HomeScreen extends ConsumerWidget {
         // Profile now lives here (top-right), replacing the old "Delete account".
         IconButton(
           icon: const Icon(Icons.person_outline),
-          tooltip: 'Profile',
+          tooltip: l10n.tr('home.profile'),
           onPressed: () => context.go(AppRoutes.editProfile),
         ),
         // Theme toggle sits in the top-right corner of the Home page header.
@@ -66,9 +69,8 @@ class HomeScreen extends ConsumerWidget {
                 children: [
                   FadeSlideIn(
                     child: SectionTitle(
-                      title: 'Welcome back, $displayName',
-                      subtitle:
-                          "Here's what's happening with your deals today.",
+                      title: l10n.trp('home.welcome', {'name': displayName}),
+                      subtitle: l10n.tr('home.welcomeSub'),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -102,7 +104,7 @@ class HomeScreen extends ConsumerWidget {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Recent Deals',
+                        l10n.tr('home.recentDeals'),
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w800,
@@ -111,7 +113,7 @@ class HomeScreen extends ConsumerWidget {
                       ),
                       TextButton(
                         onPressed: () => context.go(AppRoutes.deals),
-                        child: const Text('View All'),
+                        child: Text(l10n.tr('home.viewAll')),
                       ),
                     ],
                   ),
@@ -135,7 +137,7 @@ class HomeScreen extends ConsumerWidget {
                           const SizedBox(width: 14),
                           Expanded(
                             child: Text(
-                              'Create your first deal to start tracking agreements.',
+                              l10n.tr('home.emptyRecent'),
                               style: TextStyle(color: AppColors.textSecondary),
                             ),
                           ),
@@ -166,7 +168,7 @@ class HomeScreen extends ConsumerWidget {
 
   void _comingSoon(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('This feature is still being built.')),
+      SnackBar(content: Text(context.l10n.tr('common.comingSoon'))),
     );
   }
 }
@@ -202,7 +204,7 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
   Future<void> _scanProfile() async {
     final payload = await Navigator.of(context).push<String>(
       MaterialPageRoute(
-        builder: (_) => const QrScanScreen(title: 'Scan a profile'),
+        builder: (_) => QrScanScreen(title: context.l10n.tr('home.scanProfileTitle')),
       ),
     );
     if (payload == null || !mounted) return;
@@ -210,7 +212,7 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
     final query = _extractProfileQuery(payload);
     if (query == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('That QR code is not an IDEAL profile.')),
+        SnackBar(content: Text(context.l10n.tr('home.notIdealQr'))),
       );
       return;
     }
@@ -252,12 +254,12 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
               ),
               const SizedBox(height: 12),
               Text(
-                'Profile not found',
+                context.l10n.tr('home.profileNotFound'),
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 6),
               Text(
-                'This profile is private or does not exist.',
+                context.l10n.tr('home.profilePrivate'),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.textSecondary),
               ),
@@ -275,7 +277,9 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
               ),
               const SizedBox(height: 4),
               Text(
-                profile.isKycVerified ? 'Verified account' : 'Not verified yet',
+                profile.isKycVerified
+                    ? context.l10n.tr('home.verifiedAccount')
+                    : context.l10n.tr('home.notVerifiedYet'),
                 style: TextStyle(
                   color: profile.isKycVerified
                       ? AppColors.success
@@ -289,7 +293,7 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Close'),
+                child: Text(context.l10n.tr('common.close')),
               ),
             ),
           ],
@@ -347,8 +351,8 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
                     const SizedBox(height: 6),
                     StatusPill(
                       label: profile.isKycVerified
-                          ? 'Verified (KYC)'
-                          : 'Not verified',
+                          ? context.l10n.tr('home.kycVerified')
+                          : context.l10n.tr('home.notVerified'),
                       color: profile.isKycVerified
                           ? AppColors.success
                           : AppColors.warning,
@@ -376,7 +380,9 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      profile.isPublic ? 'Public profile' : 'Private profile',
+                      profile.isPublic
+                          ? context.l10n.tr('home.publicProfile')
+                          : context.l10n.tr('home.privateProfile'),
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
                         color: AppColors.textPrimary,
@@ -384,8 +390,8 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
                     ),
                     Text(
                       profile.isPublic
-                          ? 'Others can find you by scanning your QR.'
-                          : 'Only you can see this profile.',
+                          ? context.l10n.tr('home.publicSub')
+                          : context.l10n.tr('home.privateSub'),
                       style: TextStyle(
                         fontSize: 12,
                         color: AppColors.textSecondary,
@@ -409,7 +415,7 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
             child: QrDisplay(
               data: profile.qrPayload,
               size: 160,
-              caption: 'Your profile QR — let others scan it',
+              caption: context.l10n.tr('home.qrCaption'),
             ),
           ),
           const SizedBox(height: 16),
@@ -418,7 +424,7 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
             child: OutlinedButton.icon(
               onPressed: _busy ? null : _scanProfile,
               icon: const Icon(Icons.qr_code_scanner_outlined),
-              label: const Text('Scan another profile'),
+              label: Text(context.l10n.tr('home.scanAnother')),
             ),
           ),
         ],
@@ -488,21 +494,22 @@ class _StatsGrid extends StatelessWidget {
         .where((deal) => !closedStatuses.contains(deal.status))
         .length;
 
+    final l10n = context.l10n;
     final items = [
       _StatItem(
-        'Successful Deals',
+        l10n.tr('home.statSuccessful'),
         successfulDeals.toString(),
         Icons.check_circle_outline,
         [const Color(0xFF34D399), AppColors.success],
       ),
       _StatItem(
-        'Bridged Deals',
+        l10n.tr('home.statBridged'),
         bridgedDeals.toString(),
         Icons.compare_arrows_outlined,
         const [Color(0xFF38BDF8), AppColors.accent],
       ),
       _StatItem(
-        'Active Deals',
+        l10n.tr('home.statActive'),
         activeDeals.toString(),
         Icons.insights_outlined,
         [AppColors.accent, AppColors.primary],
@@ -598,16 +605,17 @@ class _QuickActions extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final stack = constraints.maxWidth < 560;
+        final l10n = context.l10n;
         final createPanel = _ActionPanel(
-          title: 'Create Deal',
-          subtitle: 'Start a new agreement',
+          title: l10n.tr('home.createDeal'),
+          subtitle: l10n.tr('home.createDealSub'),
           icon: Icons.add_circle_outline,
           onTap: onCreate,
           primary: true,
         );
         final dealsPanel = _ActionPanel(
-          title: 'View Deals',
-          subtitle: 'Track active work',
+          title: l10n.tr('home.viewDeals'),
+          subtitle: l10n.tr('home.viewDealsSub'),
           icon: Icons.business_center_outlined,
           onTap: onDeals,
         );
@@ -712,11 +720,24 @@ class _ActionGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final actions = [
-      _MiniAction('Identity', Icons.verified_user_outlined, onIdentity),
-      _MiniAction('Deals', Icons.handshake_outlined, onDeals),
-      _MiniAction('Documents', Icons.description_outlined, onDocuments),
-      _MiniAction('Approvals', Icons.task_alt_outlined, onApprovals),
+      _MiniAction(
+        l10n.tr('home.miniIdentity'),
+        Icons.verified_user_outlined,
+        onIdentity,
+      ),
+      _MiniAction(l10n.tr('nav.deals'), Icons.handshake_outlined, onDeals),
+      _MiniAction(
+        l10n.tr('nav.documents'),
+        Icons.description_outlined,
+        onDocuments,
+      ),
+      _MiniAction(
+        l10n.tr('home.miniApprovals'),
+        Icons.task_alt_outlined,
+        onApprovals,
+      ),
     ];
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -804,7 +825,7 @@ class _RecentDealTile extends StatelessWidget {
                 ],
               ),
             ),
-            StatusPill(label: deal.statusLabel, color: color),
+            StatusPill(label: dealStatusLabel(context, deal.status), color: color),
           ],
         ),
       ),

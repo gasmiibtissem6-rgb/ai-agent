@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/constants/app_colors.dart';
+import '../core/l10n/app_localizations.dart';
 import '../core/router/app_router.dart';
 
 class IdealLogo extends StatelessWidget {
@@ -225,7 +226,7 @@ class IdealAppScaffold extends StatelessWidget {
             ? null
             : IconButton(
                 icon: const Icon(Icons.notifications_outlined),
-                tooltip: 'Notifications',
+                tooltip: context.l10n.tr('nav.notifications'),
                 onPressed: () => context.go(AppRoutes.notifications),
               ),
         title: GestureDetector(
@@ -248,7 +249,7 @@ class IdealAppScaffold extends StatelessWidget {
             .map(
               (item) => BottomNavigationBarItem(
                 icon: Icon(item.icon),
-                label: item.label,
+                label: context.l10n.tr(item.labelKey),
               ),
             )
             .toList(),
@@ -262,9 +263,14 @@ class IdealAppScaffold extends StatelessWidget {
 // and Profile is reached from the home page. The AI assistant code/integration
 // is untouched — only its menu entry is gone.
 const _navItems = <_NavItem>[
-  _NavItem('home', 'Home', Icons.home_outlined, AppRoutes.home),
-  _NavItem('deals', 'Deals', Icons.business_center_outlined, AppRoutes.deals),
-  _NavItem('settings', 'Settings', Icons.settings_outlined, AppRoutes.settings),
+  _NavItem('home', 'nav.home', Icons.home_outlined, AppRoutes.home),
+  _NavItem('deals', 'nav.deals', Icons.business_center_outlined, AppRoutes.deals),
+  _NavItem(
+    'settings',
+    'nav.settings',
+    Icons.settings_outlined,
+    AppRoutes.settings,
+  ),
 ];
 
 class _DesktopNav extends StatelessWidget {
@@ -297,7 +303,7 @@ class _DesktopNav extends StatelessWidget {
                 ),
                 IconButton(
                   icon: const Icon(Icons.notifications_outlined),
-                  tooltip: 'Notifications',
+                  tooltip: context.l10n.tr('nav.notifications'),
                   color: activeRoute == 'notifications'
                       ? AppColors.primary
                       : AppColors.textSecondary,
@@ -345,7 +351,7 @@ class _DesktopNavItem extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                item.label,
+                context.l10n.tr(item.labelKey),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -363,11 +369,11 @@ class _DesktopNavItem extends StatelessWidget {
 
 class _NavItem {
   final String key;
-  final String label;
+  final String labelKey;
   final IconData icon;
   final String route;
 
-  const _NavItem(this.key, this.label, this.icon, this.route);
+  const _NavItem(this.key, this.labelKey, this.icon, this.route);
 }
 
 class AuthShell extends StatelessWidget {

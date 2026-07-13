@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../domain/deal_model.dart';
 import '../domain/deal_provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/router/app_router.dart';
 import '../../../services/deal_service.dart';
 import '../../../shared/ideal_ui.dart';
@@ -75,7 +76,7 @@ class _DealShareScreenState extends ConsumerState<DealShareScreen> {
       _partyController.clear();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('The other party has been invited.'),
+          content: Text(context.l10n.tr('share.partyInvited')),
           backgroundColor: AppColors.success,
         ),
       );
@@ -83,7 +84,9 @@ class _DealShareScreenState extends ConsumerState<DealShareScreen> {
       final state = ref.read(dealProvider).whenOrNull(data: (s) => s);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(state?.errorMessage ?? 'Could not add that party.'),
+          content: Text(
+            state?.errorMessage ?? context.l10n.tr('share.couldNotAddParty'),
+          ),
           backgroundColor: AppColors.error,
         ),
       );
@@ -95,7 +98,7 @@ class _DealShareScreenState extends ConsumerState<DealShareScreen> {
     if (url == null || url.isEmpty) return;
     Clipboard.setData(ClipboardData(text: url));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Link copied to clipboard.')),
+      SnackBar(content: Text(context.l10n.tr('share.linkCopied'))),
     );
   }
 
@@ -115,18 +118,24 @@ class _DealShareScreenState extends ConsumerState<DealShareScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SectionTitle(
-                      title: 'Deal created 🎉',
-                      subtitle: 'Share it and pick who you want to deal with.',
+                    SectionTitle(
+                      title: context.l10n.tr('share.title'),
+                      subtitle: context.l10n.tr('share.subtitle'),
                     ),
                     const SizedBox(height: 20),
                     IdealCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _MetaLine(label: 'Title', value: deal.title),
+                          _MetaLine(
+                            label: context.l10n.tr('share.labelTitle'),
+                            value: deal.title,
+                          ),
                           const SizedBox(height: 8),
-                          _MetaLine(label: 'Reference', value: deal.reference),
+                          _MetaLine(
+                            label: context.l10n.tr('share.labelReference'),
+                            value: deal.reference,
+                          ),
                           const SizedBox(height: 16),
                           const Divider(height: 1),
                           const SizedBox(height: 16),
@@ -144,11 +153,11 @@ class _DealShareScreenState extends ConsumerState<DealShareScreen> {
                               child: QrDisplay(
                                 data: _link!.qrCodeData,
                                 size: 180,
-                                caption: 'Scan to open this deal',
+                                caption: context.l10n.tr('share.qrCaption'),
                               ),
                             ),
                             const SizedBox(height: 16),
-                            const FieldLabel('Invitation link'),
+                            FieldLabel(context.l10n.tr('share.invitationLink')),
                             Row(
                               children: [
                                 Expanded(
@@ -176,7 +185,7 @@ class _DealShareScreenState extends ConsumerState<DealShareScreen> {
                                 IconButton(
                                   onPressed: _copyLink,
                                   icon: const Icon(Icons.copy_outlined),
-                                  tooltip: 'Copy link',
+                                  tooltip: context.l10n.tr('share.copyLink'),
                                 ),
                               ],
                             ),
@@ -190,7 +199,7 @@ class _DealShareScreenState extends ConsumerState<DealShareScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Add the other party',
+                            context.l10n.tr('share.addParty'),
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w900,
@@ -199,8 +208,7 @@ class _DealShareScreenState extends ConsumerState<DealShareScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Enter their username or email. They will get a '
-                            'notification to accept the deal.',
+                            context.l10n.tr('share.addPartyHelp'),
                             style: TextStyle(
                               color: AppColors.textSecondary,
                               fontSize: 12.5,
@@ -209,9 +217,9 @@ class _DealShareScreenState extends ConsumerState<DealShareScreen> {
                           const SizedBox(height: 14),
                           TextField(
                             controller: _partyController,
-                            decoration: const InputDecoration(
-                              hintText: 'username or email@example.com',
-                              prefixIcon: Icon(Icons.person_add_alt),
+                            decoration: InputDecoration(
+                              hintText: context.l10n.tr('share.partyHint'),
+                              prefixIcon: const Icon(Icons.person_add_alt),
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -230,7 +238,9 @@ class _DealShareScreenState extends ConsumerState<DealShareScreen> {
                                     )
                                   : const Icon(Icons.send_outlined),
                               label: Text(
-                                _partyAdded ? 'Invite another' : 'Invite party',
+                                _partyAdded
+                                    ? context.l10n.tr('share.inviteAnother')
+                                    : context.l10n.tr('share.inviteParty'),
                               ),
                             ),
                           ),
@@ -243,7 +253,7 @@ class _DealShareScreenState extends ConsumerState<DealShareScreen> {
                       child: OutlinedButton(
                         onPressed: () =>
                             context.go(AppRoutes.dealDetail, extra: deal),
-                        child: const Text('Go to deal'),
+                        child: Text(context.l10n.tr('share.goToDeal')),
                       ),
                     ),
                   ],
@@ -305,7 +315,7 @@ class _LinkError extends StatelessWidget {
     return Column(
       children: [
         Text(
-          'Could not generate the link.\n$error',
+          context.l10n.trp('share.linkError', {'error': error}),
           textAlign: TextAlign.center,
           style: TextStyle(color: AppColors.textSecondary, fontSize: 12.5),
         ),
@@ -313,7 +323,7 @@ class _LinkError extends StatelessWidget {
         OutlinedButton.icon(
           onPressed: onRetry,
           icon: const Icon(Icons.refresh),
-          label: const Text('Retry'),
+          label: Text(context.l10n.tr('common.retry')),
         ),
       ],
     );

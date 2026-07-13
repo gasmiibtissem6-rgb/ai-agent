@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:dio/dio.dart';
 import '../../../core/config/api_config.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../shared/file_saver.dart';
 import '../../../shared/ideal_ui.dart';
 import '../../../shared/platform_file_picker.dart';
@@ -74,8 +75,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Document scanné !'),
+            SnackBar(
+              content: Text(context.l10n.tr('doc.scanned')),
               backgroundColor: Colors.green,
             ),
           );
@@ -83,8 +84,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Aucun texte détecté'),
+            SnackBar(
+              content: Text(context.l10n.tr('doc.noText')),
               backgroundColor: Colors.orange,
             ),
           );
@@ -93,8 +94,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Erreur de scan'),
+          SnackBar(
+            content: Text(context.l10n.tr('doc.scanError')),
             backgroundColor: Colors.red,
           ),
         );
@@ -137,7 +138,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('${files.length} fichier(s) ajouté(s)'),
+          content: Text(context.l10n
+              .trp('doc.filesAdded', {'count': '${files.length}'})),
           backgroundColor: Colors.green,
         ),
       );
@@ -161,8 +163,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
           });
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Signature apposée !'),
+              SnackBar(
+                content: Text(context.l10n.tr('doc.signatureApplied')),
                 backgroundColor: Colors.green,
               ),
             );
@@ -204,8 +206,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Erreur export PDF'),
+          SnackBar(
+            content: Text(context.l10n.tr('doc.pdfError')),
             backgroundColor: Colors.red,
           ),
         );
@@ -240,7 +242,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             ),
             const SizedBox(height: 24),
             Text(
-              'Scanner & Importer',
+              context.l10n.tr('doc.importTitle'),
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -249,7 +251,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Scannez ou importez un contrat pour le modifier, ajouter des photos/vidéos et le signer',
+              context.l10n.tr('doc.importSubtitle'),
               textAlign: TextAlign.center,
               style: TextStyle(color: cs.onSurface.withValues(alpha: 0.6)),
             ),
@@ -260,8 +262,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               _buildCard(
                 cs,
                 Icons.camera_alt,
-                'Prendre une photo',
-                'Appareil photo ou fichier image',
+                context.l10n.tr('doc.takePhoto'),
+                context.l10n.tr('doc.takePhotoSub'),
                 Colors.blue,
                 () => _pickFile(imageOnly: true),
               ),
@@ -269,8 +271,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               _buildCard(
                 cs,
                 Icons.upload_file,
-                'Importer un fichier',
-                'PDF ou image depuis votre appareil',
+                context.l10n.tr('doc.importFile'),
+                context.l10n.tr('doc.importFileSub'),
                 Colors.green,
                 () => _pickFile(),
               ),
@@ -278,8 +280,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
               _buildCard(
                 cs,
                 Icons.edit_document,
-                'Nouveau contrat vide',
-                'Rédiger depuis zéro',
+                context.l10n.tr('doc.newContract'),
+                context.l10n.tr('doc.newContractSub'),
                 Colors.purple,
                 () {
                   setState(() {
@@ -371,14 +373,15 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   _signatureImageBase64 = null;
                 }),
               ),
-              const Text(
-                'Contrat',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              Text(
+                context.l10n.tr('doc.contract'),
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 16),
               ),
               const Spacer(),
               IconButton(
                 icon: const Icon(Icons.add_photo_alternate, color: Colors.teal),
-                tooltip: 'Ajouter photo/vidéo',
+                tooltip: context.l10n.tr('doc.addMedia'),
                 onPressed: _addMedia,
               ),
               IconButton(
@@ -386,12 +389,12 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                   Icons.draw,
                   color: _showSignature ? Colors.green : Colors.purple,
                 ),
-                tooltip: 'Signer',
+                tooltip: context.l10n.tr('doc.sign'),
                 onPressed: _showSignatureDialog,
               ),
               IconButton(
                 icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
-                tooltip: 'Exporter PDF',
+                tooltip: context.l10n.tr('doc.exportPdf'),
                 onPressed: _downloadPdf,
               ),
             ],
@@ -416,7 +419,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                       borderSide: BorderSide.none,
                     ),
                     contentPadding: const EdgeInsets.all(16),
-                    hintText: 'Contenu du contrat...',
+                    hintText: context.l10n.tr('doc.contentHint'),
                   ),
                 ),
 
@@ -432,7 +435,8 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        'Pièces jointes (${_mediaItems.length})',
+                        context.l10n.trp('doc.attachments',
+                            {'count': '${_mediaItems.length}'}),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
@@ -443,7 +447,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                       TextButton.icon(
                         onPressed: _addMedia,
                         icon: const Icon(Icons.add, size: 16),
-                        label: const Text('Ajouter'),
+                        label: Text(context.l10n.tr('doc.add')),
                       ),
                     ],
                   ),
@@ -478,7 +482,7 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                         const Icon(Icons.verified, color: Colors.green),
                         const SizedBox(width: 8),
                         Text(
-                          'Document signé électroniquement',
+                          context.l10n.tr('doc.signedBadge'),
                           style: TextStyle(
                             color: Colors.green.shade700,
                             fontWeight: FontWeight.bold,
@@ -576,10 +580,10 @@ class _DocumentsScreenState extends State<DocumentsScreen> {
                     controller: TextEditingController(text: item.caption),
                     onChanged: (v) => item.caption = v,
                     style: const TextStyle(fontSize: 11),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       isDense: true,
                       border: InputBorder.none,
-                      hintText: 'Légende...',
+                      hintText: context.l10n.tr('doc.caption'),
                     ),
                   ),
                 ),
@@ -658,9 +662,9 @@ class _SignatureDialogState extends State<_SignatureDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Signature',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            Text(
+              context.l10n.tr('doc.signature'),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             Container(
@@ -669,7 +673,10 @@ class _SignatureDialogState extends State<_SignatureDialog> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
-                children: [_tabBtn('✍️ Dessiner', 0), _tabBtn('📷 Caméra', 1)],
+                children: [
+                  _tabBtn(context.l10n.tr('doc.draw'), 0),
+                  _tabBtn(context.l10n.tr('doc.camera'), 1),
+                ],
               ),
             ),
             const SizedBox(height: 12),
@@ -698,7 +705,7 @@ class _SignatureDialogState extends State<_SignatureDialog> {
                         child: _points.isEmpty
                             ? Center(
                                 child: Text(
-                                  'Dessinez votre signature',
+                                  context.l10n.tr('doc.drawHint'),
                                   style: TextStyle(color: Colors.grey.shade400),
                                 ),
                               )
@@ -728,20 +735,20 @@ class _SignatureDialogState extends State<_SignatureDialog> {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.blue.withValues(alpha: 0.4)),
                   ),
-                  child: const Center(
+                  child: Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.upload_file, size: 40, color: Colors.blue),
-                        SizedBox(height: 8),
+                        const Icon(Icons.upload_file, size: 40, color: Colors.blue),
+                        const SizedBox(height: 8),
                         Text(
-                          'Importer une photo de votre signature',
+                          context.l10n.tr('doc.importSig'),
                           textAlign: TextAlign.center,
                         ),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(
-                          '(signez sur papier blanc, prenez une photo)',
-                          style: TextStyle(fontSize: 11, color: Colors.grey),
+                          context.l10n.tr('doc.importSigSub'),
+                          style: const TextStyle(fontSize: 11, color: Colors.grey),
                         ),
                       ],
                     ),
@@ -798,15 +805,15 @@ class _SignatureDialogState extends State<_SignatureDialog> {
                     _hasSignature = false;
                     _cameraImageBase64 = null;
                   }),
-                  child: const Text(
-                    'Effacer',
-                    style: TextStyle(color: Colors.red),
+                  child: Text(
+                    context.l10n.tr('doc.clear'),
+                    style: const TextStyle(color: Colors.red),
                   ),
                 ),
                 const Spacer(),
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Annuler'),
+                  child: Text(context.l10n.tr('common.cancel')),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
@@ -823,9 +830,9 @@ class _SignatureDialogState extends State<_SignatureDialog> {
                             color: Colors.white,
                           ),
                         )
-                      : const Text(
-                          'Terminer',
-                          style: TextStyle(color: Colors.white),
+                      : Text(
+                          context.l10n.tr('doc.finish'),
+                          style: const TextStyle(color: Colors.white),
                         ),
                 ),
               ],

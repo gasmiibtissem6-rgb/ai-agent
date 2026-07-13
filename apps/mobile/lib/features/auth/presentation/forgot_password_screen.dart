@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../domain/auth_provider.dart';
 import '../domain/auth_state.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/constants/app_colors.dart';
@@ -40,10 +41,11 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     final authAsync = ref.watch(authProvider);
     final status = authAsync.whenOrNull(data: (s) => s.status);
     final isLoading = status == AuthStatus.loading;
+    final l10n = context.l10n;
 
     if (_sent) {
       return AuthShell(
-        title: 'Check your email',
+        title: l10n.tr('forgot.checkEmail'),
         subtitle: '',
         child: Column(
           children: [
@@ -62,7 +64,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             ),
             const SizedBox(height: 20),
             Text(
-              'We sent a password reset link to',
+              l10n.tr('forgot.sentTo'),
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 15,
@@ -85,7 +87,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () => context.go(AppRoutes.login),
-                child: const Text('Back to sign in'),
+                child: Text(l10n.tr('auth.backToSignIn')),
               ),
             ),
           ],
@@ -94,25 +96,25 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     }
 
     return AuthShell(
-      title: 'Reset password',
-      subtitle: 'Enter your email and we will send you a reset link.',
+      title: l10n.tr('forgot.title'),
+      subtitle: l10n.tr('forgot.subtitle'),
       child: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            const _FieldLabel('Email Address'),
+            _FieldLabel(l10n.tr('auth.email')),
             TextFormField(
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.done,
               onFieldSubmitted: (_) => _sendReset(),
-              decoration: const InputDecoration(
-                hintText: 'you@example.com',
-                prefixIcon: Icon(Icons.email_outlined),
+              decoration: InputDecoration(
+                hintText: l10n.tr('auth.emailHint'),
+                prefixIcon: const Icon(Icons.email_outlined),
               ),
-              validator: Validators.email,
+              validator: (v) => Validators.email(context, v),
             ),
             const SizedBox(height: 24),
             SizedBox(
@@ -128,14 +130,14 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                           color: Colors.white,
                         ),
                       )
-                    : const Text('Send reset link'),
+                    : Text(l10n.tr('forgot.send')),
               ),
             ),
             const SizedBox(height: 16),
             Center(
               child: TextButton(
                 onPressed: () => context.go(AppRoutes.login),
-                child: const Text('Back to sign in'),
+                child: Text(l10n.tr('auth.backToSignIn')),
               ),
             ),
           ],

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/deal_model.dart';
 import '../../auth/domain/auth_provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../services/deal_service.dart';
 import '../../../shared/ideal_ui.dart';
 
@@ -96,12 +97,14 @@ class _DealChatScreenState extends ConsumerState<DealChatScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Discussion — ${widget.deal.title}',
-            overflow: TextOverflow.ellipsis),
+        title: Text(
+          context.l10n.trp('dealChat.title', {'title': widget.deal.title}),
+          overflow: TextOverflow.ellipsis,
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
+            tooltip: context.l10n.tr('common.refresh'),
             onPressed: _loading ? null : _load,
           ),
         ],
@@ -118,7 +121,8 @@ class _DealChatScreenState extends ConsumerState<DealChatScreen> {
                             child: Padding(
                               padding: const EdgeInsets.all(24),
                               child: Text(
-                                'Could not load the discussion.\n$_error',
+                                context.l10n.trp('dealChat.loadError',
+                                    {'error': '$_error'}),
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                     color: AppColors.textSecondary),
@@ -128,7 +132,7 @@ class _DealChatScreenState extends ConsumerState<DealChatScreen> {
                         : _messages.isEmpty
                             ? Center(
                                 child: Text(
-                                  'No messages yet. Start the discussion.',
+                                  context.l10n.tr('dealChat.empty'),
                                   style: TextStyle(
                                       color: AppColors.textSecondary),
                                 ),
@@ -240,8 +244,8 @@ class _Composer extends StatelessWidget {
               maxLines: 4,
               textInputAction: TextInputAction.send,
               onSubmitted: (_) => onSend(),
-              decoration: const InputDecoration(
-                hintText: 'Message the other party…',
+              decoration: InputDecoration(
+                hintText: context.l10n.tr('dealChat.hint'),
               ),
             ),
           ),

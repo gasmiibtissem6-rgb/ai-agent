@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/ideal_ui.dart';
 import '../domain/template_model.dart';
@@ -22,7 +23,7 @@ class TemplatesSection extends ConsumerWidget {
       ),
       error: (e, _) => _SectionPlaceholder(
         child: Text(
-          'Could not load templates.',
+          context.l10n.tr('tpl.loadError'),
           style: TextStyle(color: AppColors.textSecondary),
         ),
       ),
@@ -48,8 +49,12 @@ class TemplatesSection extends ConsumerWidget {
               children: [
                 Expanded(
                   child: Text(
-                    '${state.templates.length} template'
-                    '${state.templates.length == 1 ? '' : 's'}',
+                    context.l10n.trp(
+                      state.templates.length == 1
+                          ? 'tpl.countOne'
+                          : 'tpl.countMany',
+                      {'count': '${state.templates.length}'},
+                    ),
                     style: TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 13,
@@ -60,7 +65,7 @@ class TemplatesSection extends ConsumerWidget {
                 TextButton.icon(
                   onPressed: () => context.go(AppRoutes.templateForm),
                   icon: const Icon(Icons.add, size: 18),
-                  label: const Text('New template'),
+                  label: Text(context.l10n.tr('tpl.new')),
                 ),
               ],
             ),
@@ -98,17 +103,19 @@ class TemplatesSection extends ConsumerWidget {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete template'),
-        content: Text('"${template.name}" will be removed from this device.'),
+        title: Text(context.l10n.tr('tpl.deleteTitle')),
+        content: Text(
+          context.l10n.trp('tpl.deleteConfirm', {'name': template.name}),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(context.l10n.tr('common.cancel')),
           ),
           TextButton(
             style: TextButton.styleFrom(foregroundColor: AppColors.error),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete'),
+            child: Text(context.l10n.tr('common.delete')),
           ),
         ],
       ),
@@ -208,8 +215,12 @@ class _TemplateCard extends StatelessWidget {
             children: [
               _MetaChip(
                 icon: Icons.segment,
-                label: '${template.sections.length} section'
-                    '${template.sections.length == 1 ? '' : 's'}',
+                label: context.l10n.trp(
+                  template.sections.length == 1
+                      ? 'tpl.sectionOne'
+                      : 'tpl.sectionMany',
+                  {'count': '${template.sections.length}'},
+                ),
               ),
               for (final section in template.sections.take(2))
                 _MetaChip(icon: Icons.label_outline, label: section.title),
@@ -227,7 +238,7 @@ class _TemplateCard extends StatelessWidget {
                 child: ElevatedButton.icon(
                   onPressed: onUse,
                   icon: const Icon(Icons.bolt_outlined, size: 18),
-                  label: const Text('Use template'),
+                  label: Text(context.l10n.tr('tpl.use')),
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(0, 42),
                   ),
@@ -236,13 +247,13 @@ class _TemplateCard extends StatelessWidget {
               const SizedBox(width: 8),
               IconButton(
                 onPressed: onEdit,
-                tooltip: 'Edit template',
+                tooltip: context.l10n.tr('tpl.edit'),
                 icon: const Icon(Icons.edit_outlined),
                 color: AppColors.primary,
               ),
               IconButton(
                 onPressed: onDelete,
-                tooltip: 'Delete template',
+                tooltip: context.l10n.tr('tpl.delete'),
                 icon: const Icon(Icons.delete_outline),
                 color: AppColors.error,
               ),
@@ -301,10 +312,9 @@ class _EmptyTemplates extends StatelessWidget {
       height: 400,
       child: EmptyState(
         icon: Icons.dashboard_customize_outlined,
-        title: 'No templates yet',
-        subtitle:
-            'Build a reusable structure once, then spin up new deals from it in a single tap.',
-        actionLabel: 'Create template',
+        title: context.l10n.tr('tpl.emptyTitle'),
+        subtitle: context.l10n.tr('tpl.emptySubtitle'),
+        actionLabel: context.l10n.tr('tpl.emptyAction'),
         onAction: onCreate,
       ),
     );

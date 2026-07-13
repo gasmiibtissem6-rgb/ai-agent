@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/utils/validators.dart';
 import '../../../services/document_service.dart';
@@ -120,7 +121,9 @@ class _TemplateFormScreenState extends ConsumerState<TemplateFormScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          _isEditing ? 'Template updated.' : 'Template saved and ready to use.',
+          _isEditing
+              ? context.l10n.tr('tplForm.updated')
+              : context.l10n.tr('tplForm.saved'),
         ),
         backgroundColor: AppColors.success,
       ),
@@ -141,7 +144,9 @@ class _TemplateFormScreenState extends ConsumerState<TemplateFormScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Template saved, but the document failed: $e'),
+            content: Text(
+              context.l10n.trp('tplForm.docFailed', {'error': '$e'}),
+            ),
             backgroundColor: AppColors.warning,
           ),
         );
@@ -161,7 +166,7 @@ class _TemplateFormScreenState extends ConsumerState<TemplateFormScreen> {
       if (state?.hasError == true) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(state!.errorMessage ?? 'Something went wrong.'),
+            content: Text(state!.errorMessage ?? context.l10n.tr('common.error')),
             backgroundColor: AppColors.error,
           ),
         );
@@ -191,10 +196,9 @@ class _TemplateFormScreenState extends ConsumerState<TemplateFormScreen> {
                         Expanded(
                           child: SectionTitle(
                             title: _isEditing
-                                ? 'Edit Template'
-                                : 'New Template',
-                            subtitle:
-                                'Reusable structure you can apply to any new deal.',
+                                ? context.l10n.tr('tplForm.editTitle')
+                                : context.l10n.tr('tplForm.newTitle'),
+                            subtitle: context.l10n.tr('tplForm.subtitle'),
                           ),
                         ),
                       ],
@@ -207,34 +211,35 @@ class _TemplateFormScreenState extends ConsumerState<TemplateFormScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const FieldLabel('Template Name *'),
+                            FieldLabel(context.l10n.tr('tplForm.nameLabel')),
                             TextFormField(
                               controller: _nameController,
                               textInputAction: TextInputAction.next,
-                              decoration: const InputDecoration(
-                                hintText: 'e.g., Standard Partnership Agreement',
+                              decoration: InputDecoration(
+                                hintText: context.l10n.tr('tplForm.nameHint'),
                               ),
                               validator: (value) => Validators.required(
+                                context,
                                 value,
-                                field: 'Template name',
+                                field: context.l10n.tr('field.templateName'),
                               ),
                             ),
                             const SizedBox(height: 18),
-                            const FieldLabel('Description *'),
+                            FieldLabel(context.l10n.tr('tplForm.descLabel')),
                             TextFormField(
                               controller: _descriptionController,
                               maxLines: 3,
-                              decoration: const InputDecoration(
-                                hintText:
-                                    'What kind of deal is this template for?',
+                              decoration: InputDecoration(
+                                hintText: context.l10n.tr('tplForm.descHint'),
                               ),
                               validator: (value) => Validators.required(
+                                context,
                                 value,
-                                field: 'Description',
+                                field: context.l10n.tr('field.description'),
                               ),
                             ),
                             const SizedBox(height: 18),
-                            const FieldLabel('Category *'),
+                            FieldLabel(context.l10n.tr('tplForm.categoryLabel')),
                             DropdownButtonFormField<String>(
                               initialValue: _category,
                               items: [
@@ -257,7 +262,7 @@ class _TemplateFormScreenState extends ConsumerState<TemplateFormScreen> {
                               children: [
                                 Expanded(
                                   child: Text(
-                                    'Sections',
+                                    context.l10n.tr('tplForm.sections'),
                                     style: TextStyle(
                                       fontWeight: FontWeight.w900,
                                       fontSize: 16,
@@ -276,7 +281,7 @@ class _TemplateFormScreenState extends ConsumerState<TemplateFormScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Each section becomes a titled block in the deal body.',
+                              context.l10n.tr('tplForm.sectionsHelp'),
                               style: TextStyle(
                                 color: AppColors.textSecondary,
                                 fontSize: 12,
@@ -299,7 +304,7 @@ class _TemplateFormScreenState extends ConsumerState<TemplateFormScreen> {
                               child: TextButton.icon(
                                 onPressed: _addSection,
                                 icon: const Icon(Icons.add),
-                                label: const Text('Add section'),
+                                label: Text(context.l10n.tr('tplForm.addSection')),
                               ),
                             ),
                             const SizedBox(height: 26),
@@ -310,7 +315,7 @@ class _TemplateFormScreenState extends ConsumerState<TemplateFormScreen> {
                                     onPressed: isSaving
                                         ? null
                                         : () => context.go(AppRoutes.deals),
-                                    child: const Text('Cancel'),
+                                    child: Text(context.l10n.tr('common.cancel')),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -328,8 +333,10 @@ class _TemplateFormScreenState extends ConsumerState<TemplateFormScreen> {
                                           )
                                         : Text(
                                             _isEditing
-                                                ? 'Save changes'
-                                                : 'Create Template',
+                                                ? context.l10n
+                                                    .tr('common.saveChanges')
+                                                : context.l10n
+                                                    .tr('tplForm.createBtn'),
                                           ),
                                   ),
                                 ),
@@ -402,19 +409,22 @@ class _SectionEditor extends StatelessWidget {
                 child: TextFormField(
                   controller: controllers.title,
                   textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    hintText: 'Section title, e.g., Payment Terms',
+                  decoration: InputDecoration(
+                    hintText: context.l10n.tr('tplForm.sectionTitleHint'),
                     isDense: true,
                   ),
-                  validator: (value) =>
-                      Validators.required(value, field: 'Section title'),
+                  validator: (value) => Validators.required(
+                    context,
+                    value,
+                    field: context.l10n.tr('field.sectionTitle'),
+                  ),
                 ),
               ),
               if (onRemove != null) ...[
                 const SizedBox(width: 6),
                 IconButton(
                   onPressed: onRemove,
-                  tooltip: 'Remove section',
+                  tooltip: context.l10n.tr('tplForm.removeSection'),
                   icon: Icon(Icons.delete_outline, color: AppColors.error),
                 ),
               ],
@@ -424,11 +434,14 @@ class _SectionEditor extends StatelessWidget {
           TextFormField(
             controller: controllers.body,
             maxLines: 3,
-            decoration: const InputDecoration(
-              hintText: 'What this section should say...',
+            decoration: InputDecoration(
+              hintText: context.l10n.tr('tplForm.sectionBodyHint'),
             ),
-            validator: (value) =>
-                Validators.required(value, field: 'Section content'),
+            validator: (value) => Validators.required(
+              context,
+              value,
+              field: context.l10n.tr('field.sectionContent'),
+            ),
           ),
         ],
       ),
