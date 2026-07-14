@@ -2,52 +2,26 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/errors/app_exception.dart';
-import '../../../core/network/auth_session_events.dart';
 import '../../../core/network/token_storage.dart';
 import '../../../services/auth_api.dart';
 import '../../../services/auth_service.dart';
-import '../../../services/profile_service.dart';
 import 'auth_state.dart';
 
 class AuthNotifier extends AsyncNotifier<AppAuthState> {
   StreamSubscription<AuthState>? _subscription;
-  StreamSubscription<void>? _sessionSub;
 
   @override
   Future<AppAuthState> build() async {
-    // Route back to login whenever the network layer reports a dead session
-    // (refresh failed on a 401).
-    _sessionSub?.cancel();
-    _sessionSub = AuthSessionEvents.instance.onSignedOut.listen((_) async {
-      await TokenStorage.clearTokens();
-      state = AsyncData(AppAuthState.unauthenticated());
-    });
-
-    // Supabase auth events are still consumed for the flows kept on Supabase:
-    //  - passwordRecovery: the reset-password deep link (to migrate later).
-    //  - signedIn: Google OAuth, whose web redirect completes asynchronously
-    //    and delivers the session via this event (not the signInWithGoogle call).
     _subscription?.cancel();
     _subscription = AuthService.authStateChanges.listen((authState) {
-      switch (authState.event) {
-        case AuthChangeEvent.passwordRecovery:
-          state = AsyncData(AppAuthState.passwordRecovery());
-          break;
-        case AuthChangeEvent.signedIn:
-          final session = authState.session;
-          if (session != null) {
-            _hydrateFromSupabaseSession(session);
-          }
-          break;
-        default:
-          break;
+      // Supabase is only the source of truth for the password-recovery
+      // OTP event now; everything else is driven by NestJS via AuthApi.
+      if (authState.event == AuthChangeEvent.passwordRecovery) {
+        state = AsyncData(AppAuthState.passwordRecovery());
       }
     });
 
-    ref.onDispose(() {
-      _subscription?.cancel();
-      _sessionSub?.cancel();
-    });
+    ref.onDispose(() => _subscription?.cancel());
 
     // Restore the session from the stored token via NestJS GET /auth/me.
     final token = await TokenStorage.getAccessToken();
@@ -96,8 +70,9 @@ class AuthNotifier extends AsyncNotifier<AppAuthState> {
     }
   }
 
-  /// Sign in with Google — STILL ON SUPABASE (to migrate later). The resulting
-  /// Supabase JWT is stored and validated by NestJS like any other token.
+  /// Sign in with Google — still on Supabase (to migrate later). The
+  /// resulting Supabase JWT is stored and resolved to the canonical
+  /// NestJS profile so the rest of the app stays profile-driven.
   Future<void> signInWithGoogle() async {
     state = AsyncData(AppAuthState.loading());
     try {
@@ -118,29 +93,63 @@ class AuthNotifier extends AsyncNotifier<AppAuthState> {
     }
   }
 
-  /// Send a password-reset email via NestJS (generic success always).
+  /// Verify the signup OTP code (Supabase-issued), then resolve the
+  /// canonical NestJS profile so the app is authenticated afterward.
+  Future<void> verifyOtp({required String email, required String token}) async {
+    state = AsyncData(AppAuthState.loading());
+    try {
+      await AuthService.verifyOtp(email: email, token: token);
+      final profile = await AuthApi.me();
+      state = AsyncData(AppAuthState.authenticated(profile));
+    } catch (e) {
+      state = AsyncData(AppAuthState.error(_formatError(e)));
+    }
+  }
+
+  /// Resend the signup verification code.
+  Future<void> resendOtp({required String email}) async {
+    try {
+      await AuthService.resendOtp(email: email);
+    } catch (e) {
+      state = AsyncData(AppAuthState.error(_formatError(e)));
+    }
+  }
+
+  /// Kick off password reset: logs the request with NestJS, and asks
+  /// Supabase to email the 6-digit OTP code.
   Future<void> resetPassword(String email) async {
     state = AsyncData(AppAuthState.loading());
     try {
       await AuthApi.forgotPassword(email);
+      await AuthService.resetPassword(email);
       state = AsyncData(AppAuthState.unauthenticated());
     } catch (e) {
       state = AsyncData(AppAuthState.error(_formatError(e)));
     }
   }
 
-  /// Update the password after a PASSWORD_RECOVERY deep link.
-  /// STILL ON SUPABASE (to migrate later) — completion uses the recovery token.
-  Future<bool> updatePassword(String newPassword) async {
+  /// Verify the reset-password OTP code.
+  Future<bool> verifyResetOtp({
+    required String email,
+    required String token,
+  }) async {
     state = AsyncData(AppAuthState.loading());
     try {
-      await AuthService.updatePassword(newPassword);
-      // Sign out everywhere and force a fresh login for security.
+      await AuthService.verifyPasswordResetOtp(email: email, token: token);
+      return true;
+    } catch (e) {
+      state = AsyncData(AppAuthState.error(_formatError(e)));
+      return false;
+    }
+  }
+
+  /// Set the new password after OTP verification, then force a fresh login.
+  Future<bool> confirmNewPassword(String newPassword) async {
+    state = AsyncData(AppAuthState.loading());
+    try {
+      await AuthService.confirmNewPassword(newPassword);
       await AuthApi.logout();
       await TokenStorage.clearTokens();
-      try {
-        await AuthService.signOut();
-      } catch (_) {}
       state = AsyncData(AppAuthState.unauthenticated());
       return true;
     } catch (e) {
@@ -149,37 +158,8 @@ class AuthNotifier extends AsyncNotifier<AppAuthState> {
     }
   }
 
-  /// Updates the caller's own profile via NestJS and refreshes the auth state
-  /// so every screen reading `profile` re-renders with the new values.
-  ///
-  /// Returns the backend's message on failure, or `null` on success. The state
-  /// is never moved to `error` here: that would log the user out of the router's
-  /// point of view for what is only a form failure.
-  Future<String?> updateProfile({
-    String? displayName,
-    String? username,
-    String? avatarUrl,
-    bool? isPublic,
-  }) async {
-    final previous = state.whenOrNull(data: (s) => s);
-    if (previous?.profile == null) return 'You are not signed in.';
-
-    try {
-      final profile = await ProfileService.updateProfile(
-        displayName: displayName,
-        username: username,
-        avatarUrl: avatarUrl,
-        isPublic: isPublic,
-      );
-      state = AsyncData(AppAuthState.authenticated(profile));
-      return null;
-    } catch (e) {
-      return _formatError(e);
-    }
-  }
-
-  /// Sign out: NestJS logout (best-effort) + clear tokens + clear any Supabase
-  /// session left over from Google/recovery flows.
+  /// Sign out: NestJS logout (best-effort) + clear tokens + clear any
+  /// Supabase session left over from Google/recovery flows.
   Future<void> signOut() async {
     await AuthApi.logout();
     await TokenStorage.clearTokens();
@@ -189,7 +169,7 @@ class AuthNotifier extends AsyncNotifier<AppAuthState> {
     state = AsyncData(AppAuthState.unauthenticated());
   }
 
-  /// Delete account — STILL ON SUPABASE (out of scope this session).
+  /// Delete account — still on Supabase (out of scope this session).
   Future<void> deleteAccount() async {
     state = AsyncData(AppAuthState.loading());
     try {
@@ -201,48 +181,17 @@ class AuthNotifier extends AsyncNotifier<AppAuthState> {
     }
   }
 
-  // --- DEAD CODE (kept intentionally, no longer reachable) -------------------
-  // The OTP email-verification flow is disabled now that registration
-  // auto-confirms the email. These remain until explicitly removed.
-
-  Future<void> verifyOtp({required String email, required String token}) async {
-    state = AsyncData(AppAuthState.loading());
-    try {
-      await AuthService.verifyOtp(email: email, token: token);
-    } catch (e) {
-      state = AsyncData(AppAuthState.error(_formatError(e)));
-    }
-  }
-
-  Future<void> resendOtp({required String email}) async {
-    try {
-      await AuthService.resendOtp(email: email);
-    } catch (e) {
-      state = AsyncData(AppAuthState.error(_formatError(e)));
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-
-  /// Persists a Supabase-issued session (e.g. from Google OAuth) and resolves
-  /// the canonical profile through NestJS so the rest of the app is token-driven.
-  Future<void> _hydrateFromSupabaseSession(Session session) async {
-    try {
-      await TokenStorage.saveTokens(
-        accessToken: session.accessToken,
-        refreshToken: session.refreshToken,
-      );
-      final profile = await AuthApi.me();
-      state = AsyncData(AppAuthState.authenticated(profile));
-    } catch (_) {
-      // Leave current state untouched if hydration fails.
-    }
-  }
-
   String _formatError(Object e) {
     if (e is AppException) {
       // Surface the NestJS envelope's `message` verbatim.
       return e.message;
+    }
+    final message = e.toString();
+    if (message.contains('Token has expired') || message.contains('expired')) {
+      return 'This code has expired. Request a new one.';
+    }
+    if (message.contains('Invalid token') || message.contains('invalid')) {
+      return 'Invalid code. Please check and try again.';
     }
     return 'Something went wrong. Please try again.';
   }

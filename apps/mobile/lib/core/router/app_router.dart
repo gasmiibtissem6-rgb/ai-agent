@@ -11,19 +11,14 @@ import '../../features/auth/presentation/register_screen.dart';
 import '../../features/auth/presentation/reset_password_screen.dart';
 import '../../features/auth/presentation/splash_screen.dart';
 import '../../features/deal/domain/deal_model.dart';
+import '../../features/deal/presentation/contracts_screen.dart';
 import '../../features/deal/presentation/create_deal_screen.dart';
-import '../../features/deal/presentation/deal_chat_screen.dart';
-import '../../features/deal/presentation/deal_create_flow.dart';
 import '../../features/deal/presentation/deal_detail_screen.dart';
-import '../../features/deal/presentation/deal_share_screen.dart';
 import '../../features/deal/presentation/deals_list_screen.dart';
 import '../../features/deal/presentation/home_screen.dart';
 import '../../features/kyc/presentation/kyc_status_screen.dart';
-import '../../features/template/domain/template_model.dart';
-import '../../features/template/presentation/template_form_screen.dart';
 import '../../features/kyc/presentation/kyc_upload_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
-import '../../features/profile/presentation/edit_profile_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/chat/presentation/chat_screen.dart';
 import '../../features/documents/presentation/documents_screen.dart';
@@ -41,28 +36,13 @@ class AppRoutes {
   static const kycStatus = '/kyc';
   static const kycUpload = '/kyc/upload';
   static const deals = '/deals';
-  static const dealCreateStart = '/deals/new';
-  static const dealAiAssistant = '/deals/ai';
   static const createDeal = '/deals/create';
-  static const dealShare = '/deals/share';
-  static const dealChat = '/deals/chat';
   static const dealDetail = '/deals/detail';
-  static const templateForm = '/deals/templates/form';
+  static const contracts = '/contracts';
   static const notifications = '/notifications';
   static const settings = '/settings';
-  static const editProfile = '/profile/edit';
   static const chat = '/chat';
-  static const documents = '/documents';
 }
-
-/// Routes whose page depends on a [Deal] handed over through `state.extra`.
-/// If that object is lost on a router rebuild, we redirect to the deals list
-/// rather than let the unconditional `state.extra as Deal` cast throw.
-const _dealExtraRoutes = <String>[
-  AppRoutes.dealDetail,
-  AppRoutes.dealChat,
-  AppRoutes.dealShare,
-];
 
 final _authListenableProvider = Provider<ValueNotifier<AppAuthState?>>((ref) {
   final notifier = ValueNotifier<AppAuthState?>(null);
@@ -82,8 +62,6 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final authState = authListenable.value;
       final status = authState?.status;
-      final isResetPasswordDeepLink = _isResetPasswordDeepLink(state);
-
       final isAuthRoute = [
         AppRoutes.login,
         AppRoutes.register,
@@ -92,41 +70,21 @@ final routerProvider = Provider<GoRouter>((ref) {
         AppRoutes.resetPassword,
       ].contains(state.matchedLocation);
 
-      if (isResetPasswordDeepLink &&
-          state.matchedLocation != AppRoutes.resetPassword) {
-        return AppRoutes.resetPassword;
-      }
-
       if (status == null || status == AuthStatus.initial) {
-        return isResetPasswordDeepLink
-            ? AppRoutes.resetPassword
-            : AppRoutes.splash;
+        return AppRoutes.splash;
       }
       if (status == AuthStatus.loading && !isAuthRoute) {
-        return isResetPasswordDeepLink
-            ? AppRoutes.resetPassword
-            : AppRoutes.splash;
+        return AppRoutes.splash;
       }
-
       if (status == AuthStatus.passwordRecovery) {
-        if (state.matchedLocation != AppRoutes.resetPassword) {
-          return AppRoutes.resetPassword;
-        }
-        return null;
+        return state.matchedLocation == AppRoutes.resetPassword
+            ? null
+            : AppRoutes.resetPassword;
       }
 
       if (status == AuthStatus.authenticated) {
         if (isAuthRoute || state.matchedLocation == AppRoutes.splash) {
           return AppRoutes.home;
-        }
-        // go_router drops `state.extra` whenever the router rebuilds (e.g. the
-        // auth `refreshListenable` fires after an API call such as sending a
-        // deal message). Routes that depend on a Deal passed via `extra` would
-        // then evaluate `state.extra as Deal` against null and crash. Fall back
-        // to the deals list — which reloads fresh data — instead of throwing.
-        if (_dealExtraRoutes.contains(state.matchedLocation) &&
-            state.extra is! Deal) {
-          return AppRoutes.deals;
         }
         return null;
       }
@@ -158,8 +116,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.resetPassword,
-        pageBuilder: (context, state) =>
-            _fadePage(state, const ResetPasswordScreen()),
+        builder: (context, state) {
+          final email = state.extra as String;
+          return ResetPasswordScreen(email: email);
+        },
       ),
       GoRoute(
         path: AppRoutes.otp,
@@ -188,31 +148,9 @@ final routerProvider = Provider<GoRouter>((ref) {
             _sectionPage(state, const DealsListScreen()),
       ),
       GoRoute(
-        path: AppRoutes.dealCreateStart,
-        pageBuilder: (context, state) =>
-            _flowPage(state, const DealCreateStartScreen()),
-      ),
-      GoRoute(
-        path: AppRoutes.dealAiAssistant,
-        pageBuilder: (context, state) =>
-            _flowPage(state, const AiDealAssistantScreen()),
-      ),
-      GoRoute(
         path: AppRoutes.createDeal,
-        pageBuilder: (context, state) => _flowPage(
-          state,
-          CreateDealScreen(template: state.extra as DealTemplate?),
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.dealShare,
         pageBuilder: (context, state) =>
-            _flowPage(state, DealShareScreen(deal: state.extra as Deal)),
-      ),
-      GoRoute(
-        path: AppRoutes.dealChat,
-        pageBuilder: (context, state) =>
-            _flowPage(state, DealChatScreen(deal: state.extra as Deal)),
+            _flowPage(state, const CreateDealScreen()),
       ),
       GoRoute(
         path: AppRoutes.dealDetail,
@@ -222,11 +160,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: AppRoutes.templateForm,
-        pageBuilder: (context, state) => _flowPage(
-          state,
-          TemplateFormScreen(template: state.extra as DealTemplate?),
-        ),
+        path: AppRoutes.contracts,
+        pageBuilder: (context, state) =>
+            _sectionPage(state, const ContractsScreen()),
       ),
       GoRoute(
         path: AppRoutes.notifications,
@@ -239,19 +175,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             _sectionPage(state, const SettingsScreen()),
       ),
       GoRoute(
-        path: AppRoutes.editProfile,
-        pageBuilder: (context, state) =>
-            _flowPage(state, const EditProfileScreen()),
-      ),
-      GoRoute(
         path: AppRoutes.chat,
         pageBuilder: (context, state) =>
             _flowPage(state, const ChatScreen()),
       ),
       GoRoute(
-        path: AppRoutes.documents,
-        pageBuilder: (context, state) =>
-            _sectionPage(state, const DocumentsScreen()),
+        path: '/documents',
+        builder: (context, state) => const DocumentsScreen(),
       ),
     ],
   );
@@ -298,12 +228,4 @@ Page<void> _flowPage(GoRouterState state, Widget child) {
       );
     },
   );
-}
-
-bool _isResetPasswordDeepLink(GoRouterState state) {
-  final uri = state.uri;
-  return uri.scheme == 'io.supabase.idealapp' &&
-      (uri.host == 'reset-password' ||
-          uri.path == '/reset-password' ||
-          state.matchedLocation == AppRoutes.resetPassword);
 }
