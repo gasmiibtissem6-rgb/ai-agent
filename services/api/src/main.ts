@@ -6,6 +6,8 @@ import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import cookieParser from 'cookie-parser';
+import { isExplicitDevelopment, isOriginAllowed } from './common/cors';
 
 const defaultDevOrigins = ['http://localhost:3000', 'http://localhost:3001'];
 const isLocalDevelopment = () =>
@@ -79,6 +81,9 @@ async function bootstrap() {
 
   const app = await NestFactory.create(AppModule);
 
+  // Enable cookie parsing middleware
+  app.use(cookieParser());
+
   // Préfixe global — une seule fois, au bon endroit
   app.setGlobalPrefix('api/v1');
 
@@ -89,6 +94,15 @@ async function bootstrap() {
   //  CORS — une seule fois, allowlist stricte depuis ALLOWED_ORIGINS.
   //  En local, une fallback explicite autorise seulement les origines connues.
   const allowedOrigins = getAllowedOrigins();
+  const allowAnyLoopback = isExplicitDevelopment();
+
+  if (allowAnyLoopback) {
+    console.warn(
+      '[CORS] NODE_ENV=development : toute origine loopback (http://localhost:<port>) ' +
+        'est acceptée, en plus de ALLOWED_ORIGINS. Ne jamais activer en production.',
+    );
+  }
+
   app.enableCors({
     origin: (
       origin: string | undefined,
@@ -97,22 +111,27 @@ async function bootstrap() {
       // Autoriser les appels sans origin (mobile, Postman, curl)
       if (!origin) return callback(null, true);
 
-      if (allowedOrigins.includes(origin)) {
+      // `flutter run -d chrome` tire un port aléatoire à chaque lancement, donc
+      // aucune allowlist fixe ne peut le couvrir. La tolérance est restreinte au
+      // loopback ET au mode développement explicite : la production reste sur
+      // l'allowlist seule.
+      if (isOriginAllowed(origin, allowedOrigins, allowAnyLoopback)) {
         return callback(null, true);
       }
 
       return callback(new Error(`Origin non autorisée : ${origin}`), false);
     },
+
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization','X-Requested-With', 'Accept'],
     credentials: true,
   });
 
   //  ValidationPipe — une seule fois, bien configuré
   app.useGlobalPipes(
     new ValidationPipe({
-      transform: true,           // Convertit les types automatiquement
-      whitelist: true,           // Supprime les champs non déclarés dans le DTO
+      transform: true, // Convertit les types automatiquement
+      whitelist: true, // Supprime les champs non déclarés dans le DTO
       forbidNonWhitelisted: true, // Retourne une erreur si champ inconnu
       transformOptions: {
         enableImplicitConversion: true,

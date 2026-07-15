@@ -1,65 +1,316 @@
-import Link from "next/link";
+"use client";
 
-const adminAreas = [
+import { AdminPageHeader } from "@/components/Layouts/admin-page-header";
+import { getApiBaseUrl } from "@/lib/api-base";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+
+type DashboardSnapshot = {
+  usersTotal: number | null;
+  pendingKyc: number | null;
+  dealsCount: number | null;
+  openDisputes: number | null;
+};
+
+const API_BASE_URL = getApiBaseUrl(
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL,
+);
+
+const quickLinks = [
   {
     href: "/admin/users",
     title: "User Directory",
-    description: "Review profiles, admin roles, and trust counters.",
+    description: "Search users, inspect trust counters, and manage admin roles.",
   },
   {
     href: "/admin/kyc",
     title: "KYC Queue",
-    description: "Process submitted verification records and reviewer actions.",
+    description: "Process pending identity submissions and track review throughput.",
   },
   {
-    href: "/pages/settings",
-    title: "Settings",
-    description: "Update the dashboard account presentation and local preferences.",
+    href: "/admin/deals",
+    title: "Deals Ledger",
+    description: "Monitor active deal states, owners, and attached records.",
+  },
+  {
+    href: "/admin/dispute-center",
+    title: "Dispute Center",
+    description: "Review reports and enforce platform actions quickly.",
   },
 ];
 
+function asObject(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function readItemsCount(payload: unknown): number {
+  const payloadObj = asObject(payload);
+  const data = payloadObj && "data" in payloadObj ? payloadObj.data : payload;
+  const dataObj = asObject(data);
+
+  if (Array.isArray(data)) {
+    return data.length;
+  }
+
+  if (Array.isArray(dataObj?.items)) {
+    return dataObj.items.length;
+  }
+
+  if (Array.isArray(dataObj?.submissions)) {
+    return dataObj.submissions.length;
+  }
+
+  if (typeof dataObj?.total === "number") {
+    return dataObj.total;
+  }
+
+  if (typeof payloadObj?.total === "number") {
+    return payloadObj.total;
+  }
+
+  return 0;
+}
+
+function formatMetric(value: number | null, loading: boolean) {
+  if (loading) {
+    return "...";
+  }
+
+  if (value === null) {
+    return "--";
+  }
+
+  return value.toLocaleString();
+}
+
+function getReliabilityScore(snapshot: DashboardSnapshot) {
+  const users = snapshot.usersTotal ?? 0;
+  const kyc = snapshot.pendingKyc ?? 0;
+  const disputes = snapshot.openDisputes ?? 0;
+
+  const score = Math.max(58, 94 - Math.min(kyc * 2 + disputes * 3, 35));
+  const exposure = Math.max(0, Math.min(100, Math.round((disputes / Math.max(users, 1)) * 100)));
+
+  return {
+    score,
+    exposure,
+  };
+}
+
+function buildPriorityItems(snapshot: DashboardSnapshot) {
+  const kyc = snapshot.pendingKyc ?? 0;
+  const disputes = snapshot.openDisputes ?? 0;
+
+  return [
+    {
+      title: "KYC Throughput",
+      value: kyc,
+      tone:
+        kyc >= 15
+          ? "bg-rose-50 text-rose-700 border-rose-200"
+          : kyc >= 6
+            ? "bg-amber-50 text-amber-700 border-amber-200"
+            : "bg-emerald-50 text-emerald-700 border-emerald-200",
+      summary:
+        kyc >= 15
+          ? "High backlog detected. Assign additional reviewers today."
+          : kyc >= 6
+            ? "Moderate queue. Maintain two-pass daily review."
+            : "Queue healthy. Current SLA is stable.",
+    },
+    {
+      title: "Dispute Response",
+      value: disputes,
+      tone:
+        disputes >= 8
+          ? "bg-rose-50 text-rose-700 border-rose-200"
+          : disputes >= 4
+            ? "bg-amber-50 text-amber-700 border-amber-200"
+            : "bg-emerald-50 text-emerald-700 border-emerald-200",
+      summary:
+        disputes >= 8
+          ? "Escalation volume is elevated. Prioritize top-risk tickets."
+          : disputes >= 4
+            ? "Activity is moderate. Keep 24h response target."
+            : "Response load is low. Maintain proactive monitoring.",
+    },
+  ];
+}
+
 export default function Home() {
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [snapshot, setSnapshot] = useState<DashboardSnapshot>({
+    usersTotal: null,
+    pendingKyc: null,
+    dealsCount: null,
+    openDisputes: null,
+  });
+
+  useEffect(() => {
+    async function loadDashboardSnapshot() {
+      try {
+        setLoading(true);
+        setFetchError(null);
+
+        const [usersRes, kycRes, dealsRes, disputesRes] = await Promise.allSettled([
+          // apiRequest will include credentials: 'include' so HttpOnly cookies are forwarded
+          import("@/lib/api-client").then((m) => m.apiRequest<any>("/admin/users?page=1&limit=1")),
+          import("@/lib/api-client").then((m) => m.apiRequest<any>("/admin/kyc/pending")),
+          import("@/lib/api-client").then((m) => m.apiRequest<any>("/admin/deals")),
+          import("@/lib/api-client").then((m) => m.apiRequest<any>("/admin/dispute-center")),
+        ]);
+
+        const usersData = usersRes.status === 'fulfilled' ? usersRes.value : null;
+        const kycData = kycRes.status === 'fulfilled' ? kycRes.value : null;
+        const dealsData = dealsRes.status === 'fulfilled' ? dealsRes.value : null;
+        const disputesData = disputesRes.status === 'fulfilled' ? disputesRes.value : null;
+
+        const disputeItems = (disputesData?.data?.items ??
+          disputesData?.items ??
+          disputesData?.data ??
+          disputesData ?? []) as Array<{ status?: string }>;
+
+        const openDisputes = Array.isArray(disputeItems)
+          ? disputeItems.filter((ticket) => ticket?.status !== "RESOLVED").length
+          : readItemsCount(disputesData);
+
+        setSnapshot({
+          usersTotal: usersData ? readItemsCount(usersData) : null,
+          pendingKyc: kycData ? readItemsCount(kycData) : null,
+          dealsCount: dealsData ? readItemsCount(dealsData) : null,
+          openDisputes,
+        });
+
+        if (usersRes.status === 'rejected' || kycRes.status === 'rejected' || dealsRes.status === 'rejected' || disputesRes.status === 'rejected') {
+          setFetchError(
+            "Some dashboard metrics could not be loaded. Core pages are still available.",
+          );
+        }
+      } catch {
+        setFetchError("Unable to load dashboard metrics. Please sign in again.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadDashboardSnapshot();
+  }, []);
+
+  const reliability = getReliabilityScore(snapshot);
+  const priorityItems = buildPriorityItems(snapshot);
+
+  const metrics = [
+    {
+      title: "Total Users",
+      value: snapshot.usersTotal,
+      accent: "from-slate-900 to-slate-700",
+      note: "Platform accounts",
+      href: "/admin/users",
+    },
+    {
+      title: "Pending KYC",
+      value: snapshot.pendingKyc,
+      accent: "from-amber-600 to-amber-500",
+      note: "Verification queue",
+      href: "/admin/kyc",
+    },
+    {
+      title: "Deals",
+      value: snapshot.dealsCount,
+      accent: "from-blue-700 to-indigo-600",
+      note: "Visible in ledger",
+      href: "/admin/deals",
+    },
+    {
+      title: "Open Disputes",
+      value: snapshot.openDisputes,
+      accent: "from-rose-700 to-rose-500",
+      note: "Needs active handling",
+      href: "/admin/dispute-center",
+    },
+  ];
 
   return (
-    <div className="space-y-8">
-      <section className="rounded-3xl border border-slate-200 bg-white p-8 shadow-sm">
-        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">
-          IDEAL Admin
-        </p>
-        <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-950">
-          Control panel for trusted digital deals
-        </h1>
-        <p className="mt-4 max-w-3xl text-lg leading-8 text-slate-600">
-          Manage user access, review KYC submissions, and monitor the internal
-          operations that support the IDEAL platform.
-        </p>
-      </section>
+    <div className="space-y-7">
+      <AdminPageHeader
+        eyebrow="IDEAL OPERATIONS HUB"
+        title="Executive Overview"
+        description="Consolidated command surface for moderation, verification, deal flow, and dispute resolution across the IDEAL platform."
+        panelLabel="Reliability Index"
+        panelValue={loading ? "..." : `${reliability.score}%`}
+        panelNote="Daily health estimate"
+        panelSubtext={`Dispute exposure: ${loading ? "..." : `${reliability.exposure}%`} of active users.`}
+        panelBarValue={loading ? 25 : reliability.score}
+        metrics={metrics.map((metric) => ({
+          label: metric.title,
+          value: formatMetric(metric.value, loading),
+          note: metric.note,
+          accent: metric.accent,
+          href: metric.href,
+        }))}
+        tone="blue"
+      />
 
-      <section className="grid gap-4 md:grid-cols-3">
-        {adminAreas.map((area) => (
-          <Link
-            key={area.href}
-            href={area.href}
-            className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-slate-300 hover:shadow-md"
-          >
-            <h2 className="text-xl font-semibold text-slate-950">
-              {area.title}
+      {fetchError && (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+          {fetchError}
+        </section>
+      )}
+
+      <section className="grid gap-4 xl:grid-cols-[1.25fr_1fr]">
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-dark-3 dark:bg-dark-2 md:p-7">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-slate-950 dark:text-white">
+              Priority Watchlist
             </h2>
-            <p className="mt-3 text-sm leading-7 text-slate-600">
-              {area.description}
-            </p>
-          </Link>
-        ))}
-      </section>
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600 dark:bg-dark-3 dark:text-dark-7">
+              Today
+            </span>
+          </div>
 
-      <section className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8">
-        <h2 className="text-xl font-semibold text-slate-950">
-          First-run checklist
-        </h2>
-        <div className="mt-4 grid gap-3 text-sm text-slate-700">
-          <p>1. Create at least one admin user in Supabase Auth and `profiles`.</p>
-          <p>2. Sign in through `/login` with that admin account.</p>
-          <p>3. Start wiring live admin metrics into the dashboard routes.</p>
+          <div className="mt-5 space-y-4">
+            {priorityItems.map((item) => (
+              <div
+                key={item.title}
+                className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-dark-3 dark:bg-dark"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{item.title}</p>
+                  <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${item.tone}`}>
+                    {loading ? "..." : `${item.value} open`}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-dark-7">{item.summary}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-dark-3 dark:bg-dark-2 md:p-7">
+          <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Quick Actions</h2>
+          <p className="mt-2 text-sm text-slate-500 dark:text-dark-6">
+            Jump directly to high-frequency workflows.
+          </p>
+
+          <div className="mt-5 grid gap-3">
+            {quickLinks.map((area) => (
+              <Link
+                key={area.href}
+                href={area.href}
+                className="rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-slate-300 hover:bg-white dark:border-dark-3 dark:bg-dark dark:hover:border-dark-4 dark:hover:bg-dark-3"
+              >
+                <h3 className="text-base font-semibold text-slate-900 dark:text-white">{area.title}</h3>
+                <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-dark-7">
+                  {area.description}
+                </p>
+              </Link>
+            ))}
+          </div>
         </div>
       </section>
     </div>

@@ -11,6 +11,7 @@ class AuthService {
   static User? get currentUser => _client.auth.currentUser;
   static Session? get currentSession => _client.auth.currentSession;
   static bool get isLoggedIn => currentUser != null;
+
   static Stream<AuthState> get authStateChanges =>
       _client.auth.onAuthStateChange;
 
@@ -49,7 +50,7 @@ class AuthService {
     }
   }
 
-  /// Resend OTP code to email after signup
+  /// Resend the OTP verification code for signup
   static Future<void> resendOtp({required String email}) async {
     await _client.auth.resend(type: OtpType.signup, email: email);
   }
@@ -92,19 +93,39 @@ class AuthService {
     }
   }
 
-  /// Send password reset email
+  /// Send password reset email (with OTP code, via Supabase email template)
   static Future<void> resetPassword(String email) async {
-    await _client.auth.resetPasswordForEmail(
-      email,
-      redirectTo: 'io.supabase.idealapp://reset-password',
-    );
+    await _client.auth.resetPasswordForEmail(email);
   }
 
-  /// Update the authenticated user's password (called after PASSWORD_RECOVERY)
-  static Future<void> updatePassword(String newPassword) async {
+  /// Verify the OTP code sent for password recovery
+  static Future<void> verifyPasswordResetOtp({
+    required String email,
+    required String token,
+  }) async {
+    final response = await _client.auth.verifyOTP(
+      email: email,
+      token: token,
+      type: OtpType.recovery,
+    );
+
+    final accessToken = response.session?.accessToken;
+    final refreshToken = response.session?.refreshToken;
+    if (accessToken != null) {
+      await TokenStorage.saveTokens(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+      );
+    }
+  }
+
+  /// Set a new password for the recovered session, then sign out
+  /// so the user re-authenticates cleanly with the new password.
+  static Future<void> confirmNewPassword(String newPassword) async {
     await _client.auth.updateUser(
       UserAttributes(password: newPassword),
     );
+    await signOut();
   }
 
   /// Sign out and clear stored tokens

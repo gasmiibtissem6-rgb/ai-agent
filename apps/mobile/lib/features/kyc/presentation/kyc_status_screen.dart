@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../domain/kyc_model.dart';
 import '../domain/kyc_provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/router/app_router.dart';
 import '../../../shared/ideal_ui.dart';
 
@@ -31,7 +32,11 @@ class _KycStatusScreenState extends ConsumerState<KycStatusScreen> {
       body: IdealGradientBackground(
         child: kycAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Error: $e')),
+          error: (e, _) => Center(
+            child: Text(
+              context.l10n.trp('common.errorPrefix', {'message': '$e'}),
+            ),
+          ),
           data: (kycState) {
             if (kycState.isLoading) {
               return const Center(child: CircularProgressIndicator());
@@ -72,7 +77,7 @@ class _NotSubmittedView extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               Text(
-                'Verify your identity',
+                context.l10n.tr('kyc.verifyIdentity'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 24,
@@ -82,7 +87,7 @@ class _NotSubmittedView extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                'To participate in deals and build trust with other parties, verify your identity with a government-issued ID.',
+                context.l10n.tr('kyc.verifyDesc'),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 15,
@@ -91,24 +96,24 @@ class _NotSubmittedView extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 30),
-              const _InfoRow(
+              _InfoRow(
                 icon: Icons.lock_outlined,
-                text: 'Your documents are stored securely and privately',
+                text: context.l10n.tr('kyc.infoSecure'),
               ),
               const SizedBox(height: 12),
-              const _InfoRow(
+              _InfoRow(
                 icon: Icons.access_time_outlined,
-                text: 'Verification usually takes 1-2 business days',
+                text: context.l10n.tr('kyc.infoTime'),
               ),
               const SizedBox(height: 12),
-              const _InfoRow(
+              _InfoRow(
                 icon: Icons.shield_outlined,
-                text: 'Only authorized reviewers can access your documents',
+                text: context.l10n.tr('kyc.infoAuthorized'),
               ),
               const SizedBox(height: 36),
               ElevatedButton(
                 onPressed: onStartVerification,
-                child: const Text('Start Verification'),
+                child: Text(context.l10n.tr('kyc.start')),
               ),
             ],
           ),
@@ -139,7 +144,7 @@ class _StatusView extends StatelessWidget {
               _StatusIcon(icon: icon, color: color),
               const SizedBox(height: 24),
               Text(
-                submission.statusLabel,
+                _kycStatusLabel(context, submission.status),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 24,
@@ -149,7 +154,7 @@ class _StatusView extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                _statusMessage(submission.status),
+                _statusMessage(context, submission.status),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 15,
@@ -173,8 +178,8 @@ class _StatusView extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Rejection reason',
+                      Text(
+                        context.l10n.tr('kyc.rejectionReason'),
                         style: TextStyle(
                           fontWeight: FontWeight.w800,
                           color: AppColors.error,
@@ -191,7 +196,7 @@ class _StatusView extends StatelessWidget {
                 const SizedBox(height: 22),
                 ElevatedButton(
                   onPressed: () => context.go(AppRoutes.kycUpload),
-                  child: const Text('Resubmit Documents'),
+                  child: Text(context.l10n.tr('kyc.resubmit')),
                 ),
               ],
               const SizedBox(height: 28),
@@ -223,7 +228,7 @@ class _InfoCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Submission details',
+            context.l10n.tr('kyc.submissionDetails'),
             style: TextStyle(
               fontWeight: FontWeight.w900,
               color: AppColors.textPrimary,
@@ -231,17 +236,17 @@ class _InfoCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _DetailRow(
-            label: 'Document type',
-            value: submission.documentTypeLabel,
+            label: context.l10n.tr('kyc.documentType'),
+            value: _kycDocLabel(context, submission.documentType),
           ),
           if (submission.createdAt != null)
             _DetailRow(
-              label: 'Submitted on',
+              label: context.l10n.tr('kyc.submittedOn'),
               value: _formatDate(submission.createdAt!),
             ),
           if (submission.reviewedAt != null)
             _DetailRow(
-              label: 'Reviewed on',
+              label: context.l10n.tr('kyc.reviewedOn'),
               value: _formatDate(submission.reviewedAt!),
             ),
         ],
@@ -349,16 +354,40 @@ IconData _statusIcon(KycStatus status) {
   }
 }
 
-String _statusMessage(KycStatus status) {
+String _statusMessage(BuildContext context, KycStatus status) {
   switch (status) {
     case KycStatus.pending:
-      return 'Your documents are being reviewed. This usually takes 1-2 business days.';
+      return context.l10n.tr('kycMsg.pending');
     case KycStatus.approved:
-      return 'Your identity has been verified. You can now participate in deals.';
+      return context.l10n.tr('kycMsg.approved');
     case KycStatus.rejected:
-      return 'Your verification was rejected. Please review the reason and resubmit.';
+      return context.l10n.tr('kycMsg.rejected');
     default:
       return '';
+  }
+}
+
+String _kycStatusLabel(BuildContext context, KycStatus status) {
+  switch (status) {
+    case KycStatus.notSubmitted:
+      return context.l10n.tr('kycStatus.notSubmitted');
+    case KycStatus.pending:
+      return context.l10n.tr('kycStatus.pending');
+    case KycStatus.approved:
+      return context.l10n.tr('kycStatus.approved');
+    case KycStatus.rejected:
+      return context.l10n.tr('kycStatus.rejected');
+  }
+}
+
+String _kycDocLabel(BuildContext context, KycDocumentType type) {
+  switch (type) {
+    case KycDocumentType.nationalId:
+      return context.l10n.tr('kycDoc.nationalId');
+    case KycDocumentType.passport:
+      return context.l10n.tr('kycDoc.passport');
+    case KycDocumentType.driverLicense:
+      return context.l10n.tr('kycDoc.driverLicense');
   }
 }
 

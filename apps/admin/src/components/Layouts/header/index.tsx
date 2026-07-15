@@ -3,6 +3,8 @@
 import { SearchIcon } from "@/assets/icons";
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import idealLogo from "../../../../images/ideal-logo.png";
 import { useSidebarContext } from "../sidebar/sidebar-context";
 import { MenuIcon } from "./icons";
 import { Notification } from "./notification";
@@ -11,6 +13,19 @@ import { UserInfo } from "./user-info";
 
 export function Header() {
   const { toggleSidebar, isMobile } = useSidebarContext();
+  const pathname = usePathname();
+
+  const pageTitle = (() => {
+    if (pathname === "/") return "Dashboard";
+    if (pathname.startsWith("/admin/users")) return "User Directory";
+    if (pathname.startsWith("/admin/kyc")) return "KYC Review Queue";
+    if (pathname.startsWith("/admin/deals")) return "Deals Ledger";
+    if (pathname.startsWith("/admin/contract-archive")) return "Contract Archive";
+    if (pathname.startsWith("/admin/dispute-center")) return "Dispute Center";
+    if (pathname.startsWith("/profile")) return "Profile";
+    if (pathname.startsWith("/pages/settings")) return "Account Settings";
+    return "Admin";
+  })();
 
   return (
     <header className="border-stroke shadow-1 dark:border-stroke-dark dark:bg-gray-dark sticky top-0 z-30 flex items-center justify-between border-b bg-white px-4 py-5 md:px-5 2xl:px-10">
@@ -25,24 +40,24 @@ export function Header() {
       {isMobile && (
         <Link href={"/"} className="2xsm:ml-4 ml-2 max-[430px]:hidden">
           <Image
-            src={"/images/logo/logo-icon.svg"}
+            src={idealLogo}
             width={32}
             height={32}
-            alt=""
-            role="presentation"
+            alt="IDEAL"
+            className="rounded-lg"
           />
         </Link>
       )}
 
       <div className="max-xl:hidden">
         <h1 className="text-heading-5 text-dark mb-0.5 font-bold dark:text-white">
-          Dashboard
+          {pageTitle}
         </h1>
-        <p className="font-medium">Next.js Admin Dashboard Solution</p>
+        <p className="font-medium">IDEAL Administrative Control Center</p>
       </div>
 
-      <div className="2xsm:gap-4 flex flex-1 items-center justify-end gap-2">
-        <div className="relative w-full max-w-75">
+      <div className="2xsm:gap-4 flex min-w-0 flex-1 items-center justify-end gap-2">
+        <div className="relative hidden w-full max-w-75 lg:block">
           <input
             type="search"
             placeholder="Search"

@@ -194,7 +194,7 @@ The API loads `services/api/.env` first and then falls back to the root `.env`.
 Example:
 
 ```env
-DATABASE_URL="postgresql://ideal:ideal_dev_password@localhost:5434/ideal_dev?schema=public"
+DATABASE_URL="postgresql://ideal:<DB_PASSWORD>@localhost:5434/ideal_dev?schema=public"
 SUPABASE_URL=
 SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=

@@ -1,7 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { AiProvider, AiChatRequest, AiChatResponse } from './ai-provider.interface';
+import {
+  AiProvider,
+  AiChatRequest,
+  AiChatResponse,
+} from './ai-provider.interface';
 
-const MODELS = ['gemini-2.0-flash-lite', 'gemini-1.5-flash-8b', 'gemini-2.0-flash'];
+const MODELS = [
+  'gemini-2.0-flash-lite',
+  'gemini-1.5-flash-8b',
+  'gemini-2.0-flash',
+];
 
 @Injectable()
 export class ClaudeAiProvider implements AiProvider {
@@ -24,20 +32,32 @@ export class ClaudeAiProvider implements AiProvider {
                   role: 'user',
                   parts: [
                     { text: request.message },
-                    ...(request.image ? [{
-                      inline_data: {
-                        mime_type: (request.image.match(/^data:(image\/\w+);base64,/) || [, 'image/png'])[1],
-                        data: request.image.replace(/^data:image\/\w+;base64,/, ''),
-                      },
-                    }] : []),
+                    ...(request.image
+                      ? [
+                          {
+                            inline_data: {
+                              mime_type: (request.image.match(
+                                /^data:(image\/\w+);base64,/,
+                              ) || [, 'image/png'])[1],
+                              data: request.image.replace(
+                                /^data:image\/\w+;base64,/,
+                                '',
+                              ),
+                            },
+                          },
+                        ]
+                      : []),
                   ],
                 },
               ],
             }),
-          }
+          },
         );
         const data = await response.json();
-        if (data.error) { console.log(`[AI] ${model} failed: ${data.error.message}`); continue; }
+        if (data.error) {
+          console.log(`[AI] ${model} failed: ${data.error.message}`);
+          continue;
+        }
         const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (!reply) continue;
         console.log(`[AI] Success: ${model}`);
@@ -46,6 +66,9 @@ export class ClaudeAiProvider implements AiProvider {
         console.error(`[AI] ${model} error:`, err.message);
       }
     }
-    return { reply: 'Service IA indisponible. Réessayez dans 1 minute.', provider: 'none' };
+    return {
+      reply: 'Service IA indisponible. Réessayez dans 1 minute.',
+      provider: 'none',
+    };
   }
 }

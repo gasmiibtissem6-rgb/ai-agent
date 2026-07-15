@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../domain/auth_provider.dart';
 import '../domain/auth_state.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../services/auth_service.dart';
 import '../../../core/security/rate_limiter.dart';
 import '../../../shared/ideal_ui.dart';
 
@@ -40,7 +40,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         SnackBar(
           content: Text(
             _rateLimiter.lockoutMessage ??
-                'Too many attempts. Try again later.',
+                context.l10n.tr('auth.tooManyAttempts'),
           ),
           backgroundColor: AppColors.error,
         ),
@@ -55,12 +55,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           password: _passwordController.text,
         );
     final state = ref.read(authProvider).whenOrNull(data: (s) => s);
-    if (state?.errorMessage == 'Please verify your email first.') {
-      await ref.read(authProvider.notifier).resendOtp(email: email);
-      if (!mounted) return;
-      context.go(AppRoutes.otp, extra: email);
-      return;
-    }
     if (state?.status == AuthStatus.error) {
       _rateLimiter.recordFailure();
     } else {
@@ -69,11 +63,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _loginWithGoogle() async {
+    // Navigation is handled by the ref.listen below once authenticated.
     await ref.read(authProvider.notifier).signInWithGoogle();
-    if (!mounted) return;
-    if (AuthService.isLoggedIn) {
-      context.go(AppRoutes.home);
-    }
   }
 
   @override
@@ -87,9 +78,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (state?.status == AuthStatus.authenticated) {
         context.go(AppRoutes.home);
       }
-      if (state?.status == AuthStatus.error &&
-          state?.errorMessage != null &&
-          state?.errorMessage != 'Please verify your email first.') {
+      if (state?.status == AuthStatus.error && state?.errorMessage != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(state!.errorMessage!),
@@ -99,35 +88,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       }
     });
 
+    final l10n = context.l10n;
     return AuthShell(
-      title: 'Welcome back',
-      subtitle: 'Sign in to continue managing trusted deals.',
+      title: l10n.tr('login.title'),
+      subtitle: l10n.tr('login.subtitle'),
       child: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            const _FieldLabel('Email Address'),
+            _FieldLabel(l10n.tr('auth.email')),
             TextFormField(
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                hintText: 'you@example.com',
-                prefixIcon: Icon(Icons.email_outlined),
+              decoration: InputDecoration(
+                hintText: l10n.tr('auth.emailHint'),
+                prefixIcon: const Icon(Icons.email_outlined),
               ),
-              validator: Validators.email,
+              validator: (v) => Validators.email(context, v),
             ),
             const SizedBox(height: 18),
-            const _FieldLabel('Password'),
+            _FieldLabel(l10n.tr('auth.password')),
             TextFormField(
               controller: _passwordController,
               obscureText: _obscurePassword,
               textInputAction: TextInputAction.done,
               onFieldSubmitted: (_) => _login(),
               decoration: InputDecoration(
-                hintText: 'Your password',
+                hintText: l10n.tr('login.passwordHint'),
                 prefixIcon: const Icon(Icons.lock_outlined),
                 suffixIcon: IconButton(
                   icon: Icon(
@@ -139,7 +129,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       setState(() => _obscurePassword = !_obscurePassword),
                 ),
               ),
-              validator: Validators.password,
+              validator: (v) => Validators.password(context, v),
             ),
             const SizedBox(height: 10),
             Row(
@@ -149,12 +139,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   onChanged: (value) =>
                       setState(() => _rememberMe = value ?? false),
                 ),
-                const Expanded(
-                  child: Text('Remember me', style: TextStyle(fontSize: 13)),
+                Expanded(
+                  child: Text(
+                    l10n.tr('login.rememberMe'),
+                    style: const TextStyle(fontSize: 13),
+                  ),
                 ),
                 TextButton(
                   onPressed: () => context.go(AppRoutes.forgotPassword),
-                  child: const Text('Forgot password?'),
+                  child: Text(l10n.tr('login.forgot')),
                 ),
               ],
             ),
@@ -172,7 +165,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           color: Colors.white,
                         ),
                       )
-                    : const Text('Sign In'),
+                    : Text(l10n.tr('login.signIn')),
               ),
             ),
             const SizedBox(height: 20),
@@ -182,7 +175,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: Text(
-                    'or',
+                    l10n.tr('common.or'),
                     style: TextStyle(color: AppColors.textSecondary),
                   ),
                 ),
@@ -194,7 +187,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               width: double.infinity,
               child: OutlinedButton.icon(
                 icon: const Icon(Icons.g_mobiledata, size: 26),
-                label: const Text('Continue with Google'),
+                label: Text(l10n.tr('login.google')),
                 onPressed: isLoading ? null : _loginWithGoogle,
               ),
             ),
@@ -204,11 +197,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 onPressed: () => context.go(AppRoutes.register),
                 child: Text.rich(
                   TextSpan(
-                    text: "Don't have an account? ",
+                    text: l10n.tr('login.noAccount'),
                     style: TextStyle(color: AppColors.textSecondary),
-                    children: const [
+                    children: [
                       TextSpan(
-                        text: 'Sign Up',
+                        text: l10n.tr('login.signUpLink'),
                         style: TextStyle(
                           color: AppColors.primary,
                           fontWeight: FontWeight.w800,

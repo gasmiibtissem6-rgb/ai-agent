@@ -1,0 +1,183 @@
+### Phase 1 API Testing - User & Trust Management
+### Use REST Client extension in VS Code to run these requests
+
+@baseUrl = http://localhost:3001/api/v1
+@adminToken = YOUR_ADMIN_TOKEN_HERE
+
+### 1. Health Check
+GET {{baseUrl}}/health
+
+### 2. Admin Login (Local Dev)
+POST {{baseUrl}}/auth/login/admin
+Content-Type: application/json
+
+{
+  "email": "admin@ideal.local",
+  "password": "<LOCAL_ADMIN_PASSWORD>"
+}
+
+### 3. Get Current Admin Session
+GET {{baseUrl}}/auth/session
+Authorization: Bearer {{adminToken}}
+
+### 4. Get Users Directory (Page 1)
+GET {{baseUrl}}/admin/users?page=1&limit=10
+Authorization: Bearer {{adminToken}}
+
+### 5. Get Users Directory (Page 2)
+GET {{baseUrl}}/admin/users?page=2&limit=10
+Authorization: Bearer {{adminToken}}
+
+### 6. Get Users Directory (Custom Page Size)
+GET {{baseUrl}}/admin/users?page=1&limit=5
+Authorization: Bearer {{adminToken}}
+
+### 7. Override Trust Metrics - Example 1 (Fraud Correction)
+POST {{baseUrl}}/admin/users/USER_PROFILE_ID_HERE/trust-override
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "successfulDeals": 10,
+  "ongoingDeals": 2,
+  "breachedDeals": 0,
+  "reason": "Correction manuelle suite à investigation fraude cas #2024-FR-001"
+}
+
+### 8. Override Trust Metrics - Example 2 (Dispute Resolution)
+POST {{baseUrl}}/admin/users/USER_PROFILE_ID_HERE/trust-override
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "successfulDeals": 25,
+  "ongoingDeals": 5,
+  "breachedDeals": 2,
+  "reason": "Résolution de litige - ticket support #SUPP-12345 - verdict en faveur de l'utilisateur"
+}
+
+### 9. Override Trust Metrics - Example 3 (Reset to Zero)
+POST {{baseUrl}}/admin/users/USER_PROFILE_ID_HERE/trust-override
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "successfulDeals": 0,
+  "ongoingDeals": 0,
+  "breachedDeals": 0,
+  "reason": "Réinitialisation complète demandée par utilisateur après suppression de compte et recréation"
+}
+
+### 10. Get Pending KYC Queue (Coming in Phase 2)
+GET {{baseUrl}}/admin/kyc/pending
+Authorization: Bearer {{adminToken}}
+
+### 11. Test Error - Missing Token
+GET {{baseUrl}}/admin/users?page=1&limit=10
+
+### 12. Test Error - Invalid Token
+GET {{baseUrl}}/admin/users?page=1&limit=10
+Authorization: Bearer invalid_token_12345
+
+### 13. Test Error - Reason Too Short (should fail validation)
+POST {{baseUrl}}/admin/users/USER_PROFILE_ID_HERE/trust-override
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "successfulDeals": 5,
+  "ongoingDeals": 1,
+  "breachedDeals": 0,
+  "reason": "Short"
+}
+
+### 14. Test Error - Missing Reason (should fail validation)
+POST {{baseUrl}}/admin/users/USER_PROFILE_ID_HERE/trust-override
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "successfulDeals": 5,
+  "ongoingDeals": 1,
+  "breachedDeals": 0
+}
+
+### 15. Test Error - Negative Values (should fail validation)
+POST {{baseUrl}}/admin/users/USER_PROFILE_ID_HERE/trust-override
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "successfulDeals": -5,
+  "ongoingDeals": 1,
+  "breachedDeals": 0,
+  "reason": "Testing negative values validation"
+}
+
+###
+### Expected Responses
+###
+
+# Response 1 (Health Check): 200 OK
+# {
+#   "status": "ok",
+#   "timestamp": "2026-07-03T..."
+# }
+
+# Response 2 (Admin Login): 200 OK
+# {
+#   "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+#   "profile": {
+#     "id": "uuid",
+#     "email": "admin@ideal.local",
+#     "isAdmin": true,
+#     "adminRole": "SUPER_ADMIN"
+#   }
+# }
+
+# Response 4 (Users Directory): 200 OK
+# {
+#   "users": [
+#     {
+#       "id": "uuid",
+#       "displayName": "John Doe",
+#       "email": "john@example.com",
+#       "kycStatus": "APPROVED",
+#       "isAdmin": false,
+#       "adminRole": null,
+#       "createdAt": "2026-01-15T...",
+#       "trustCounter": {
+#         "successfulDeals": 5,
+#         "ongoingDeals": 2,
+#         "breachedDeals": 0
+#       }
+#     }
+#   ],
+#   "total": 25,
+#   "page": 1,
+#   "limit": 10,
+#   "totalPages": 3
+# }
+
+# Response 7 (Trust Override): 200 OK
+# {
+#   "id": "uuid",
+#   "profileId": "uuid",
+#   "successfulDeals": 10,
+#   "ongoingDeals": 2,
+#   "breachedDeals": 0,
+#   "updatedAt": "2026-07-03T..."
+# }
+
+# Response 11 (Missing Token): 401 Unauthorized
+# {
+#   "statusCode": 401,
+#   "message": "Unauthorized"
+# }
+
+# Response 13 (Short Reason): 400 Bad Request
+# {
+#   "statusCode": 400,
+#   "message": ["Reason must be at least 10 characters for audit compliance"],
+#   "error": "Bad Request"
+# }

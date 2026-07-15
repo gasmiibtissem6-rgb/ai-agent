@@ -46,7 +46,7 @@ npm run dev:api
 Docker connection string:
 
 ```env
-DATABASE_URL="postgresql://ideal:ideal_dev_password@localhost:5434/ideal_dev?schema=public"
+DATABASE_URL="postgresql://ideal:<DB_PASSWORD>@localhost:5434/ideal_dev?schema=public"
 ```
 
 The Docker service is defined in `docker-compose.yml` and stores data in the `ideal_postgres_data` volume.
@@ -111,11 +111,11 @@ Docker and native PostgreSQL development can use the API's local admin fallback.
 This is only active when Supabase Auth is not configured and `NODE_ENV` is not
 `production`.
 
-Default credentials:
+Default credentials (development only):
 
 ```txt
 Email: admin@ideal.local
-Password: ChangeMe123!
+Password: <LOCAL_ADMIN_PASSWORD> (set via LOCAL_ADMIN_PASSWORD env var)
 ```
 
 The first successful login creates or updates a `profiles` row for that email
@@ -125,7 +125,7 @@ Change the local credentials in `services/api/.env` if needed:
 
 ```env
 LOCAL_ADMIN_EMAIL=admin@ideal.local
-LOCAL_ADMIN_PASSWORD=ChangeMe123!
+LOCAL_ADMIN_PASSWORD=<LOCAL_ADMIN_PASSWORD>
 ```
 
 When using Supabase Auth instead, create the user in Supabase Auth and make sure

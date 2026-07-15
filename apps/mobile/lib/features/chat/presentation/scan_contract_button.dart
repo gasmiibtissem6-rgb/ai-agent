@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import '../../../core/config/api_config.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../shared/platform_file_picker.dart';
 
 class ScanContractButton extends StatefulWidget {
@@ -37,25 +38,28 @@ class _ScanContractButtonState extends State<ScanContractButton> {
         widget.onTextExtracted('', file.dataUrl);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Contrat scanné !'),
+            SnackBar(
+              content: Text('✅ ${context.l10n.tr('doc.scanned')}'),
               backgroundColor: Colors.green,
             ),
           );
         }
       } else {
-        final msg = (data['message'] ?? 'Aucun texte détecté') as String;
+        final msg = data['message'] as String?;
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('❌ $msg'), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text('❌ ${msg ?? context.l10n.tr('doc.noText')}'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('❌ Erreur de scan'),
+          SnackBar(
+            content: Text('❌ ${context.l10n.tr('doc.scanError')}'),
             backgroundColor: Colors.red,
           ),
         );
@@ -74,7 +78,7 @@ class _ScanContractButtonState extends State<ScanContractButton> {
           )
         : IconButton(
             icon: const Icon(Icons.document_scanner),
-            tooltip: 'Scanner un contrat papier',
+            tooltip: context.l10n.tr('scanBtn.tooltip'),
             color: Theme.of(context).colorScheme.primary,
             onPressed: _pickAndScan,
           );

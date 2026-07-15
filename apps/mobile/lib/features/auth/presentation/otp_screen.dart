@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../domain/auth_provider.dart';
 import '../domain/auth_state.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../shared/ideal_ui.dart';
@@ -38,7 +39,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     if (code.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Please enter the complete 6-digit code.'),
+          content: Text(context.l10n.tr('otp.enterComplete')),
           backgroundColor: AppColors.error,
         ),
       );
@@ -55,7 +56,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('A new verification code has been sent.'),
+        content: Text(context.l10n.tr('otp.newCodeSent')),
         backgroundColor: AppColors.success,
       ),
     );
@@ -127,7 +128,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                     ),
                     const SizedBox(height: 20),
                     Text(
-                      'Verify Email',
+                      context.l10n.tr('otp.title'),
                       style: TextStyle(
                         color: AppColors.textPrimary,
                         fontSize: 28,
@@ -136,7 +137,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      "We've sent a code to your email",
+                      context.l10n.tr('otp.sentCode'),
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: AppColors.textSecondary,
@@ -154,7 +155,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                       child: Column(
                         children: [
                           Text(
-                            'Enter the 6-digit code sent to your email address',
+                            context.l10n.tr('otp.enter6'),
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: AppColors.textSecondary,
@@ -241,7 +242,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                "Didn't receive the code? ",
+                                context.l10n.tr('otp.didntReceive'),
                                 style: TextStyle(
                                   color: AppColors.textSecondary,
                                   fontSize: 14,
@@ -251,8 +252,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                                 onTap: _canResend ? _resendCode : null,
                                 child: Text(
                                   _canResend
-                                      ? 'Resend'
-                                      : 'Resend (${_resendCooldown}s)',
+                                      ? context.l10n.tr('otp.resend')
+                                      : context.l10n.trp('otp.resendIn',
+                                          {'seconds': '$_resendCooldown'}),
                                   style: TextStyle(
                                     color: _canResend
                                         ? AppColors.accent
@@ -286,9 +288,9 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                                         color: Colors.white,
                                       ),
                                     )
-                                  : const Text(
-                                      'Verify Email',
-                                      style: TextStyle(
+                                  : Text(
+                                      context.l10n.tr('otp.title'),
+                                      style: const TextStyle(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w700,
                                       ),
@@ -300,7 +302,7 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'This code will expire in 10 minutes',
+                      context.l10n.tr('otp.expire'),
                       style: TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 13,

@@ -42,6 +42,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     final isLoading = status == AuthStatus.loading;
 
     if (_sent) {
+      final email = _emailController.text.trim();
       return AuthShell(
         title: 'Check your email',
         subtitle: '',
@@ -62,7 +63,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             ),
             const SizedBox(height: 20),
             Text(
-              'We sent a password reset link to',
+              'We sent a password reset code to',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 15,
@@ -72,7 +73,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             ),
             const SizedBox(height: 6),
             Text(
-              _emailController.text.trim(),
+              email,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 15,
@@ -84,9 +85,15 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () => context.go(AppRoutes.login),
-                child: const Text('Back to sign in'),
+                onPressed: () =>
+                    context.go(AppRoutes.resetPassword, extra: email),
+                child: const Text('Enter code'),
               ),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => context.go(AppRoutes.login),
+              child: const Text('Back to sign in'),
             ),
           ],
         ),
@@ -95,7 +102,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
 
     return AuthShell(
       title: 'Reset password',
-      subtitle: 'Enter your email and we will send you a reset link.',
+      subtitle: 'Enter your email and we will send you a reset code.',
       child: Form(
         key: _formKey,
         child: Column(
@@ -129,13 +136,6 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                         ),
                       )
                     : const Text('Send reset link'),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Center(
-              child: TextButton(
-                onPressed: () => context.go(AppRoutes.login),
-                child: const Text('Back to sign in'),
               ),
             ),
           ],

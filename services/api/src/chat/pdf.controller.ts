@@ -7,11 +7,18 @@ export class PdfController {
 
   @Post('generate-pdf')
   async generatePdf(
-    @Body() body: {
+    @Body()
+    body: {
       content: string;
       title?: string;
       signatureImage?: string;
-      mediaItems?: Array<{ type: 'image' | 'video'; data: string; caption?: string; date?: string; thumbnail?: string }>;
+      mediaItems?: Array<{
+        type: 'image' | 'video';
+        data: string;
+        caption?: string;
+        date?: string;
+        thumbnail?: string;
+      }>;
     },
     @Res() res: any,
   ) {

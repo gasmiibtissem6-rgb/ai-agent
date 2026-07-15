@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/l10n/app_localizations.dart';
+import '../../../services/notification_service.dart';
 import '../../../shared/ideal_ui.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -11,102 +13,117 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  final List<_NotificationItem> _items = [
-    _NotificationItem(
-      title: 'New invitation received',
-      message: 'You have been invited to "Marketing Partnership" deal',
-      time: '2 hours ago',
-      icon: '📨',
-    ),
-    _NotificationItem(
-      title: 'Contract approved',
-      message: '"Software Implementation" has been approved by Ahmed Hassan',
-      time: '5 hours ago',
-      icon: '✅',
-    ),
-    _NotificationItem(
-      title: 'Deal updated',
-      message: 'Sarah created a new version of "Service Agreement"',
-      time: '1 day ago',
-      icon: '📝',
-      read: true,
-    ),
-    _NotificationItem(
-      title: 'New message',
-      message: 'Ahmed commented: "Can we discuss the timeline?"',
-      time: '2 days ago',
-      icon: '💬',
-      read: true,
-    ),
-  ];
+  List<AppNotification> _items = const [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(_load);
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final items = await NotificationService.list();
+      if (!mounted) return;
+      setState(() => _items = items);
+    } catch (e) {
+      if (mounted) setState(() => _error = '$e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _markAllRead() async {
+    try {
+      await NotificationService.markAllRead();
+    } catch (_) {}
+    await _load();
+  }
+
+  Future<void> _markRead(AppNotification item) async {
+    try {
+      await NotificationService.markRead(item.id);
+    } catch (_) {}
+    await _load();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final unread = _items.where((item) => !item.read).toList();
-    final earlier = _items.where((item) => item.read).toList();
+    final unread = _items.where((item) => !item.isRead).toList();
+    final earlier = _items.where((item) => item.isRead).toList();
 
     return IdealAppScaffold(
       activeRoute: 'notifications',
-      body: _MockupPage(
-        child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+      body: IdealGradientBackground(
+        child: RefreshIndicator(
+          onRefresh: _load,
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : ListView(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
                   children: [
-                    const _PageTitle('Notifications'),
-                    const SizedBox(height: 4),
-                    Text(
-                      'You have ${unread.length} unread notifications',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 14,
-                      ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _PageTitle(context.l10n.tr('nav.notifications')),
+                            const SizedBox(height: 4),
+                            Text(
+                              context.l10n.trp('notif.unread',
+                                  {'count': '${unread.length}'}),
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (unread.isNotEmpty)
+                          TextButton(
+                            onPressed: _markAllRead,
+                            child: Text(context.l10n.tr('notif.markAll')),
+                          ),
+                      ],
                     ),
+                    const SizedBox(height: 28),
+                    if (_error != null)
+                      _ErrorNote(error: _error!, onRetry: _load)
+                    else if (_items.isEmpty)
+                      _EmptyNote()
+                    else ...[
+                      if (unread.isNotEmpty) ...[
+                        _SectionLabel(context.l10n.tr('notif.unreadLabel')),
+                        const SizedBox(height: 10),
+                        for (final item in unread) ...[
+                          _NotificationCard(
+                            item: item,
+                            highlighted: true,
+                            onRead: () => _markRead(item),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
+                        const SizedBox(height: 18),
+                      ],
+                      if (earlier.isNotEmpty) ...[
+                        _SectionLabel(context.l10n.tr('notif.earlierLabel')),
+                        const SizedBox(height: 10),
+                        for (final item in earlier) ...[
+                          _NotificationCard(item: item),
+                          const SizedBox(height: 10),
+                        ],
+                      ],
+                    ],
                   ],
                 ),
-                TextButton(
-                  onPressed: () {
-                    setState(() {
-                      for (final item in _items) {
-                        item.read = true;
-                      }
-                    });
-                  },
-                  child: const Text('Mark all as read'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 28),
-            if (unread.isNotEmpty) ...[
-              const _SectionLabel('UNREAD'),
-              const SizedBox(height: 10),
-              for (final item in unread) ...[
-                _NotificationCard(
-                  item: item,
-                  highlighted: true,
-                  onRead: () => setState(() => item.read = true),
-                  onDelete: () => setState(() => _items.remove(item)),
-                ),
-                const SizedBox(height: 10),
-              ],
-              const SizedBox(height: 18),
-            ],
-            if (earlier.isNotEmpty) ...[
-              const _SectionLabel('EARLIER'),
-              const SizedBox(height: 10),
-              for (final item in earlier) ...[
-                _NotificationCard(
-                  item: item,
-                  onDelete: () => setState(() => _items.remove(item)),
-                ),
-                const SizedBox(height: 10),
-              ],
-            ],
-          ],
         ),
       ),
     );
@@ -114,14 +131,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 }
 
 class _NotificationCard extends StatelessWidget {
-  final _NotificationItem item;
+  final AppNotification item;
   final bool highlighted;
   final VoidCallback? onRead;
-  final VoidCallback onDelete;
 
   const _NotificationCard({
     required this.item,
-    required this.onDelete,
     this.highlighted = false,
     this.onRead,
   });
@@ -146,7 +161,7 @@ class _NotificationCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(item.icon, style: const TextStyle(fontSize: 24)),
+            Text(item.emoji, style: const TextStyle(fontSize: 24)),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
@@ -159,17 +174,19 @@ class _NotificationCard extends StatelessWidget {
                       fontSize: 15,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    item.message,
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
+                  if (item.body != null && item.body!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      item.body!,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
-                  ),
+                  ],
                   const SizedBox(height: 6),
                   Text(
-                    item.time,
+                    _relativeTime(context, item.createdAt),
                     style: TextStyle(
                       fontSize: 11,
                       color: AppColors.textSecondary,
@@ -184,11 +201,6 @@ class _NotificationCard extends StatelessWidget {
                 icon: const Icon(Icons.check_circle_outline),
                 color: AppColors.primary,
               ),
-            IconButton(
-              onPressed: onDelete,
-              icon: const Icon(Icons.delete_outline),
-              color: AppColors.error,
-            ),
           ],
         ),
       ),
@@ -196,40 +208,64 @@ class _NotificationCard extends StatelessWidget {
   }
 }
 
-class _NotificationItem {
-  final String title;
-  final String message;
-  final String time;
-  final String icon;
-  bool read;
-
-  _NotificationItem({
-    required this.title,
-    required this.message,
-    required this.time,
-    required this.icon,
-    this.read = false,
-  });
+String _relativeTime(BuildContext context, DateTime date) {
+  final l10n = context.l10n;
+  final diff = DateTime.now().difference(date);
+  if (diff.inMinutes < 1) return l10n.tr('time.justNow');
+  if (diff.inMinutes < 60) {
+    return l10n.trp('time.minAgo', {'n': '${diff.inMinutes}'});
+  }
+  if (diff.inHours < 24) {
+    return l10n.trp('time.hourAgo', {'n': '${diff.inHours}'});
+  }
+  return l10n.trp('time.dayAgo', {'n': '${diff.inDays}'});
 }
 
-class _MockupPage extends StatelessWidget {
-  final Widget child;
+class _EmptyNote extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 60),
+      child: Column(
+        children: [
+          Icon(Icons.notifications_none_outlined,
+              size: 48, color: AppColors.textSecondary),
+          const SizedBox(height: 12),
+          Text(
+            context.l10n.tr('notif.empty'),
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-  const _MockupPage({required this.child});
+class _ErrorNote extends StatelessWidget {
+  final String error;
+  final VoidCallback onRetry;
+
+  const _ErrorNote({required this.error, required this.onRetry});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppColors.surface, AppColors.surfaceAlt],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
+    return Padding(
+      padding: const EdgeInsets.only(top: 40),
+      child: Column(
+        children: [
+          Text(
+            context.l10n.trp('notif.loadError', {'error': error}),
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh),
+            label: Text(context.l10n.tr('common.retry')),
+          ),
+        ],
       ),
-      child: child,
     );
   }
 }

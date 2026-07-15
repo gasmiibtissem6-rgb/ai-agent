@@ -1,27 +1,29 @@
 // services/api/src/admin/dto/override-trust.dto.ts
+import { IsInt, Min, IsString, MinLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsString, Min, IsNotEmpty } from 'class-validator';
 
 export class OverrideTrustDto {
-  @ApiProperty({ minimum: 0, example: 3 })
-  @IsNumber()
+  @ApiProperty({ description: 'Number of successful deals', minimum: 0 })
+  @IsInt()
   @Min(0)
-  successfulDeals!: number;
+  successfulDeals: number;
 
-  @ApiProperty({ minimum: 0, example: 1 })
-  @IsNumber()
+  @ApiProperty({ description: 'Number of ongoing deals', minimum: 0 })
+  @IsInt()
   @Min(0)
-  ongoingDeals!: number;
+  ongoingDeals: number;
 
-  @ApiProperty({ minimum: 0, example: 0 })
-  @IsNumber()
+  @ApiProperty({ description: 'Number of breached deals', minimum: 0 })
+  @IsInt()
   @Min(0)
-  breachedDeals!: number;
+  breachedDeals: number;
 
   @ApiProperty({
-    description: 'Mandatory justification recorded in the admin audit log.',
+    description: 'Reason for manual override (required for audit trail)',
   })
   @IsString()
-  @IsNotEmpty({ message: 'A precise explanation is mandatory to override structural system trust metrics.' })
-  reason!: string;
+  @MinLength(10, {
+    message: 'Reason must be at least 10 characters for audit compliance',
+  })
+  reason: string;
 }

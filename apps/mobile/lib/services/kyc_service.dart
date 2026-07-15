@@ -1,119 +1,113 @@
 import 'dart:typed_data';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:uuid/uuid.dart';
-import '../features/kyc/domain/kyc_model.dart';
-import 'supabase_service.dart';
 
-/// KYC Service — handles document upload and verification status
-/// File uploads go directly to Supabase Storage (private bucket)
-/// KYC business logic and admin review goes through NestJS API
+import 'package:dio/dio.dart';
+
+import '../core/network/api_client.dart';
+import '../features/kyc/domain/kyc_model.dart';
+
+/// KYC Service — now goes through the NestJS API (Front → NestJS → Supabase),
+/// the same architecture as auth. The client no longer talks to Supabase
+/// directly:
+///  1. POST /kyc/storage/authorize → a signed upload URL + pre-authorized path.
+///  2. PUT the bytes straight to the signed Storage URL (NestJS never sees them).
+///  3. POST /kyc/submit → creates the submission from the authorized paths.
 class KycService {
   const KycService._();
 
-  static SupabaseClient get _client => SupabaseService.client!;
-  static const _uuid = Uuid();
+  static final ApiClient _api = ApiClient.instance;
 
-  /// Get current user's KYC submission
+  /// GET /kyc/me/status → the caller's current verification status.
   static Future<KycSubmission?> getMyKyc() async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) return null;
-
-    final response = await _client
-        .from('kyc_submissions')
-        .select()
-        .eq('user_id', userId)
-        .order('created_at', ascending: false)
-        .limit(1)
-        .maybeSingle();
-
-    if (response == null) return null;
-    return KycSubmission.fromJson(response);
+    final response = await _api.get('/kyc/me/status');
+    final data = _data(response);
+    final status = (data['status'] as String?) ?? 'NOT_STARTED';
+    if (status == 'NOT_STARTED') return null;
+    return KycSubmission.fromStatus(data);
   }
 
-  /// Upload a KYC document to private storage bucket
-  /// Returns the file path in storage
+  /// Authorizes and uploads a single document, returning the pre-authorized
+  /// storage path to reference on submit.
   static Future<String> uploadDocument({
-    required String userId,
     required Uint8List fileBytes,
     required String fileName,
-    required String fileType,
-    void Function(double)? onProgress,
+    required String documentSide, // 'front' | 'back' | 'selfie'
   }) async {
-    final fileId = _uuid.v4();
-    final extension = fileName.split('.').last;
-    final storagePath = '$userId/$fileType/$fileId.$extension';
-
-    await _client.storage.from('kyc-documents').uploadBinary(
-      storagePath,
-      fileBytes,
-      fileOptions: const FileOptions(
-        cacheControl: '3600',
-        upsert: false,
-      ),
+    final mimeType = _mimeFromName(fileName);
+    final authorized = await _api.post(
+      '/kyc/storage/authorize',
+      data: {
+        'fileName': fileName,
+        'mimeType': mimeType,
+        'sizeBytes': fileBytes.length,
+        'documentSide': documentSide,
+      },
     );
+    final data = _data(authorized);
+    final uploadUrl = data['uploadUrl'] as String;
+    final storagePath = data['storagePath'] as String;
 
+    await _putBytes(uploadUrl, fileBytes, mimeType);
     return storagePath;
   }
 
-  /// Get a signed URL for temporary access to a private file
-  static Future<String> getSignedUrl(String storagePath) async {
-    final response = await _client.storage
-        .from('kyc-documents')
-        .createSignedUrl(storagePath, 3600); // 1 hour expiry
-    return response;
-  }
-
-  /// Submit KYC after uploading documents
+  /// POST /kyc/submit → create the submission from pre-authorized paths.
   static Future<KycSubmission> submitKyc({
     required String documentType,
-    required String frontPath,
-    String? backPath,
-    String? selfiePath,
+    required String storagePathFront,
+    String? storagePathBack,
+    required String storagePathSelfie,
+    Map<String, dynamic>? personalInfo,
   }) async {
-    final userId = _client.auth.currentUser?.id;
-    if (userId == null) throw Exception('Not authenticated');
-
-    final response = await _client
-        .from('kyc_submissions')
-        .insert({
-          'user_id': userId,
-          'document_type': documentType,
-          'document_url': frontPath,
-          'front_url': frontPath,
-          'back_url': backPath,
-          'selfie_url': selfiePath,
-          'status': 'pending',
-        })
-        .select()
-        .single();
-
-    // Log audit event
-    await _logAuditEvent(
-      userId: userId,
-      eventType: 'kyc_submitted',
-      resourceType: 'kyc_submission',
-      metadata: {'document_type': documentType},
+    final response = await _api.post(
+      '/kyc/submit',
+      data: {
+        'documentType': documentType,
+        'storagePathFront': storagePathFront,
+        'storagePathBack': ?storagePathBack,
+        'storagePathSelfie': storagePathSelfie,
+        if (personalInfo != null && personalInfo.isNotEmpty)
+          'personalInfo': personalInfo,
+      },
     );
-
-    return KycSubmission.fromJson(response);
+    return KycSubmission.fromSubmitResponse(_data(response));
   }
 
-  /// Log audit event to audit_logs table
-  static Future<void> _logAuditEvent({
-    required String userId,
-    required String eventType,
-    String? resourceType,
-    Map<String, dynamic>? metadata,
-  }) async {
-    try {
-      await _client.from('audit_logs').insert({
-        'user_id': userId,
-        'event_type': eventType,
-        'resource_type': resourceType,
-        'metadata': metadata ?? {},
-      });
-    } catch (_) {
-      // Audit logging should never break the main flow
+  /// PUTs the raw bytes to the signed Storage URL. Uses a bare Dio because the
+  /// URL is an absolute Supabase Storage URL, not our API base, and must not
+  /// carry our Authorization header or interceptors.
+  static Future<void> _putBytes(
+    String uploadUrl,
+    Uint8List bytes,
+    String mimeType,
+  ) async {
+    final dio = Dio();
+    await dio.put(
+      uploadUrl,
+      data: Stream<List<int>>.fromIterable([bytes]),
+      options: Options(
+        headers: {
+          'Content-Type': mimeType,
+          Headers.contentLengthHeader: bytes.length,
+          'x-upsert': 'true',
+        },
+      ),
+    );
+  }
+
+  static String _mimeFromName(String name) {
+    final ext = name.contains('.') ? name.split('.').last.toLowerCase() : '';
+    switch (ext) {
+      case 'png':
+        return 'image/png';
+      case 'pdf':
+        return 'application/pdf';
+      default:
+        return 'image/jpeg';
     }
+  }
+
+  static Map<String, dynamic> _data(dynamic response) {
+    final body = response as Map;
+    return Map<String, dynamic>.from(body['data'] as Map);
   }
 }

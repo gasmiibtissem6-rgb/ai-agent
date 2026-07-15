@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../domain/auth_provider.dart';
 import '../domain/auth_state.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../core/router/app_router.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/constants/app_colors.dart';
@@ -39,34 +40,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (!_formKey.currentState!.validate()) return;
     if (!_agreeToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please accept the Terms of Service to continue.'),
+        SnackBar(
+          content: Text(context.l10n.tr('register.acceptTerms')),
           backgroundColor: AppColors.error,
         ),
       );
       return;
     }
     final email = _emailController.text.trim();
-    final success = await ref
+    // On success the provider emits `authenticated` and the ref.listen below
+    // navigates straight to home — no OTP step. Errors surface via the listener.
+    await ref
         .read(authProvider.notifier)
         .signUp(
           email: email,
           password: _passwordController.text,
           fullName: _nameController.text.trim(),
         );
-    debugPrint('Register success: $success, email: $email');
-    if (success && mounted) {
-      context.go(AppRoutes.otp, extra: email);
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Signup failed. Please check your email and try again.',
-          ),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    }
   }
 
   Future<void> _registerWithGoogle() async {
@@ -93,7 +83,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             backgroundColor: AppColors.error,
             action: message.contains('already exists')
                 ? SnackBarAction(
-                    label: 'Sign in',
+                    label: context.l10n.tr('register.signInAction'),
                     textColor: Colors.white,
                     onPressed: () => context.go(AppRoutes.login),
                   )
@@ -103,47 +93,48 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       }
     });
 
+    final l10n = context.l10n;
     return AuthShell(
-      title: 'Create Account',
-      subtitle: 'Join IDEAL and start trusted agreements.',
+      title: l10n.tr('register.title'),
+      subtitle: l10n.tr('register.subtitle'),
       child: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            const _FieldLabel('Full Name'),
+            _FieldLabel(l10n.tr('register.fullName')),
             TextFormField(
               controller: _nameController,
               keyboardType: TextInputType.name,
               textInputAction: TextInputAction.next,
               textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                hintText: 'John Doe',
-                prefixIcon: Icon(Icons.person_outlined),
+              decoration: InputDecoration(
+                hintText: l10n.tr('register.fullNameHint'),
+                prefixIcon: const Icon(Icons.person_outlined),
               ),
-              validator: Validators.fullName,
+              validator: (v) => Validators.fullName(context, v),
             ),
             const SizedBox(height: 16),
-            const _FieldLabel('Email Address'),
+            _FieldLabel(l10n.tr('auth.email')),
             TextFormField(
               controller: _emailController,
               keyboardType: TextInputType.emailAddress,
               textInputAction: TextInputAction.next,
-              decoration: const InputDecoration(
-                hintText: 'you@example.com',
-                prefixIcon: Icon(Icons.email_outlined),
+              decoration: InputDecoration(
+                hintText: l10n.tr('auth.emailHint'),
+                prefixIcon: const Icon(Icons.email_outlined),
               ),
-              validator: Validators.email,
+              validator: (v) => Validators.email(context, v),
             ),
             const SizedBox(height: 16),
-            const _FieldLabel('Password'),
+            _FieldLabel(l10n.tr('auth.password')),
             TextFormField(
               controller: _passwordController,
               obscureText: _obscurePassword,
               textInputAction: TextInputAction.next,
               decoration: InputDecoration(
-                hintText: 'At least 8 characters',
+                hintText: l10n.tr('register.passwordHint'),
                 prefixIcon: const Icon(Icons.lock_outlined),
                 suffixIcon: IconButton(
                   icon: Icon(
@@ -155,17 +146,17 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       setState(() => _obscurePassword = !_obscurePassword),
                 ),
               ),
-              validator: Validators.password,
+              validator: (v) => Validators.password(context, v),
             ),
             const SizedBox(height: 16),
-            const _FieldLabel('Confirm Password'),
+            _FieldLabel(l10n.tr('register.confirmPassword')),
             TextFormField(
               controller: _confirmController,
               obscureText: _obscureConfirm,
               textInputAction: TextInputAction.done,
               onFieldSubmitted: (_) => _register(),
               decoration: InputDecoration(
-                hintText: 'Repeat your password',
+                hintText: l10n.tr('register.confirmHint'),
                 prefixIcon: const Icon(Icons.lock_outlined),
                 suffixIcon: IconButton(
                   icon: Icon(
@@ -178,27 +169,30 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
               ),
               validator: (value) {
-                final passwordError = Validators.password(value);
+                final passwordError = Validators.password(context, value);
                 if (passwordError != null) return passwordError;
                 if (value != _passwordController.text) {
-                  return 'Passwords do not match.';
+                  return l10n.tr('validation.passwordsNoMatch');
                 }
                 return null;
               },
             ),
             const SizedBox(height: 16),
-            const _FieldLabel('Account Type'),
+            _FieldLabel(l10n.tr('register.accountType')),
             DropdownButtonFormField<String>(
               initialValue: _accountType,
               decoration: const InputDecoration(
                 prefixIcon: Icon(Icons.business_center_outlined),
               ),
-              items: const [
+              items: [
                 DropdownMenuItem(
                   value: 'Individual',
-                  child: Text('Individual'),
+                  child: Text(l10n.tr('register.individual')),
                 ),
-                DropdownMenuItem(value: 'Company', child: Text('Company')),
+                DropdownMenuItem(
+                  value: 'Company',
+                  child: Text(l10n.tr('register.company')),
+                ),
               ],
               onChanged: (value) {
                 if (value != null) setState(() => _accountType = value);
@@ -213,12 +207,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   onChanged: (value) =>
                       setState(() => _agreeToTerms = value ?? false),
                 ),
-                const Expanded(
+                Expanded(
                   child: Padding(
-                    padding: EdgeInsets.only(top: 10),
+                    padding: const EdgeInsets.only(top: 10),
                     child: Text(
-                      'I agree to the Terms of Service and Privacy Policy',
-                      style: TextStyle(fontSize: 12, height: 1.35),
+                      l10n.tr('register.agree'),
+                      style: const TextStyle(fontSize: 12, height: 1.35),
                     ),
                   ),
                 ),
@@ -238,7 +232,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           color: Colors.white,
                         ),
                       )
-                    : const Text('Create Account'),
+                    : Text(l10n.tr('register.create')),
               ),
             ),
             const SizedBox(height: 20),
@@ -248,7 +242,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: Text(
-                    'or',
+                    l10n.tr('common.or'),
                     style: TextStyle(color: AppColors.textSecondary),
                   ),
                 ),
@@ -260,7 +254,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               width: double.infinity,
               child: OutlinedButton.icon(
                 icon: const Icon(Icons.g_mobiledata, size: 26),
-                label: const Text('Sign up with Google'),
+                label: Text(l10n.tr('register.google')),
                 onPressed: isLoading ? null : _registerWithGoogle,
               ),
             ),
@@ -270,11 +264,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 onPressed: () => context.go(AppRoutes.login),
                 child: Text.rich(
                   TextSpan(
-                    text: 'Already have an account? ',
+                    text: l10n.tr('register.haveAccount'),
                     style: TextStyle(color: AppColors.textSecondary),
-                    children: const [
+                    children: [
                       TextSpan(
-                        text: 'Sign In',
+                        text: l10n.tr('register.signInLink'),
                         style: TextStyle(
                           color: AppColors.primary,
                           fontWeight: FontWeight.w800,

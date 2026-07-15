@@ -11,9 +11,9 @@ import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { AuthenticatedUser } from '../types/authenticated-user';
 
 /**
- * Unified authentication guard. Validates a single Bearer token that may be
- * EITHER a Supabase JWT (Flutter mobile) OR a NestJS-signed JWT (admin dev
- * fallback), delegating to {@link AuthService.verifyToken}. On success it
+ * Unified authentication guard. Validates an incoming token that may reside
+ * in an HttpOnly cookie (admin dashboard) OR a traditional Bearer token header
+ * (Flutter mobile), delegating to {@link AuthService.verifyToken}. On success it
  * attaches a normalized {@link AuthenticatedUser} to `request.user`.
  *
  * Routes annotated with `@Public()` bypass validation.
@@ -36,8 +36,12 @@ export class JwtAuthGuard implements CanActivate {
 
     const request = context
       .switchToHttp()
-      .getRequest<Request & { user?: AuthenticatedUser }>();
-    const token = this.extractTokenFromHeader(request);
+      .getRequest<
+        Request & { user?: AuthenticatedUser; cookies?: Record<string, string> }
+      >();
+
+    // Extract token checking both Cookie vectors and Header fallbacks
+    const token = this.extractToken(request);
 
     if (!token) {
       throw new UnauthorizedException('Authentication token is missing.');
@@ -47,7 +51,13 @@ export class JwtAuthGuard implements CanActivate {
     return true;
   }
 
-  private extractTokenFromHeader(request: Request): string | undefined {
+  private extractToken(request: any): string | undefined {
+    // 1. Check if the token exists inside the secure HttpOnly cookie wrapper first (Admin dashboard client)
+    if (request.cookies && request.cookies['admin_token']) {
+      return request.cookies['admin_token'];
+    }
+
+    // 2. Fallback: Parse the authorization header (Flutter mobile app client)
     const [type, token] = request.headers.authorization?.split(' ') ?? [];
     return type === 'Bearer' ? token : undefined;
   }

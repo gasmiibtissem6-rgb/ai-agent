@@ -63,8 +63,6 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final authState = authListenable.value;
       final status = authState?.status;
-      final isResetPasswordDeepLink = _isResetPasswordDeepLink(state);
-
       final isAuthRoute = [
         AppRoutes.login,
         AppRoutes.register,
@@ -73,27 +71,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         AppRoutes.resetPassword,
       ].contains(state.matchedLocation);
 
-      if (isResetPasswordDeepLink &&
-          state.matchedLocation != AppRoutes.resetPassword) {
-        return AppRoutes.resetPassword;
-      }
-
       if (status == null || status == AuthStatus.initial) {
-        return isResetPasswordDeepLink
-            ? AppRoutes.resetPassword
-            : AppRoutes.splash;
+        return AppRoutes.splash;
       }
       if (status == AuthStatus.loading && !isAuthRoute) {
-        return isResetPasswordDeepLink
-            ? AppRoutes.resetPassword
-            : AppRoutes.splash;
+        return AppRoutes.splash;
       }
-
       if (status == AuthStatus.passwordRecovery) {
-        if (state.matchedLocation != AppRoutes.resetPassword) {
-          return AppRoutes.resetPassword;
-        }
-        return null;
+        return state.matchedLocation == AppRoutes.resetPassword
+            ? null
+            : AppRoutes.resetPassword;
       }
 
       if (status == AuthStatus.authenticated) {
@@ -130,8 +117,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.resetPassword,
-        pageBuilder: (context, state) =>
-            _fadePage(state, const ResetPasswordScreen()),
+        builder: (context, state) {
+          final email = state.extra as String;
+          return ResetPasswordScreen(email: email);
+        },
       ),
       GoRoute(
         path: AppRoutes.otp,
@@ -241,12 +230,4 @@ Page<void> _flowPage(GoRouterState state, Widget child) {
       );
     },
   );
-}
-
-bool _isResetPasswordDeepLink(GoRouterState state) {
-  final uri = state.uri;
-  return uri.scheme == 'io.supabase.idealapp' &&
-      (uri.host == 'reset-password' ||
-          uri.path == '/reset-password' ||
-          state.matchedLocation == AppRoutes.resetPassword);
 }

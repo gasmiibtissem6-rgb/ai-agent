@@ -7,6 +7,7 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:dio/dio.dart';
 import '../domain/chat_provider.dart';
 import '../../../core/config/api_config.dart';
+import '../../../core/l10n/app_localizations.dart';
 import '../../../shared/file_saver.dart';
 import '../../../shared/ideal_ui.dart';
 import 'scan_contract_button.dart';
@@ -48,7 +49,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         setState(() => _isListening = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Voice error: ${error.errorMsg}')),
+            SnackBar(
+              content: Text(context.l10n
+                  .trp('chatai.voiceError', {'msg': error.errorMsg})),
+            ),
           );
         }
       },
@@ -59,8 +63,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   void _toggleListening() async {
     if (!_speechAvailable) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Voice input not available on this browser/device.'),
+        SnackBar(
+          content: Text(context.l10n.tr('chatai.voiceUnavailable')),
         ),
       );
       return;
@@ -72,7 +76,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     }
     setState(() => _isListening = true);
     await _speech.listen(
-      localeId: _currentLocale,
+      listenOptions: stt.SpeechListenOptions(localeId: _currentLocale),
       onResult: (result) {
         setState(() {
           _controller.text = result.recognizedWords;
@@ -93,7 +97,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       SnackBar(
         duration: const Duration(milliseconds: 800),
         content: Text(
-          'Voice language: ${_locales.firstWhere((l) => l['code'] == _currentLocale)['label']}',
+          context.l10n.trp('chatai.voiceLang', {
+            'lang': _locales.firstWhere(
+                (l) => l['code'] == _currentLocale)['label']!,
+          }),
         ),
       ),
     );
@@ -141,9 +148,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       await savePdfBytes(bytes, 'contract.pdf');
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Failed to generate PDF')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.tr('chatai.pdfFailed'))),
+        );
       }
     }
   }
@@ -162,7 +169,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         if (hasAiMessages)
           IconButton(
             icon: const Icon(Icons.picture_as_pdf),
-            tooltip: 'Download PDF',
+            tooltip: context.l10n.tr('chatai.downloadPdf'),
             color: Colors.red.shade400,
             onPressed: () {
               final aiMessages = messages
@@ -179,7 +186,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           ),
         IconButton(
           icon: const Icon(Icons.delete_outline),
-          tooltip: 'Clear conversation',
+          tooltip: context.l10n.tr('chatai.clear'),
           onPressed: () => ref.read(chatProvider.notifier).clearChat(),
         ),
       ],
@@ -189,7 +196,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             if (state.error != null)
               Container(
                 width: double.infinity,
-                color: Colors.red.shade900.withOpacity(0.3),
+                color: Colors.red.shade900.withValues(alpha: 0.3),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 8,
@@ -208,11 +215,11 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           Icon(
                             Icons.smart_toy_outlined,
                             size: 64,
-                            color: colorScheme.primary.withOpacity(0.5),
+                            color: colorScheme.primary.withValues(alpha: 0.5),
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            'AI Assistant',
+                            context.l10n.tr('chatai.title'),
                             style: TextStyle(
                               fontSize: 22,
                               fontWeight: FontWeight.bold,
@@ -221,10 +228,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Ask me about contracts or app features\nin English, French or Arabic',
+                            context.l10n.tr('chatai.subtitle'),
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: colorScheme.onSurface.withOpacity(0.6),
+                              color: colorScheme.onSurface.withValues(alpha: 0.6),
                             ),
                           ),
                         ],
@@ -266,7 +273,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    'Thinking...',
+                                    context.l10n.tr('chatai.thinking'),
                                     style: TextStyle(
                                       color: colorScheme.onSurface,
                                     ),
@@ -337,7 +344,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                   color: colorScheme.surface,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha: 0.1),
                       blurRadius: 8,
                       offset: const Offset(0, -2),
                     ),
@@ -360,7 +367,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         duration: const Duration(milliseconds: 200),
                         decoration: BoxDecoration(
                           color: _isListening
-                              ? Colors.red.withOpacity(0.15)
+                              ? Colors.red.withValues(alpha: 0.15)
                               : Colors.transparent,
                           shape: BoxShape.circle,
                         ),
@@ -369,8 +376,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           color: _isListening
                               ? Colors.red
                               : colorScheme.primary,
-                          tooltip:
-                              'Tap to speak (${_locales.firstWhere((l) => l['code'] == _currentLocale)['label']}) — long-press to change language',
+                          tooltip: context.l10n.trp('chatai.micTooltip', {
+                            'lang': _locales.firstWhere(
+                                (l) => l['code'] == _currentLocale)['label']!,
+                          }),
                           onPressed: _toggleListening,
                         ),
                       ),
@@ -383,8 +392,8 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                         maxLines: 4,
                         decoration: InputDecoration(
                           hintText: _isListening
-                              ? 'Listening...'
-                              : 'Ask a question or describe a contract...',
+                              ? context.l10n.tr('chatai.listening')
+                              : context.l10n.tr('chatai.inputHint'),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(24),
                             borderSide: BorderSide.none,

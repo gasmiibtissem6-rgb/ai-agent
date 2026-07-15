@@ -1,27 +1,20 @@
-import darkLogo from "@/assets/logos/dark.svg";
-import logo from "@/assets/logos/main.svg";
 import Image from "next/image";
+import idealLogo from "../../images/ideal-logo.png";
 
 export function Logo() {
   return (
-    <div className="relative h-8 max-w-[10.847rem]">
+    <div className="flex items-center gap-3">
       <Image
-        src={logo}
-        fill
-        className="dark:hidden"
-        alt="NextAdmin logo"
-        role="presentation"
+        src={idealLogo}
+        width={44}
+        height={44}
+        alt="IDEAL"
+        className="rounded-xl"
         quality={100}
       />
-
-      <Image
-        src={darkLogo}
-        fill
-        className="hidden dark:block"
-        alt="NextAdmin logo"
-        role="presentation"
-        quality={100}
-      />
+      <span className="text-2xl font-bold tracking-normal text-dark dark:text-white">
+        IDEAL
+      </span>
     </div>
   );
 }

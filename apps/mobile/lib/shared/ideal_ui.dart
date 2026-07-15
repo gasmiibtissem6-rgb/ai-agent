@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/constants/app_colors.dart';
+import '../core/l10n/app_localizations.dart';
 import '../core/router/app_router.dart';
 import '../core/locale/app_strings.dart';
 import '../core/locale/locale_provider.dart';
@@ -11,7 +14,11 @@ class IdealLogo extends StatelessWidget {
   final double size;
   final bool showName;
 
-  const IdealLogo({super.key, this.size = 44, this.showName = true});
+  const IdealLogo({
+    super.key,
+    this.size = 44,
+    this.showName = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +53,10 @@ class IdealLogo extends StatelessWidget {
 class IdealGradientBackground extends StatelessWidget {
   final Widget child;
 
-  const IdealGradientBackground({super.key, required this.child});
+  const IdealGradientBackground({
+    super.key,
+    required this.child,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -55,12 +65,94 @@ class IdealGradientBackground extends StatelessWidget {
       height: double.infinity,
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.surface, AppColors.surfaceAlt],
+          colors: [
+            AppColors.surface,
+            AppColors.surfaceAlt,
+          ],
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
         ),
       ),
       child: child,
+    );
+  }
+}
+
+/// Fades and slides its child in once, on first build.
+///
+/// [delay] staggers siblings so a grid or list resolves as a wave rather than
+/// all at once.
+class FadeSlideIn extends StatefulWidget {
+  final Widget child;
+  final Duration delay;
+  final Duration duration;
+  final double offsetY;
+
+  const FadeSlideIn({
+    super.key,
+    required this.child,
+    this.delay = Duration.zero,
+    this.duration = const Duration(milliseconds: 320),
+    this.offsetY = 12,
+  });
+
+  @override
+  State<FadeSlideIn> createState() => _FadeSlideInState();
+}
+
+class _FadeSlideInState extends State<FadeSlideIn>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: widget.duration,
+  );
+
+  late final Animation<double> _curve = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeOutCubic,
+  );
+
+  Timer? _startTimer;
+
+  @override
+  void initState() {
+    super.initState();
+
+    if (widget.delay == Duration.zero) {
+      _controller.forward();
+    } else {
+      _startTimer = Timer(widget.delay, () {
+        if (mounted) {
+          _controller.forward();
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _startTimer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _curve,
+      builder: (context, child) {
+        return Opacity(
+          opacity: _curve.value,
+          child: Transform.translate(
+            offset: Offset(
+              0,
+              widget.offsetY * (1 - _curve.value),
+            ),
+            child: child,
+          ),
+        );
+      },
+      child: widget.child,
     );
   }
 }
@@ -83,7 +175,9 @@ class IdealCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(
+          color: AppColors.border,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.05),
@@ -124,30 +218,82 @@ class IdealAppScaffold extends StatelessWidget {
               _DesktopNav(
                 activeRoute: activeRoute,
                 items: navItems,
-                actions: actions,
               ),
-              Expanded(child: body),
+              Expanded(
+                child: actions.isEmpty
+                    ? body
+                    : Column(
+                        children: [
+                          Container(
+                            color: AppColors.surface,
+                            padding: const EdgeInsets.fromLTRB(
+                              12,
+                              6,
+                              12,
+                              0,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: actions,
+                            ),
+                          ),
+                          Expanded(
+                            child: body,
+                          ),
+                        ],
+                      ),
+              ),
             ],
           ),
         ),
       );
     }
 
-    final activeIndex = navItems.indexWhere((item) => item.key == activeRoute);
+    final activeIndex = navItems.indexWhere(
+      (item) => item.key == activeRoute,
+    );
+
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: showBack,
         toolbarHeight: 56,
+        leading: showBack
+            ? null
+            : IconButton(
+                icon: const Icon(
+                  Icons.notifications_outlined,
+                ),
+                tooltip: context.l10n.tr(
+                  'nav.notifications',
+                ),
+                onPressed: () {
+                  context.go(
+                    AppRoutes.notifications,
+                  );
+                },
+              ),
         title: GestureDetector(
-          onTap: () => context.go(AppRoutes.home),
-          child: const IdealLogo(size: 30),
+          onTap: () {
+            context.go(
+              AppRoutes.home,
+            );
+          },
+          child: const IdealLogo(
+            size: 30,
+          ),
         ),
         actions: actions,
       ),
-      body: SafeArea(child: body),
+      body: SafeArea(
+        child: body,
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: activeIndex < 0 ? 0 : activeIndex,
-        onTap: (index) => context.go(navItems[index].route),
+        onTap: (index) {
+          context.go(
+            navItems[index].route,
+          );
+        },
         type: BottomNavigationBarType.fixed,
         backgroundColor: AppColors.card,
         selectedItemColor: AppColors.primary,
@@ -157,8 +303,12 @@ class IdealAppScaffold extends StatelessWidget {
         items: navItems
             .map(
               (item) => BottomNavigationBarItem(
-                icon: Icon(item.icon),
-                label: item.label,
+                icon: Icon(
+                  item.icon,
+                ),
+                label: context.l10n.tr(
+                  item.labelKey,
+                ),
               ),
             )
             .toList(),
@@ -167,33 +317,38 @@ class IdealAppScaffold extends StatelessWidget {
   }
 }
 
+// Notifications, Documents, the AI assistant and Profile were intentionally
+// removed from the navigation. Notifications now live in the top-left app bar,
+// and Profile is reached from the home page. The AI assistant code/integration
+// is untouched — only its menu entry is gone.
 const _navItems = <_NavItem>[
-  _NavItem('home', 'Home', Icons.home_outlined, AppRoutes.home),
-  _NavItem('deals', 'Deals', Icons.business_center_outlined, AppRoutes.deals),
   _NavItem(
-    'contracts',
-    'Contracts',
-    Icons.description_outlined,
-    AppRoutes.contracts,
+    'home',
+    'nav.home',
+    Icons.home_outlined,
+    AppRoutes.home,
   ),
   _NavItem(
-    'notifications',
-    'Notifications',
-    Icons.notifications_outlined,
-    AppRoutes.notifications,
+    'deals',
+    'nav.deals',
+    Icons.business_center_outlined,
+    AppRoutes.deals,
   ),
-  _NavItem('settings', 'Settings', Icons.settings_outlined, AppRoutes.settings),
+  _NavItem(
+    'settings',
+    'nav.settings',
+    Icons.settings_outlined,
+    AppRoutes.settings,
+  ),
 ];
 
 class _DesktopNav extends StatelessWidget {
   final String activeRoute;
   final List<_NavItem> items;
-  final List<Widget> actions;
 
   const _DesktopNav({
     required this.activeRoute,
     required this.items,
-    required this.actions,
   });
 
   @override
@@ -203,26 +358,57 @@ class _DesktopNav extends StatelessWidget {
       height: double.infinity,
       decoration: BoxDecoration(
         color: AppColors.card,
-        border: Border(right: BorderSide(color: AppColors.border)),
+        border: Border(
+          right: BorderSide(
+            color: AppColors.border,
+          ),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
             padding: const EdgeInsets.all(20),
-            child: GestureDetector(
-              onTap: () => context.go(AppRoutes.home),
-              child: const IdealLogo(size: 34),
+            child: Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () {
+                      context.go(
+                        AppRoutes.home,
+                      );
+                    },
+                    child: const IdealLogo(
+                      size: 34,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(
+                    Icons.notifications_outlined,
+                  ),
+                  tooltip: context.l10n.tr(
+                    'nav.notifications',
+                  ),
+                  color: activeRoute == 'notifications'
+                      ? AppColors.primary
+                      : AppColors.textSecondary,
+                  onPressed: () {
+                    context.go(
+                      AppRoutes.notifications,
+                    );
+                  },
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(
+            height: 8,
+          ),
           for (final item in items)
-            _DesktopNavItem(item: item, selected: activeRoute == item.key),
-          const Spacer(),
-          if (actions.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Wrap(spacing: 4, runSpacing: 4, children: actions),
+            _DesktopNavItem(
+              item: item,
+              selected: activeRoute == item.key,
             ),
         ],
       ),
@@ -234,33 +420,68 @@ class _DesktopNavItem extends StatelessWidget {
   final _NavItem item;
   final bool selected;
 
-  const _DesktopNavItem({required this.item, required this.selected});
+  const _DesktopNavItem({
+    required this.item,
+    required this.selected,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => context.go(item.route),
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      onTap: () {
+        context.go(
+          item.route,
+        );
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        margin: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 3,
+        ),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 12,
+        ),
         decoration: BoxDecoration(
-          color: selected ? AppColors.primary.withValues(alpha: 0.12) : null,
-          borderRadius: BorderRadius.circular(12),
+          color: selected
+              ? AppColors.primary.withValues(
+                  alpha: 0.12,
+                )
+              : null,
+          borderRadius: BorderRadius.circular(
+            12,
+          ),
         ),
         child: Row(
           children: [
             Icon(
               item.icon,
-              color: selected ? AppColors.primary : AppColors.textSecondary,
+              color: selected
+                  ? AppColors.primary
+                  : AppColors.textSecondary,
               size: 20,
             ),
-            const SizedBox(width: 12),
-            Text(
-              item.label,
-              style: TextStyle(
-                color: selected ? AppColors.primary : AppColors.textPrimary,
-                fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+            const SizedBox(
+              width: 12,
+            ),
+            Expanded(
+              child: Text(
+                context.l10n.tr(
+                  item.labelKey,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: selected
+                      ? AppColors.primary
+                      : AppColors.textPrimary,
+                  fontWeight: selected
+                      ? FontWeight.w900
+                      : FontWeight.w700,
+                ),
               ),
             ),
           ],
@@ -272,11 +493,16 @@ class _DesktopNavItem extends StatelessWidget {
 
 class _NavItem {
   final String key;
-  final String label;
+  final String labelKey;
   final IconData icon;
   final String route;
 
-  const _NavItem(this.key, this.label, this.icon, this.route);
+  const _NavItem(
+    this.key,
+    this.labelKey,
+    this.icon,
+    this.route,
+  );
 }
 
 class AuthShell extends StatelessWidget {
@@ -298,30 +524,54 @@ class AuthShell extends StatelessWidget {
         child: IdealGradientBackground(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 24,
+                vertical: 32,
+              ),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 420),
+                constraints: const BoxConstraints(
+                  maxWidth: 420,
+                ),
                 child: Column(
                   children: [
-                    const IdealLogo(size: 78, showName: false),
-                    const SizedBox(height: 14),
+                    const IdealLogo(
+                      size: 78,
+                      showName: false,
+                    ),
+                    const SizedBox(
+                      height: 14,
+                    ),
                     Text(
                       title,
                       textAlign: TextAlign.center,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.headlineLarge?.copyWith(fontSize: 30),
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineLarge
+                          ?.copyWith(
+                            fontSize: 30,
+                          ),
                     ),
                     if (subtitle.isNotEmpty) ...[
-                      const SizedBox(height: 6),
+                      const SizedBox(
+                        height: 6,
+                      ),
                       Text(
                         subtitle,
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: AppColors.textSecondary),
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
-                    const SizedBox(height: 26),
-                    IdealCard(padding: const EdgeInsets.all(24), child: child),
+                    const SizedBox(
+                      height: 26,
+                    ),
+                    IdealCard(
+                      padding: const EdgeInsets.all(
+                        24,
+                      ),
+                      child: child,
+                    ),
                   ],
                 ),
               ),
@@ -337,16 +587,25 @@ class SectionTitle extends StatelessWidget {
   final String title;
   final String? subtitle;
 
-  const SectionTitle({super.key, required this.title, this.subtitle});
+  const SectionTitle({
+    super.key,
+    required this.title,
+    this.subtitle,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: Theme.of(context).textTheme.headlineMedium),
+        Text(
+          title,
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
         if (subtitle != null) ...[
-          const SizedBox(height: 4),
+          const SizedBox(
+            height: 4,
+          ),
           Text(
             subtitle!,
             style: TextStyle(
@@ -360,19 +619,57 @@ class SectionTitle extends StatelessWidget {
   }
 }
 
+class FieldLabel extends StatelessWidget {
+  final String text;
+
+  const FieldLabel(
+    this.text, {
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(
+        bottom: 8,
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontWeight: FontWeight.w800,
+          fontSize: 13,
+          letterSpacing: 0.2,
+          color: AppColors.textSecondary,
+        ),
+      ),
+    );
+  }
+}
+
 class StatusPill extends StatelessWidget {
   final String label;
   final Color color;
 
-  const StatusPill({super.key, required this.label, required this.color});
+  const StatusPill({
+    super.key,
+    required this.label,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: 5,
+      ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
+        color: color.withValues(
+          alpha: 0.12,
+        ),
+        borderRadius: BorderRadius.circular(
+          999,
+        ),
       ),
       child: Text(
         label,
@@ -406,7 +703,9 @@ class EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(28),
+        padding: const EdgeInsets.all(
+          28,
+        ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -414,18 +713,30 @@ class EmptyState extends StatelessWidget {
               width: 92,
               height: 92,
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(22),
+                color: AppColors.primary.withValues(
+                  alpha: 0.1,
+                ),
+                borderRadius: BorderRadius.circular(
+                  22,
+                ),
               ),
-              child: Icon(icon, size: 44, color: AppColors.primary),
+              child: Icon(
+                icon,
+                size: 44,
+                color: AppColors.primary,
+              ),
             ),
-            const SizedBox(height: 22),
+            const SizedBox(
+              height: 22,
+            ),
             Text(
               title,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleLarge,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(
+              height: 8,
+            ),
             Text(
               subtitle,
               textAlign: TextAlign.center,
@@ -434,11 +745,17 @@ class EmptyState extends StatelessWidget {
                 height: 1.45,
               ),
             ),
-            const SizedBox(height: 28),
+            const SizedBox(
+              height: 28,
+            ),
             ElevatedButton.icon(
               onPressed: onAction,
-              icon: const Icon(Icons.add),
-              label: Text(actionLabel),
+              icon: const Icon(
+                Icons.add,
+              ),
+              label: Text(
+                actionLabel,
+              ),
             ),
           ],
         ),

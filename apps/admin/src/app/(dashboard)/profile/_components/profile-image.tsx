@@ -19,7 +19,11 @@ export function ProfileImageUploader({
   const [imageSrc, setImageSrc] = useState(initialImage);
 
   useEffect(() => {
-    setImageSrc(initialImage);
+    const timeout = window.setTimeout(() => {
+      setImageSrc(initialImage);
+    }, 0);
+
+    return () => window.clearTimeout(timeout);
   }, [initialImage]);
 
   async function handleImageChange(e: ChangeEvent<HTMLInputElement>) {
@@ -66,7 +70,7 @@ export function ProfileImageUploader({
   }
 
   return (
-    <div className="relative z-30 mx-auto -mt-22 h-30 w-full max-w-30 rounded-full bg-white/20 p-1 backdrop-blur sm:h-44 sm:max-w-44 sm:p-3">
+    <div className="relative z-30 mx-auto -mt-22 h-30 w-full max-w-30 rounded-full bg-white/20 p-1 backdrop-blur dark:bg-black/20 sm:h-44 sm:max-w-44 sm:p-3">
       <div className="relative flex items-center justify-center drop-shadow-2">
         {imageSrc ? (
           <Image
@@ -77,7 +81,7 @@ export function ProfileImageUploader({
             alt={`${name} profile image`}
           />
         ) : (
-          <span className="mx-auto flex size-40 items-center justify-center gap-2.5 rounded-full bg-white px-2.5 py-2.25">
+          <span className="mx-auto flex size-40 items-center justify-center gap-2.5 rounded-full bg-white px-2.5 py-2.25 text-dark dark:bg-dark-2 dark:text-white">
             <UserIcon className="size-1/2" />
           </span>
         )}

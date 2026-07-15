@@ -1,6 +1,6 @@
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
-import { headers } from "next/headers";
 import Image from "next/image";
+import coverPhoto from "../../../../images/cover/cover-01.png";
 import { CameraIcon } from "./_components/icons";
 import { ProfileImageUploader } from "./_components/profile-image";
 import { SocialAccounts } from "./_components/social-accounts";
@@ -26,9 +26,9 @@ export default async function Page() {
   const user = session?.user as ProfileUser;
 
   const profile = {
-    name: user?.name!,
+    name: user?.name || "User Name",
     profilePhoto: user?.image ?? null,
-    coverPhoto: "/images/cover/cover-01.png",
+    coverPhoto,
     bio: user?.bio || "Bio not available",
     role: user?.role || "Role not set",
   };

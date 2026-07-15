@@ -6,6 +6,8 @@ import { ApprovalsModule } from './approvals/approvals.module';
 import { AuditModule } from './audit/audit.module';
 import { ChatModule } from './chat/chat.module';
 import { ConfigurationModule } from './configuration/configuration.module';
+import { ContractArchiveModule } from './contract-archive/contract-archive.module';
+import { DisputeCenterModule } from './dispute-center/dispute-center.module';
 import { DealPartiesModule } from './deal-parties/deal-parties.module';
 import { DealVersionsModule } from './deal-versions/deal-versions.module';
 import { DealsModule } from './deals/deals.module';
@@ -37,6 +39,8 @@ import { ContractsModule } from './contracts/contracts.module';
     AuditModule,
     ChatModule,
     ConfigurationModule,
+    ContractArchiveModule,
+    DisputeCenterModule,
     DealPartiesModule,
     DealVersionsModule,
     DealsModule,

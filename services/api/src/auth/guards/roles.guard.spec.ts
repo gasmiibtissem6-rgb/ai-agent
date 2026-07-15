@@ -54,7 +54,10 @@ describe('RolesGuard', () => {
 
   it('allows any admin for @Roles() with no specific role', () => {
     mockRequired([]);
-    const admin = buildUser({ isAdmin: true, adminRole: AdminRole.SUPPORT_REVIEWER });
+    const admin = buildUser({
+      isAdmin: true,
+      adminRole: AdminRole.SUPPORT_REVIEWER,
+    });
     expect(guard.canActivate(buildContext(admin))).toBe(true);
   });
 

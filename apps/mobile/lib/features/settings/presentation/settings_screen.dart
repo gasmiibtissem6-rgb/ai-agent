@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
-import '../../../core/theme/theme_provider.dart';
-import '../../../core/locale/locale_provider.dart';
+import '../../../core/l10n/app_localizations.dart';
+import '../../../core/l10n/locale_provider.dart';
+import '../../../core/router/app_router.dart';
 import '../../../features/auth/domain/auth_provider.dart';
 import '../../../shared/ideal_ui.dart';
 
@@ -22,6 +24,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final languageCode = ref.watch(localeProvider).languageCode;
+
     return IdealAppScaffold(
       activeRoute: 'settings',
       body: Container(
@@ -38,7 +43,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
           children: [
             Text(
-              'Settings',
+              l10n.tr('settings.title'),
               style: TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 24,
@@ -47,124 +52,134 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Manage your preferences and account security',
+              l10n.tr('settings.subtitle'),
               style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
             ),
             const SizedBox(height: 24),
             _SettingsCard(
-              title: 'General Settings',
+              title: l10n.tr('settings.general'),
               icon: Icons.language,
               children: [
-                const _FieldLabel('Language'),
+                _FieldLabel(l10n.tr('settings.language')),
                 DropdownButtonFormField<String>(
-                  initialValue: ref.watch(localeProvider).languageCode,
-                  items: const [
-                    DropdownMenuItem(value: 'fr', child: Text('Français')),
-                    DropdownMenuItem(value: 'en', child: Text('English')),
-                  ],
+                  initialValue: languageCode,
+                  items: AppLocalizations.supportedLocales
+                      .map(
+                        (locale) => DropdownMenuItem<String>(
+                          value: locale.languageCode,
+                          child: Text(
+                            AppLocalizations.languageLabels[locale
+                                    .languageCode] ??
+                                locale.languageCode,
+                          ),
+                        ),
+                      )
+                      .toList(),
                   onChanged: (value) {
                     if (value != null) {
-                      ref.read(localeProvider.notifier).setLocale(value);
+                      ref.read(localeProvider.notifier).setLanguage(value);
                     }
                   },
                 ),
-                const SizedBox(height: 20),
-                const _FieldLabel('Theme Mode'),
-                SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment(
-                      value: false,
-                      label: Text('Light Mode'),
-                      icon: Icon(Icons.wb_sunny),
-                    ),
-                    ButtonSegment(
-                      value: true,
-                      label: Text('Dark Mode'),
-                      icon: Icon(Icons.nightlight_round),
-                    ),
-                  ],
-                  selected: {ref.watch(themeProvider) == ThemeMode.dark},
-                  onSelectionChanged: (selection) {
-                    ref.read(themeProvider.notifier).toggleTheme(selection.first);
+              ],
+            ),
+            const SizedBox(height: 20),
+            _SettingsCard(
+              title: l10n.tr('settings.notifications'),
+              icon: Icons.notifications,
+              children: [
+                _SwitchRow(
+                  title: l10n.tr('settings.pushNotifications'),
+                  subtitle: l10n.tr('settings.pushNotificationsSub'),
+                  value: _pushNotifications,
+                  onChanged: (value) {
+                    setState(() {
+                      _pushNotifications = value;
+                    });
+                  },
+                ),
+                const Divider(),
+                _SwitchRow(
+                  title: l10n.tr('settings.emailUpdates'),
+                  subtitle: l10n.tr('settings.emailUpdatesSub'),
+                  value: _emailUpdates,
+                  onChanged: (value) {
+                    setState(() {
+                      _emailUpdates = value;
+                    });
                   },
                 ),
               ],
             ),
             const SizedBox(height: 20),
             _SettingsCard(
-              title: 'Notifications',
-              icon: Icons.notifications,
-              children: [
-                _SwitchRow(
-                  title: 'Push Notifications',
-                  subtitle: 'Receive notifications for deal updates',
-                  value: _pushNotifications,
-                  onChanged: (value) =>
-                      setState(() => _pushNotifications = value),
-                ),
-                const Divider(),
-                _SwitchRow(
-                  title: 'Email Updates',
-                  subtitle: 'Receive email notifications',
-                  value: _emailUpdates,
-                  onChanged: (value) => setState(() => _emailUpdates = value),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            _SettingsCard(
-              title: 'Security',
+              title: l10n.tr('settings.security'),
               icon: Icons.lock,
               children: [
                 _SwitchRow(
-                  title: 'Two-Factor Authentication',
-                  subtitle: 'Add an extra layer of security',
+                  title: l10n.tr('settings.twoFactor'),
+                  subtitle: l10n.tr('settings.twoFactorSub'),
                   value: _twoFactor,
-                  onChanged: (value) => setState(() => _twoFactor = value),
+                  onChanged: (value) {
+                    setState(() {
+                      _twoFactor = value;
+                    });
+                  },
                 ),
                 const Divider(),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Change Password'),
-                  subtitle: const Text('Update your password'),
+                  title: Text(l10n.tr('settings.changePassword')),
+                  subtitle: Text(l10n.tr('settings.changePasswordSub')),
                   trailing: ElevatedButton(
-                    onPressed: () => _comingSoon(context),
-                    child: const Text('Change'),
+                    onPressed: () {
+                      _comingSoon(context);
+                    },
+                    child: Text(l10n.tr('common.change')),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 20),
             _SettingsCard(
-              title: 'Account Management',
+              title: l10n.tr('settings.account'),
               icon: Icons.person_outline,
               children: [
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Edit Profile'),
+                  title: Text(l10n.tr('settings.editProfile')),
+                  subtitle: Text(l10n.tr('settings.editProfileSub')),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _comingSoon(context),
+                  onTap: () {
+                    context.go(AppRoutes.editProfile);
+                  },
                 ),
                 const Divider(),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: const Text('Active Sessions'),
-                  subtitle: const Text('View signed-in devices'),
+                  title: Text(l10n.tr('settings.activeSessions')),
+                  subtitle: Text(l10n.tr('settings.activeSessionsSub')),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _comingSoon(context),
+                  onTap: () {
+                    _comingSoon(context);
+                  },
                 ),
               ],
             ),
             const SizedBox(height: 20),
             _SettingsCard(
-              title: 'Privacy',
+              title: l10n.tr('settings.privacy'),
               icon: Icons.security,
               children: [
                 _SwitchRow(
-                  title: 'Public Profile',
-                  subtitle: 'Make your profile visible to others',
+                  title: l10n.tr('settings.publicProfile'),
+                  subtitle: l10n.tr('settings.publicProfileSub'),
                   value: _publicProfile,
-                  onChanged: (value) => setState(() => _publicProfile = value),
+                  onChanged: (value) {
+                    setState(() {
+                      _publicProfile = value;
+                    });
+                  },
                 ),
               ],
             ),
@@ -181,12 +196,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
                       Icon(Icons.warning_amber_rounded, color: AppColors.error),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Text(
-                        'Danger Zone',
+                        l10n.tr('settings.dangerZone'),
                         style: TextStyle(
                           color: AppColors.error,
                           fontSize: 16,
@@ -199,19 +214,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () =>
-                          ref.read(authProvider.notifier).signOut(),
+                      onPressed: () {
+                        ref.read(authProvider.notifier).signOut();
+                      },
                       icon: const Icon(Icons.logout),
-                      label: const Text('Log Out'),
+                      label: Text(l10n.tr('settings.logout')),
                     ),
                   ),
                   const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () => _comingSoon(context),
+                      onPressed: () {
+                        _comingSoon(context);
+                      },
                       icon: const Icon(Icons.delete_forever),
-                      label: const Text('Delete Account'),
+                      label: Text(l10n.tr('settings.deleteAccount')),
                     ),
                   ),
                 ],
@@ -225,7 +243,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   void _comingSoon(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('This feature is still being built.')),
+      SnackBar(content: Text(context.l10n.tr('common.comingSoon'))),
     );
   }
 }

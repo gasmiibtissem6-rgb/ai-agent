@@ -10,6 +10,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   cupertino_icons: ^1.0.8
 
   # Environment
@@ -36,6 +38,13 @@ dependencies:
 
   # Image display
   cached_network_image: ^3.4.1
+
+  # QR code generation (profile + deal QR) and camera scanning (scan a profile)
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^6.0.2
+
+  # Web interop (browser download shim in lib/shared/file_saver_web.dart)
+  web: ^1.1.1
 
   # Utilities
   logger: ^2.6.2

@@ -27,32 +27,45 @@ class KycSubmission {
     this.reviewedAt,
   });
 
-  factory KycSubmission.fromJson(Map<String, dynamic> json) {
+  /// Parses GET /kyc/me/status (`{ status, submittedAt, reviewedAt,
+  /// rejectionReason }`). The status endpoint does not echo document paths.
+  factory KycSubmission.fromStatus(Map<String, dynamic> json) {
     return KycSubmission(
-      id: json['id'] as String?,
-      userId: json['user_id'] as String,
-      documentType: _parseDocumentType(json['document_type'] as String?),
-      status: _parseStatus(json['status'] as String?),
-      frontUrl: json['front_url'] as String?,
-      backUrl: json['back_url'] as String?,
-      selfieUrl: json['selfie_url'] as String?,
-      rejectionReason: json['rejection_reason'] as String?,
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'] as String)
-          : null,
-      reviewedAt: json['reviewed_at'] != null
-          ? DateTime.parse(json['reviewed_at'] as String)
-          : null,
+      userId: '',
+      documentType: KycDocumentType.nationalId,
+      status: statusFromWire(json['status'] as String?),
+      rejectionReason: json['rejectionReason'] as String?,
+      createdAt: _parseDate(json['submittedAt']),
+      reviewedAt: _parseDate(json['reviewedAt']),
     );
   }
 
-  static KycStatus _parseStatus(String? status) {
+  /// Parses the KycSubmission row returned by POST /kyc/submit.
+  factory KycSubmission.fromSubmitResponse(Map<String, dynamic> json) {
+    return KycSubmission(
+      id: json['id'] as String?,
+      userId: json['profileId'] as String? ?? '',
+      documentType: _parseDocumentType(json['documentType'] as String?),
+      status: statusFromWire(json['status'] as String?),
+      rejectionReason: json['rejectionReason'] as String?,
+      createdAt: _parseDate(json['submittedAt'] ?? json['createdAt']),
+      reviewedAt: _parseDate(json['reviewedAt']),
+    );
+  }
+
+  static DateTime? _parseDate(dynamic value) =>
+      value is String && value.isNotEmpty ? DateTime.tryParse(value) : null;
+
+  /// Maps the backend `KycStatus` enum onto the app's coarse status.
+  static KycStatus statusFromWire(String? status) {
     switch (status) {
-      case 'pending':
+      case 'SUBMITTED':
+      case 'UNDER_REVIEW':
         return KycStatus.pending;
-      case 'approved':
+      case 'APPROVED':
         return KycStatus.approved;
-      case 'rejected':
+      case 'REJECTED':
+      case 'RESUBMISSION_REQUIRED':
         return KycStatus.rejected;
       default:
         return KycStatus.notSubmitted;

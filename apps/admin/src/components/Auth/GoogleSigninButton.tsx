@@ -18,9 +18,10 @@ export default function GoogleSigninButton({ text }: { text: string }) {
       //   provider: "google",
       //   callbackURL: callbackUrl || "/",
       // });
+      void callbackUrl;
       await new Promise((resolve) => setTimeout(resolve, 1000));
       toast.info(`${text} with Google - Pending NestJS API integration`);
-    } catch (error) {
+    } catch {
       toast.error(`Failed to ${text?.toLowerCase()} with Google`);
     } finally {
       setLoading(false);

@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { AiProvider, AiChatRequest, AiChatResponse } from './ai-provider.interface';
+import {
+  AiProvider,
+  AiChatRequest,
+  AiChatResponse,
+} from './ai-provider.interface';
 
 @Injectable()
 export class GeminiAiProvider implements AiProvider {
@@ -30,7 +34,10 @@ export class GeminiAiProvider implements AiProvider {
       return { reply, provider: 'anthropic:claude-haiku-4-5' };
     } catch (err: any) {
       console.error('[AI] Anthropic error:', err.message);
-      return { reply: 'Service IA indisponible. Réessayez dans un moment.', provider: 'none' };
+      return {
+        reply: 'Service IA indisponible. Réessayez dans un moment.',
+        provider: 'none',
+      };
     }
   }
 }
