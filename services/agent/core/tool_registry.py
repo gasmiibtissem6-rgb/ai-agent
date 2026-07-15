@@ -11,6 +11,11 @@ from tools.summarize_contract import summarize_contract
 from tools.legal_analysis import analyze_legal_risks
 from tools.compare_saved_contracts import compare_saved_contracts
 
+from core.rag_service import (
+    index_contract_in_rag,
+    search_contract_knowledge,
+)
+
 
 TOOLS = {}
 
@@ -54,16 +59,24 @@ def tool_list_contracts(**kwargs):
 
     return {
         "count": len(contracts),
-        "contracts": [contract_to_dict(c) for c in contracts],
+        "contracts": [
+            contract_to_dict(contract)
+            for contract in contracts
+        ],
     }
 
 
 @register_tool("get_contract")
-def tool_get_contract(contract_id: int, **kwargs):
+def tool_get_contract(
+    contract_id: int,
+    **kwargs,
+):
     contract = get_contract_by_id(contract_id)
 
     if not contract:
-        return {"error": "Contrat introuvable"}
+        return {
+            "error": "Contrat introuvable"
+        }
 
     return contract_to_dict(contract)
 
@@ -75,29 +88,44 @@ def tool_search_contracts(**kwargs):
     return {
         "filters": kwargs,
         "count": len(results),
-        "contracts": [contract_to_dict(c) for c in results],
+        "contracts": [
+            contract_to_dict(contract)
+            for contract in results
+        ],
     }
 
 
 @register_tool("update_contract")
-def tool_update_contract(contract_id: int, **kwargs):
+def tool_update_contract(
+    contract_id: int,
+    **kwargs,
+):
     updated = update_contract_by_id(
         contract_id=contract_id,
         data=kwargs,
     )
 
     if not updated:
-        return {"error": "Contrat introuvable"}
+        return {
+            "error": "Contrat introuvable"
+        }
 
     return contract_to_dict(updated)
 
 
 @register_tool("delete_contract")
-def tool_delete_contract(contract_id: int, **kwargs):
-    deleted = delete_contract_by_id(contract_id)
+def tool_delete_contract(
+    contract_id: int,
+    **kwargs,
+):
+    deleted = delete_contract_by_id(
+        contract_id
+    )
 
     if not deleted:
-        return {"error": "Contrat introuvable"}
+        return {
+            "error": "Contrat introuvable"
+        }
 
     return {
         "status": "deleted",
@@ -106,23 +134,41 @@ def tool_delete_contract(contract_id: int, **kwargs):
 
 
 @register_tool("summarize_contract")
-def tool_summarize_contract(contract_id: int, **kwargs):
-    contract = get_contract_by_id(contract_id)
+def tool_summarize_contract(
+    contract_id: int,
+    **kwargs,
+):
+    contract = get_contract_by_id(
+        contract_id
+    )
 
     if not contract:
-        return {"error": "Contrat introuvable"}
+        return {
+            "error": "Contrat introuvable"
+        }
 
-    return summarize_contract(contract)
+    return summarize_contract(
+        contract
+    )
 
 
 @register_tool("analyze_contract")
-def tool_analyze_contract(contract_id: int, **kwargs):
-    contract = get_contract_by_id(contract_id)
+def tool_analyze_contract(
+    contract_id: int,
+    **kwargs,
+):
+    contract = get_contract_by_id(
+        contract_id
+    )
 
     if not contract:
-        return {"error": "Contrat introuvable"}
+        return {
+            "error": "Contrat introuvable"
+        }
 
-    return analyze_legal_risks(contract)
+    return analyze_legal_risks(
+        contract
+    )
 
 
 @register_tool("compare_contracts")
@@ -131,11 +177,51 @@ def tool_compare_contracts(
     contract_id_2: int,
     **kwargs,
 ):
-    contract_1 = get_contract_by_id(contract_id_1)
-    contract_2 = get_contract_by_id(contract_id_2)
+    contract_1 = get_contract_by_id(
+        contract_id_1
+    )
+
+    contract_2 = get_contract_by_id(
+        contract_id_2
+    )
 
     if not contract_1 or not contract_2:
-        return {"error": "Un des contrats est introuvable"}
+        return {
+            "error": (
+                "Un des contrats est introuvable"
+            )
+        }
 
-    return compare_saved_contracts(contract_1, contract_2)
+    return compare_saved_contracts(
+        contract_1,
+        contract_2,
+    )
+
+
+@register_tool("index_contract_rag")
+def tool_index_contract_rag(
+    contract_id: int,
+    **kwargs,
+):
+    return index_contract_in_rag(
+        contract_id=contract_id,
+    )
+
+
+@register_tool("search_contract_rag")
+def tool_search_contract_rag(
+    query: str,
+    n_results: int = 8,
+    contract_id: int | None = None,
+    max_distance: float = 0.70,
+    top_k: int = 3,
+    **kwargs,
+):
+    return search_contract_knowledge(
+        query=query,
+        n_results=n_results,
+        contract_id=contract_id,
+        max_distance=max_distance,
+        top_k=top_k,
+    )
 

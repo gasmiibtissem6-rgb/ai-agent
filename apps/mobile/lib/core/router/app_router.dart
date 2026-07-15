@@ -22,7 +22,6 @@ import '../../features/kyc/presentation/kyc_upload_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/chat/presentation/chat_screen.dart';
-import '../../features/documents/presentation/documents_screen.dart';
 
 class AppRoutes {
   const AppRoutes._();
@@ -191,10 +190,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.chat,
         pageBuilder: (context, state) =>
             _flowPage(state, const ChatScreen()),
-      ),
-      GoRoute(
-        path: '/documents',
-        builder: (context, state) => const DocumentsScreen(),
       ),
       GoRoute(
         path: AppRoutes.myContracts,
