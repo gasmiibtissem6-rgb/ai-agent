@@ -188,23 +188,39 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
   bool _busy = false;
 
   Future<void> _togglePublic(bool value) async {
-    setState(() => _busy = true);
-    final error = await ref
+    setState(() {
+      _busy = true;
+    });
+
+    final success = await ref
         .read(authProvider.notifier)
         .updateProfile(isPublic: value);
-    if (!mounted) return;
-    setState(() => _busy = false);
-    if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error), backgroundColor: AppColors.error),
-      );
+
+    if (!mounted) {
+      return;
     }
+
+    setState(() {
+      _busy = false;
+    });
+
+    if (!success) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: const Text('Failed to update profile'),
+      backgroundColor: AppColors.error,
+    ),
+  );
+
+  return;
+}
   }
 
   Future<void> _scanProfile() async {
     final payload = await Navigator.of(context).push<String>(
       MaterialPageRoute(
-        builder: (_) => QrScanScreen(title: context.l10n.tr('home.scanProfileTitle')),
+        builder: (_) =>
+            QrScanScreen(title: context.l10n.tr('home.scanProfileTitle')),
       ),
     );
     if (payload == null || !mounted) return;
@@ -825,7 +841,10 @@ class _RecentDealTile extends StatelessWidget {
                 ],
               ),
             ),
-            StatusPill(label: dealStatusLabel(context, deal.status), color: color),
+            StatusPill(
+              label: dealStatusLabel(context, deal.status),
+              color: color,
+            ),
           ],
         ),
       ),

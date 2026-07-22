@@ -1,46 +1,96 @@
-import { Injectable } from '@nestjs/common';
-import { MockAiProvider } from './providers/mock-ai.provider';
-import { ClaudeAiProvider } from './providers/claude-ai.provider';
-import { GeminiAiProvider } from './providers/gemini-ai.provider';
-import { AiProvider } from './providers/ai-provider.interface';
 import {
-  detectChatMode,
-  FAQ_SYSTEM_PROMPT,
-  CONTRACT_SYSTEM_PROMPT,
-  ANALYZE_SYSTEM_PROMPT,
-} from './chat.types';
+  BadGatewayException,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
+
+import { detectChatMode } from './chat.types';
 
 @Injectable()
 export class ChatService {
-  private provider: AiProvider;
+  private readonly logger = new Logger(ChatService.name);
 
   constructor(
-    private readonly mockProvider: MockAiProvider,
-    private readonly claudeProvider: ClaudeAiProvider,
-    private readonly geminiProvider: GeminiAiProvider,
-  ) {
-    this.provider = this.claudeProvider;
-  }
+    private readonly httpService: HttpService,
+  ) {}
 
   async sendMessage(dto: {
     message: string;
     history?: any[];
-    userId?: string;
+    userId?: string | number;
+    sessionId?: string;
     image?: string;
   }) {
-    const mode = detectChatMode(dto.message, dto.history);
-    const systemPrompt =
-      mode === 'contract'
-        ? CONTRACT_SYSTEM_PROMPT
-        : mode === 'analyze'
-          ? ANALYZE_SYSTEM_PROMPT
-          : FAQ_SYSTEM_PROMPT;
-    const result = await this.provider.chat({
-      message: dto.message,
-      history: dto.history ?? [],
-      systemPrompt,
-      image: dto.image,
-    });
-    return { ...result, mode, userId: dto.userId ?? 'test-user' };
+    const mode = detectChatMode(
+      dto.message,
+      dto.history,
+    );
+
+    const parsedUserId = Number(dto.userId ?? 123);
+
+    const userId = Number.isNaN(parsedUserId)
+      ? 123
+      : parsedUserId;
+
+    const sessionId =
+      dto.sessionId?.trim() || `user-${userId}`;
+
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(
+          'http://127.0.0.1:8000/langgraph-agent',
+          {
+            message: dto.message,
+            user_id: userId,
+            session_id: sessionId,
+          },
+        ),
+      );
+
+      this.logger.log(
+        `Réponse FastAPI : ${JSON.stringify(response.data)}`,
+      );
+
+      const answer =
+        response.data.final_answer ??
+        response.data.answer ??
+        response.data.response ??
+        response.data.message ??
+        response.data.result?.next_question ??
+        'Aucune réponse générée par l’agent.';
+
+      return {
+        answer,
+        mode,
+        userId,
+        sessionId,
+        agent: response.data.agent,
+        agentMode: response.data.mode,
+        plan: response.data.plan,
+        result: response.data.result,
+        observations:
+          response.data.observations ?? [],
+        metrics:
+          response.data.metrics ?? {},
+      };
+    } catch (error: any) {
+      const details =
+        error?.response?.data ??
+        error?.message ??
+        'Erreur inconnue';
+
+      this.logger.error(
+        'Erreur FastAPI',
+        JSON.stringify(details),
+      );
+
+      throw new BadGatewayException({
+        message:
+          'Impossible de communiquer avec l’agent IA.',
+        details,
+      });
+    }
   }
 }

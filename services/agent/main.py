@@ -1,3 +1,8 @@
+
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+from agent_router import AgentRouter
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import FileResponse
 import os
@@ -46,9 +51,11 @@ from pydantic import BaseModel
 
 from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI(
-    title="IDEAL AI Contract Agent",
+    title="IDEAL AI Agent API",
     version="1.0.0",
 )
+
+agent_router = AgentRouter()
 
 app.add_middleware(
     CORSMiddleware,
@@ -62,8 +69,9 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 class ChatRequest(BaseModel):
-    role: str
     message: str
+    task: str = "agent"
+    system: str | None = None
 
 
 class ConversationRequest(BaseModel):
@@ -520,3 +528,24 @@ def search_contract_rag_endpoint(
         max_distance=request.max_distance,
         top_k=request.top_k,
     )   
+
+@app.get("/health")
+async def health():
+    return {
+        "status": "ok",
+        "providers": agent_router.available_providers(),
+    }
+
+
+@app.post("/agent/chat")
+async def chat(request: ChatRequest):
+    result = await agent_router.run(
+        task=request.task,
+        prompt=request.message,
+        system=request.system,
+    )
+
+    return {
+        "answer": result["response"],
+        "provider": result["provider"],
+    }

@@ -1,14 +1,28 @@
-import { IsString, IsArray, IsOptional } from 'class-validator';
+import {
+  IsArray,
+  IsOptional,
+  IsString,
+  MaxLength,
+} from 'class-validator';
 
 export class ChatMessageDto {
   @IsString()
-  message: string;
+  @MaxLength(10000)
+  message!: string;
 
+  @IsOptional()
   @IsArray()
-  @IsOptional()
-  history?: { role: string; content: string }[];
+  history?: Array<{
+    role: string;
+    content: string;
+  }>;
 
-  @IsString()
   @IsOptional()
+  @IsString()
+  sessionId?: string;
+
+  @IsOptional()
+  @IsString()
   image?: string;
+  
 }

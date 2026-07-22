@@ -1,7 +1,7 @@
 import os
 from typing import Optional
 from dotenv import load_dotenv
-from mistralai import Mistral
+from mistralai.client import Mistral
 from providers.base import BaseProvider
 
 load_dotenv()

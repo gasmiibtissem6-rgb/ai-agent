@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { HttpModule } from '@nestjs/axios';
+
 import { ChatController } from './chat.controller';
 import { ChatService } from './chat.service';
 import { MockAiProvider } from './providers/mock-ai.provider';
@@ -9,7 +11,19 @@ import { PdfController } from './pdf.controller';
 import { OcrController } from './ocr.controller';
 
 @Module({
-  controllers: [ChatController, PdfController, OcrController],
+  imports: [
+    HttpModule.register({
+      timeout: 120000,
+      maxRedirects: 3,
+    }),
+  ],
+
+  controllers: [
+    ChatController,
+    PdfController,
+    OcrController,
+  ],
+
   providers: [
     ChatService,
     MockAiProvider,
