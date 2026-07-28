@@ -26,14 +26,14 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   @override
   void initState() {
     super.initState();
-    final profile = ref
-        .read(authProvider)
-        .whenOrNull(data: (s) => s.profile);
+    final profile = ref.read(authProvider).whenOrNull(data: (s) => s.profile);
     _displayNameController = TextEditingController(
       text: profile?.displayName ?? '',
     );
     _usernameController = TextEditingController(text: profile?.username ?? '');
-    _avatarUrlController = TextEditingController(text: profile?.avatarUrl ?? '');
+    _avatarUrlController = TextEditingController(
+      text: profile?.avatarUrl ?? '',
+    );
   }
 
   @override
@@ -45,25 +45,42 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
   }
 
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
-    setState(() => _isSaving = true);
+    setState(() {
+      _isSaving = true;
+    });
+
     final avatarUrl = _avatarUrlController.text.trim();
     final username = _usernameController.text.trim();
-    final error = await ref
+    final displayName = _displayNameController.text.trim();
+
+    final success = await ref
         .read(authProvider.notifier)
         .updateProfile(
-          displayName: _displayNameController.text.trim(),
+          displayName: displayName,
           username: username.isEmpty ? null : username,
           avatarUrl: avatarUrl.isEmpty ? null : avatarUrl,
         );
-    if (!mounted) return;
-    setState(() => _isSaving = false);
 
-    if (error != null) {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isSaving = false;
+    });
+
+    if (!success) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error), backgroundColor: AppColors.error),
+        SnackBar(
+          content: const Text('Failed to update profile'),
+          backgroundColor: AppColors.error,
+        ),
       );
+
       return;
     }
 
@@ -73,6 +90,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
         backgroundColor: AppColors.success,
       ),
     );
+
     context.go(AppRoutes.home);
   }
 
@@ -119,8 +137,7 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                             Center(
                               child: _AvatarPreview(
                                 url: _avatarUrlController.text.trim(),
-                                fallback:
-                                    profile?.displayNameOrEmail ?? '?',
+                                fallback: profile?.displayNameOrEmail ?? '?',
                               ),
                             ),
                             const SizedBox(height: 24),
@@ -129,8 +146,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                               controller: _displayNameController,
                               textInputAction: TextInputAction.next,
                               decoration: InputDecoration(
-                                hintText:
-                                    context.l10n.tr('profile.displayNameHint'),
+                                hintText: context.l10n.tr(
+                                  'profile.displayNameHint',
+                                ),
                                 prefixIcon: const Icon(Icons.person_outline),
                               ),
                               validator: (v) => Validators.fullName(context, v),
@@ -141,10 +159,13 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                               controller: _usernameController,
                               textInputAction: TextInputAction.next,
                               decoration: InputDecoration(
-                                hintText: context.l10n.tr('profile.usernameHint'),
+                                hintText: context.l10n.tr(
+                                  'profile.usernameHint',
+                                ),
                                 prefixIcon: const Icon(Icons.alternate_email),
-                                helperText:
-                                    context.l10n.tr('profile.usernameHelper'),
+                                helperText: context.l10n.tr(
+                                  'profile.usernameHelper',
+                                ),
                               ),
                               validator: _validateUsername,
                             ),
@@ -168,15 +189,17 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                               enabled: false,
                               decoration: InputDecoration(
                                 prefixIcon: const Icon(Icons.alternate_email),
-                                helperText:
-                                    context.l10n.tr('profile.emailHelper'),
+                                helperText: context.l10n.tr(
+                                  'profile.emailHelper',
+                                ),
                               ),
                             ),
                             const SizedBox(height: 18),
                             _ReadOnlyRow(
                               icon: Icons.verified_user_outlined,
-                              label: context.l10n
-                                  .tr('profile.identityVerification'),
+                              label: context.l10n.tr(
+                                'profile.identityVerification',
+                              ),
                               value: _kycLabel(context, profile?.kycStatus),
                             ),
                             const SizedBox(height: 26),
@@ -187,7 +210,9 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                                     onPressed: _isSaving
                                         ? null
                                         : () => context.go(AppRoutes.home),
-                                    child: Text(context.l10n.tr('common.cancel')),
+                                    child: Text(
+                                      context.l10n.tr('common.cancel'),
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -203,8 +228,11 @@ class _EditProfileScreenState extends ConsumerState<EditProfileScreen> {
                                               color: Colors.white,
                                             ),
                                           )
-                                        : Text(context.l10n
-                                            .tr('profile.saveChanges')),
+                                        : Text(
+                                            context.l10n.tr(
+                                              'profile.saveChanges',
+                                            ),
+                                          ),
                                   ),
                                 ),
                               ],

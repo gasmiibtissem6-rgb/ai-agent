@@ -79,3 +79,5 @@ yarn-error.log*
 *.out
 *.synctex.gz
 *.toc
+__pycache__/
+*.pyc

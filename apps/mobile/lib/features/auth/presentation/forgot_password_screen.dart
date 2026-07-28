@@ -119,7 +119,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                 hintText: 'you@example.com',
                 prefixIcon: Icon(Icons.email_outlined),
               ),
-              validator: Validators.email,
+              validator: (value) => Validators.email(context, value),
             ),
             const SizedBox(height: 24),
             SizedBox(

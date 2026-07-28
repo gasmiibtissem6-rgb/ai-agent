@@ -419,11 +419,19 @@ export class PdfService {
             'base64',
           );
 
-          doc.image(signatureBuffer, {
-            fit: [180, 80],
-            align: 'left',
-            valign: 'center',
-          });
+          const signatureX = 50;
+          const signatureY = doc.y;
+
+          doc.image(
+            signatureBuffer,
+            signatureX,
+            signatureY,
+            {
+              fit: [180, 80],
+            },
+          );
+
+          doc.y = signatureY + 90;
         } catch (error) {
           console.error(
             'Erreur pendant l’ajout de la signature :',

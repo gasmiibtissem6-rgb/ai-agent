@@ -148,7 +148,7 @@ class _LoggingInterceptor extends Interceptor {
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    _logger.d('[API] ${options.method} ${options.path}');
+    _logger.d('[API] ${options.method} ${options.uri}');
     handler.next(options);
   }
 
@@ -161,8 +161,7 @@ class _LoggingInterceptor extends Interceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
     _logger.e(
-      '[API] Error ${err.response?.statusCode} ${err.requestOptions.path}',
-    );
+'[API] Error ${err.response?.statusCode} ${err.requestOptions.uri}'    );
     handler.next(err);
   }
 }
@@ -177,12 +176,12 @@ class _RefreshInterceptor extends Interceptor {
 
   // Public auth endpoints whose 401 means "bad credentials", NOT "expired
   // session" — they must never trigger a refresh attempt.
-  static const _noRefreshPaths = [
-    '/auth/login',
-    '/auth/register',
-    '/auth/refresh',
-    '/auth/forgot-password',
-  ];
+ static const _noRefreshPaths = [
+  'auth/login',
+  'auth/register',
+  'auth/refresh',
+  'auth/forgot-password',
+];
 
   // Single-flight guard so concurrent 401s trigger only one refresh call.
   Future<bool>? _inFlightRefresh;
@@ -236,7 +235,7 @@ class _RefreshInterceptor extends Interceptor {
         ),
       );
       final response = await bareDio.post(
-        '/auth/refresh',
+  'auth/refresh',
         data: {'refresh_token': refreshToken},
       );
       final data = (response.data as Map)['data'] as Map<String, dynamic>;
